@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Playfair Display", Georgia, serif;
+
+  --color-elegant-bg: #07080b;
+  --color-elegant-card: #0f1118;
+  --color-elegant-card-hover: #161922;
+  --color-elegant-border: rgba(197, 168, 128, 0.15);
+  --color-elegant-border-light: rgba(197, 168, 128, 0.08);
+  --color-elegant-gold: #c5a880;
+  --color-elegant-gold-dark: #a1855e;
+  --color-elegant-gold-light: #e6d8c4;
+  --color-elegant-accent: #10b981;
+}
+
+/* Custom scrollbar settings to hide scrollbar noise inside smartphone device mockup */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(197, 168, 128, 0.15);
+  border-radius: 99px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(197, 168, 128, 0.35);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}

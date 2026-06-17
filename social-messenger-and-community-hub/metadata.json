@@ -1,0 +1,6 @@
+{
+  "name": "Social Messenger and Community Hub",
+  "description": "A premium Android-first interactive communication experience blending Chat, Feed, Emergency Action and Verified Help, inspired by WhatsApp, Telegram and Discord.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
