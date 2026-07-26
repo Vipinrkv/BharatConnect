@@ -4,18 +4,31 @@ BharatConnect is an ultra-fast, secure, reliable, and scalable text messaging pl
 
 ---
 
-## 🏗️ Architecture & Folder Separation
+## ⚡ Single-Command System Initiation
 
-The platform follows a decoupled, modular architecture where responsibilities are separated across dedicated folders, with **`api/`** serving as the central connection hub:
+You can launch the **entire platform** (Database Engine, Backend REST Server, WebSocket Gateway, and React Frontend App) with **one single command** from the project root:
+
+```bash
+npm start
+```
+
+When you run `npm start`:
+1. 🟦 **Backend & API Engine** starts on `http://localhost:5000` (`/api/v1` REST + `ws://localhost:5000` WebSockets).
+2. 🟪 **Frontend Web App** starts concurrently on `http://localhost:5173`.
+3. Terminal displays color-coded logs for both processes simultaneously!
+
+---
+
+## 🏗️ Architecture & Folder Separation
 
 ```
 BharatConnect/
-├── index.js          # Root Master Initiator (Boots DB, Backend, and API Gateway)
-├── package.json      # Root NPM script launcher
-├── api/              # Central Connection Bridge: REST Routes & WebSocket Event Dispatchers
-├── backend/          # Core Business Services (ChatService) & WebSocket Gateway Engine
-├── database/         # Database Layer: DDL Schemas (SQL) & Abstract Data Engine (db.js)
-├── docs/             # Product Requirements, System Architecture, and Schemas
+├── index.js          # Root System Master Initiator (Boots DB Engine, Backend, & API Router)
+├── package.json      # Root NPM single-command launcher (`npm start`)
+├── api/              # Central Connection Hub: REST Routes (routes.js) & WebSocket Events Router (events.js)
+├── backend/          # Core Business Services (chatService.js) & Realtime Gateway (wsGateway.js)
+├── database/         # Database Layer: DDL Schemas (schema.sql) & Storage Model Engine (db.js)
+├── docs/             # Product Requirements, System Architecture, & Schemas Specs
 └── frontend/         # React (Vite) Web Application with Glassmorphism UI
 ```
 
@@ -23,45 +36,21 @@ BharatConnect/
 
 ## 🔌 Inter-Folder Connection Architecture
 
-```mermaid
-graph TD
-    Frontend["frontend/ (React App)"] <-->|HTTP / WS| API["api/ (Routes & Events Router)"]
-    API <-->|Service Calls| Backend["backend/ (ChatService & wsGateway)"]
-    Backend <-->|Queries & Persistence| Database["database/ (SQL Schema & db.js)"]
-    Docs["docs/"] --- SystemSpec["Architecture & System Design Specs"]
+```
+[ frontend/ (React UI) ] ── (HTTP / WebSocket) ──> [ api/ Router & Connection Bridge ]
+                                                         │
+                                       ┌─────────────────┴─────────────────┐
+                                       ▼                                   ▼
+                          [ backend/ Services ]                  [ database/ Engine ]
 ```
 
-- **`frontend/`**: Contains all UI components and client WebSocket handlers.
-- **`api/`**: Acts as the central bridge/connector linking HTTP/WS network requests to backend business services and database queries.
-- **`backend/`**: Contains core business logic (`chatService.js`) and real-time socket gateway (`wsGateway.js`).
-- **`database/`**: Contains database schemas (`schema.sql`) and data storage model engine (`db.js`).
-- **`docs/`**: Contains architecture blueprints and product requirement specifications.
-
----
-
-## 🚀 Quick Start Guide (Single Command Initiation)
-
-### Initiating Everything from Root
-To initiate the entire system with a single command from the project root:
-
-```bash
-npm start
-# or
-node index.js
-```
-
-This single command initializes:
-1. Database Engine & pre-configured accounts.
-2. Backend Business Logic & WebSocket Gateway Engine.
-3. Unified API Gateway listening on `http://localhost:5000` (`/api/v1` REST + `ws://localhost:5000`).
-
-### Running the Frontend App
-In a separate terminal window:
-```bash
-cd frontend
-npm run dev
-```
-Open `http://localhost:5173` to test live multi-user messaging!
+- **`frontend/`**: Sends HTTP REST requests (`/api/v1`) and opens WebSocket connections (`ws://localhost:5000`).
+- **`api/` (Central Connection Bridge)**:
+  - `api/routes.js`: Translates HTTP REST calls into `backend/services/chatService.js` invocations.
+  - `api/events.js`: Dispatches real-time WebSocket frames (`message.send`, `typing.start`, `message.read`) to backend services and `backend/wsGateway.js`.
+  - `api/index.js`: Assembles Express, mounts REST routes, attaches WebSocket handlers, and exports `createApiServer()`.
+- **`backend/`**: Contains core business logic (`backend/services/chatService.js`) and real-time socket gateway (`backend/wsGateway.js`).
+- **`database/`**: Contains database schemas (`database/schema.sql`) and data storage model engine (`database/db.js`).
 
 ---
 

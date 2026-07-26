@@ -4,13 +4,16 @@
   "description": "BharatConnect - Modern Production Text Messaging Platform Root Launcher",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev:backend": "node index.js",
-    "dev:frontend": "cd frontend && npm run dev"
+    "start": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue.bold,magenta.bold\" \"node index.js\" \"cd frontend && npm run dev\"",
+    "start:backend": "node index.js",
+    "start:frontend": "cd frontend && npm run dev"
   },
   "dependencies": {
-    "cors": "^2.8.6",
-    "express": "^4.22.2",
-    "ws": "^8.21.1"
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }
