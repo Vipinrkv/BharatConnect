@@ -1,0 +1,16 @@
+{
+  "name": "bharatconnect-root",
+  "version": "1.0.0",
+  "description": "BharatConnect - Modern Production Text Messaging Platform Root Launcher",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev:backend": "node index.js",
+    "dev:frontend": "cd frontend && npm run dev"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.22.2",
+    "ws": "^8.21.1"
+  }
+}
