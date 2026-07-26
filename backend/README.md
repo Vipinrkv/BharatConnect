@@ -1,37 +1,37 @@
 # BharatConnect Backend Engine
 
-The **`backend/`** directory contains the core business logic, permissions enforcement, and real-time WebSocket connection gateway for BharatConnect.
+The **`backend/`** directory contains the core business logic, real-time WebSocket Gateway, and permission validation services for BharatConnect.
 
 ---
 
-## 🏗️ Architecture & Modules
+## 🛠️ Modules & File Responsibilities
 
 ```
 backend/
 ├── services/
-│   └── chatService.js    # Business logic service (message sequence numbering, permissions, user search)
-├── wsGateway.js          # WebSocket Realtime Gateway (connection session map & broadcasting engine)
-├── server.js             # Backend server runner (imports unified API assembly from ../api)
-└── package.json          # Backend dependencies
+│   └── chatService.js    # Business logic service (message sequencing, user search, permissions)
+├── wsGateway.js          # Realtime WebSocket session gateway & broadcasting engine
+├── server.js             # Standalone backend launcher (imports createApiServer from ../api)
+└── package.json          # Backend Node dependencies (express, cors, ws)
 ```
 
 ---
 
 ## 🔌 Connection Flow
 
-- **Receives Calls From**: `api/routes.js` and `api/events.js`.
-- **Sends Data To**: `database/db.js` for persistent storage and retrieval.
-- **Emits Realtime Events To**: Frontend clients via `wsGateway.js`.
+- **Receives Events From**: `api/routes.js` and `api/events.js`.
+- **Interacts With**: `database/db.js` for data persistence.
+- **Broadcasts To**: Connected WebSocket client sockets via `wsGateway.js`.
 
 ---
 
-## 🚀 Running Backend Separately
+## 🚀 Independent Execution
 
-While the entire system can be initiated with `node index.js` from root, the backend server can also be launched directly:
+While `npm start` in the root folder launches the full stack concurrently, you can also run the backend independently:
 
 ```bash
 cd backend
 npm start
 ```
-- **REST Base**: `http://localhost:5000/api/v1`
-- **WebSocket Gateway**: `ws://localhost:5000`
+- REST API Base: `http://localhost:5000/api/v1`
+- WebSocket Gateway: `ws://localhost:5000`

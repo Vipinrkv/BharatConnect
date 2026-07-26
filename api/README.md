@@ -1,22 +1,22 @@
-# BharatConnect API Router & Connection Hub
+# BharatConnect API Connection Bridge
 
-The **`api/`** directory serves as the **central connection hub** linking all components of the system (`frontend/`, `backend/`, and `database/`).
+The **`api/`** directory acts as the central connection hub linking all layers of the application (`frontend/`, `backend/`, and `database/`).
 
 ---
 
-## 🔌 Connection Bridge Responsibilities
+## 🔌 Connection Bridge Architecture
 
 ```
-[ Frontend (Client) ] ── (HTTP / WebSocket) ──> [ api/ Router ]
+[ Frontend Client ] ── (HTTP / WebSockets) ──> [ api/ Router ]
                                                      │
                                    ┌─────────────────┴─────────────────┐
                                    ▼                                   ▼
                       [ backend/ Services ]                  [ database/ Engine ]
 ```
 
-1. **`api/index.js`**: Assembly point that initializes Express, mounts REST routes, attaches WebSocket event handlers, and exports `createApiServer()`.
-2. **`api/routes.js`**: Express REST router translating HTTP endpoints (`/api/v1/auth`, `/api/v1/users`, `/api/v1/chats`, `/api/v1/messages`) to calls on `backend/services/chatService.js`.
-3. **`api/events.js`**: WebSocket event dispatcher translating real-time socket events (`auth`, `message.send`, `typing.start`, `message.read`) to backend service logic and `wsGateway` broadcasting.
+1. **`api/index.js`**: Central API Server builder exporting `createApiServer(port)`.
+2. **`api/routes.js`**: Express REST Router mapping HTTP endpoints to `backend/services/chatService.js`.
+3. **`api/events.js`**: WebSocket Event Router mapping socket actions to `backend/services/chatService.js` and `backend/wsGateway.js` broadcasting.
 
 ---
 
@@ -24,7 +24,7 @@ The **`api/`** directory serves as the **central connection hub** linking all co
 
 Base URL: `http://localhost:5000/api/v1`
 
-| Category | Endpoint | Method | Connected Backend Service Method |
+| Category | Endpoint | Method | Connected Backend Method |
 | :--- | :--- | :--- | :--- |
 | **Auth** | `/auth/login` | `POST` | `chatService.authenticateUser()` |
 | **Users** | `/users/me` | `GET` | `chatService.getCurrentUser()` |
@@ -36,13 +36,13 @@ Base URL: `http://localhost:5000/api/v1`
 
 ---
 
-## ⚡ WebSocket Gateway Event Specifications
+## ⚡ Real-Time WebSocket Protocol
 
 Gateway URL: `ws://localhost:5000`
 
-- `auth`: Client socket authentication & presence initialization.
-- `message.send`: Client message submission -> assigns `seq_id`, saves to `database/db.js`, emits `message.ack` & broadcasts `message.receive`.
-- `message.edit`: Edits message content & broadcasts `message.updated`.
-- `message.delete`: Deletes message (for me/everyone) & broadcasts `message.updated`.
-- `typing.start` / `typing.stop`: Broadcasts typing indicators.
-- `message.read`: Marks messages read & broadcasts blue tick receipts.
+- `auth`: Registers user socket and updates presence to `ONLINE`.
+- `message.send`: Generates `seq_id`, persists to DB, sends ACK to sender, broadcasts `message.receive` to room.
+- `message.edit`: Updates message text and broadcasts `message.updated`.
+- `message.delete`: Soft-deletes message and broadcasts `message.updated`.
+- `typing.start` / `typing.stop`: Broadcasts live typing state to room.
+- `message.read`: Marks messages as read and broadcasts blue tick receipts.

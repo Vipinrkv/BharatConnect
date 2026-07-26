@@ -9,11 +9,11 @@
     "start:frontend": "cd frontend && npm run dev"
   },
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "ws": "^8.18.0"
+    "cors": "^2.8.6",
+    "express": "^4.22.2",
+    "ws": "^8.21.1"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^10.0.4"
   }
 }

@@ -1,25 +1,33 @@
 # BharatConnect 🇮🇳 — Modern Production Text Messaging Platform
 
-BharatConnect is an ultra-fast, secure, reliable, and scalable text messaging platform built from first principles for high-throughput, low-latency text communication across mobile and desktop devices.
+![Node.js](https://img.shields.io/badge/Node.js-v18%2B-green?logo=node.js)
+![React](https://img.shields.io/badge/React-v18.3-blue?logo=react)
+![Vite](https://img.shields.io/badge/Vite-v8.1-646CFF?logo=vite)
+![WebSocket](https://img.shields.io/badge/WebSocket-Gateway-purple)
+![License](https://img.shields.io/badge/License-MIT-orange)
+
+**BharatConnect** is an ultra-fast, secure, reliable, and scalable text messaging platform built from first principles for high-throughput, sub-50ms text communication across mobile and desktop devices.
 
 ---
 
 ## ⚡ Single-Command System Initiation
 
-You can launch the **entire platform** (Database Engine, Backend REST Server, WebSocket Gateway, and React Frontend App) with **one single command** from the project root:
+You can launch the **entire platform** (Database Storage Engine, Backend Server, API Gateway, Realtime WebSocket Gateway, and React Web App) with a **single command** from the root folder:
 
 ```bash
 npm start
 ```
 
 When you run `npm start`:
-1. 🟦 **Backend & API Engine** starts on `http://localhost:5000` (`/api/v1` REST + `ws://localhost:5000` WebSockets).
-2. 🟪 **Frontend Web App** starts concurrently on `http://localhost:5173`.
-3. Terminal displays color-coded logs for both processes simultaneously!
+- 🟦 **Backend & API Engine** starts on `http://localhost:5000` (`/api/v1` REST + `ws://localhost:5000` WebSockets).
+- 🟪 **React Frontend App** starts concurrently on `http://localhost:5173`.
+- Terminal displays color-coded logs for both processes simultaneously!
 
 ---
 
 ## 🏗️ Architecture & Folder Separation
+
+The system follows a strict modular structure where responsibilities are separated across dedicated folders, with **`api/`** acting as the central connection bridge:
 
 ```
 BharatConnect/
@@ -54,9 +62,24 @@ BharatConnect/
 
 ---
 
-## 📚 Documentation Index
+## 👥 Instant Multi-User Testing Accounts
 
-- 📘 [docs/product_requirements.md](docs/product_requirements.md)
-- 🏗️ [docs/system_architecture.md](docs/system_architecture.md)
-- 🗄️ [docs/database_schema.md](docs/database_schema.md)
-- 📖 [docs/bharatsphere_comprehensive_guide.md](docs/bharatsphere_comprehensive_guide.md)
+The system comes pre-configured with four test identities for live multi-user WebSocket testing across browser tabs:
+
+| Handle | Display Name | Role | Presence |
+| :--- | :--- | :--- | :--- |
+| `@vipin_k` | Vipin Kumar | Senior Architect & Developer | `ONLINE` |
+| `@rahul_dev` | Rahul Sharma | Fullstack Engineer | `ONLINE` |
+| `@priya_design` | Priya Patel | Lead Product Designer | `IDLE` |
+| `@ananya_pm` | Ananya Verma | Product Manager | `OFFLINE` |
+
+*Use the **Account Switcher Dropdown** in the top-left sidebar of the web app to switch identities on the fly!*
+
+---
+
+## 📚 Master Documentation Index
+
+- 📘 **[docs/product_requirements.md](docs/product_requirements.md)** — PRD, vision, zero-media text scope.
+- 🏗️ **[docs/system_architecture.md](docs/system_architecture.md)** — Component topology, WebSocket gateway load balancing, presence state machine.
+- 🗄️ **[docs/database_schema.md](docs/database_schema.md)** — PostgreSQL DDL tables, indexes, ScyllaDB migration plan.
+- 📖 **[docs/bharatsphere_comprehensive_guide.md](docs/bharatsphere_comprehensive_guide.md)** — Master Blueprint & Engineering Guide.
