@@ -6,7 +6,9 @@
   "scripts": {
     "start": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue.bold,magenta.bold\" \"node index.js\" \"cd frontend && npm run dev\"",
     "start:backend": "node index.js",
-    "start:frontend": "cd frontend && npm run dev"
+    "start:frontend": "cd frontend && npm run dev",
+    "build": "npm run build --prefix frontend",
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend"
   },
   "dependencies": {
     "cors": "^2.8.6",
