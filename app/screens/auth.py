@@ -1,5 +1,5 @@
 """
-BharatConnect Authentication Screen (Sign In, Register, Forgot Password)
+BharatConnect Authentication Screen (Gradient UI Edition)
 Theme Palette: #6367FF, #8494FF, #C9BEFF, #FFDBFD
 """
 
@@ -15,7 +15,7 @@ from database.db import db_engine
 from app.theme import (
     COLOR_BG_DARK, COLOR_CARD_DARK, COLOR_CARD_BORDER,
     COLOR_6367FF, COLOR_8494FF, COLOR_C9BEFF, COLOR_FFDBFD,
-    COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, create_pill_badge
+    COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, create_pill_badge, GradientCard
 )
 
 
@@ -37,12 +37,12 @@ class AuthScreen(MDScreen):
             md_bg_color=COLOR_BG_DARK
         )
 
-        # Header Title with Theme Accent
-        header_box = MDBoxLayout(orientation="vertical", spacing="6dp", size_hint_y=None, height="60dp")
+        # Header Title with Gradient Pill Banner
+        header_box = MDBoxLayout(orientation="vertical", spacing="6dp", size_hint_y=None, height="64dp")
         
-        row_title = MDBoxLayout(orientation="horizontal", spacing="10dp", size_hint_y=None, height="30dp")
+        row_title = MDBoxLayout(orientation="horizontal", spacing="10dp", size_hint_y=None, height="32dp")
         row_title.add_widget(MDLabel(
-            text="🇮🇳 BharatConnect Authentication",
+            text="🇮🇳 BharatConnect Auth",
             font_style="Headline",
             role="small",
             bold=True,
@@ -50,7 +50,7 @@ class AuthScreen(MDScreen):
             theme_text_color="Custom",
             text_color=COLOR_TEXT_MAIN
         ))
-        row_title.add_widget(create_pill_badge("SECURE AUTH", bg_color=[0.388, 0.404, 1.0, 0.2], text_color=COLOR_C9BEFF))
+        row_title.add_widget(create_pill_badge("GRADIENT SECURE AUTH", bg_color=[0.388, 0.404, 1.0, 0.25], text_color=COLOR_C9BEFF))
         header_box.add_widget(row_title)
 
         header_box.add_widget(MDLabel(
@@ -143,15 +143,16 @@ class AuthScreen(MDScreen):
     # SIGN IN FORM
     # ---------------------------------------------------------
     def build_signin_form(self):
-        card = MDCard(
-            orientation="vertical",
+        card = GradientCard(
+            color1=[0.11, 0.14, 0.28, 1.0],
+            color2=[0.15, 0.18, 0.35, 1.0],
+            orientation="horizontal",
+            orientation_box="vertical",
             padding="20dp",
             spacing="14dp",
             size_hint_y=None,
-            height="320dp",
-            radius=[16, 16, 16, 16],
-            md_bg_color=COLOR_CARD_DARK,
-            line_color=COLOR_CARD_BORDER,
+            height="325dp",
+            radius=[18, 18, 18, 18],
             elevation=0
         )
         card.add_widget(MDLabel(
@@ -240,15 +241,16 @@ class AuthScreen(MDScreen):
     # REGISTER FORM
     # ---------------------------------------------------------
     def build_register_form(self):
-        card = MDCard(
-            orientation="vertical",
+        card = GradientCard(
+            color1=[0.11, 0.14, 0.28, 1.0],
+            color2=[0.15, 0.18, 0.35, 1.0],
+            orientation="horizontal",
+            orientation_box="vertical",
             padding="20dp",
             spacing="12dp",
             size_hint_y=None,
-            height="520dp",
-            radius=[16, 16, 16, 16],
-            md_bg_color=COLOR_CARD_DARK,
-            line_color=COLOR_CARD_BORDER,
+            height="525dp",
+            radius=[18, 18, 18, 18],
             elevation=0
         )
         card.add_widget(MDLabel(
@@ -315,15 +317,16 @@ class AuthScreen(MDScreen):
     # FORGOT PASSWORD FORM
     # ---------------------------------------------------------
     def build_forgot_form(self):
-        card = MDCard(
-            orientation="vertical",
+        card = GradientCard(
+            color1=[0.11, 0.14, 0.28, 1.0],
+            color2=[0.15, 0.18, 0.35, 1.0],
+            orientation="horizontal",
+            orientation_box="vertical",
             padding="20dp",
             spacing="14dp",
             size_hint_y=None,
             height="340dp",
-            radius=[16, 16, 16, 16],
-            md_bg_color=COLOR_CARD_DARK,
-            line_color=COLOR_CARD_BORDER,
+            radius=[18, 18, 18, 18],
             elevation=0
         )
         card.add_widget(MDLabel(

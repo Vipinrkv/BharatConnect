@@ -1,5 +1,5 @@
 """
-BharatConnect Minimalist Vibrant Splash Screen
+BharatConnect Minimalist Vibrant Splash Screen (Gradient UI Edition)
 Theme Palette: #6367FF, #8494FF, #C9BEFF, #FFDBFD
 """
 
@@ -14,7 +14,7 @@ from kivy.uix.gridlayout import GridLayout
 from app.theme import (
     COLOR_BG_DARK, COLOR_CARD_DARK, COLOR_CARD_BORDER,
     COLOR_6367FF, COLOR_8494FF, COLOR_C9BEFF, COLOR_FFDBFD,
-    COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, create_pill_badge
+    COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, create_pill_badge, GradientCard
 )
 
 
@@ -43,23 +43,24 @@ class SplashScreen(MDScreen):
         )
         content.bind(minimum_height=content.setter("height"))
 
-        # Hero Banner Card with Theme Accents
-        hero_card = MDCard(
-            orientation="vertical",
+        # Vibrant Hero Gradient Card (#6367FF -> #8494FF)
+        hero_card = GradientCard(
+            color1=COLOR_6367FF,
+            color2=COLOR_8494FF,
+            orientation="horizontal",
+            orientation_box="vertical",
             padding="24dp",
             spacing="14dp",
             size_hint_y=None,
-            height="210dp",
-            radius=[16, 16, 16, 16],
-            md_bg_color=[0.11, 0.14, 0.28, 1.0],
-            line_color=COLOR_6367FF,
+            height="215dp",
+            radius=[18, 18, 18, 18],
             elevation=0
         )
 
         badge = create_pill_badge(
-            "🇮🇳 BHARATCONNECT v2.0 • CORE MESSAGING",
-            bg_color=[0.388, 0.404, 1.0, 0.2],
-            text_color=COLOR_C9BEFF,
+            "🇮🇳 BHARATCONNECT v2.0 • GRADIENT EDITION",
+            bg_color=[1, 1, 1, 0.25],
+            text_color=COLOR_TEXT_MAIN,
             height="26dp"
         )
         hero_card.add_widget(badge)
@@ -78,14 +79,14 @@ class SplashScreen(MDScreen):
             font_style="Body",
             role="medium",
             theme_text_color="Custom",
-            text_color=COLOR_TEXT_MUTED
+            text_color=[1, 1, 1, 0.9]
         ))
 
         content.add_widget(hero_card)
 
         # Features Section Heading
         feat_heading = MDLabel(
-            text="⚡ Core Features & User Journey",
+            text="⚡ Core Features & Gradient UI System",
             font_style="Title",
             role="large",
             bold=True,
@@ -100,22 +101,24 @@ class SplashScreen(MDScreen):
         grid.bind(minimum_height=grid.setter("height"))
 
         features = [
-            ("💬 Message Bubble Interface", "Electric Indigo #6367FF bubbles with status ticks & reaction pills.", COLOR_6367FF),
-            ("📇 Phone Contact Sync", "Match phone numbers from contacts with registered BharatConnect users.", COLOR_8494FF),
-            ("🔑 Flexible Sign In & Auth", "Sign in via email, phone (+91), username, or register with DOB.", COLOR_C9BEFF),
-            ("🔒 Password Verification", "Email OTP code verification for instant password reset.", COLOR_FFDBFD)
+            ("💬 Message Bubble Interface", "Electric Indigo #6367FF bubbles with status ticks & reaction pills.", COLOR_6367FF, COLOR_8494FF),
+            ("📇 Phone Contact Sync", "Match phone numbers from contacts with registered BharatConnect users.", COLOR_8494FF, COLOR_C9BEFF),
+            ("🔑 Flexible Sign In & Auth", "Sign in via email, phone (+91), username, or register with DOB.", COLOR_C9BEFF, COLOR_FFDBFD),
+            ("🔒 Password Verification", "Email OTP code verification for instant password reset.", COLOR_FFDBFD, COLOR_6367FF)
         ]
 
-        for feat_title, feat_desc, accent_col in features:
-            card = MDCard(
-                orientation="vertical",
+        for feat_title, feat_desc, col1, col2 in features:
+            card = GradientCard(
+                color1=[0.11, 0.14, 0.28, 1.0],
+                color2=[0.16, 0.19, 0.38, 1.0],
+                orientation="horizontal",
+                orientation_box="vertical",
                 padding="18dp",
                 spacing="8dp",
                 size_hint_y=None,
-                height="130dp",
-                radius=[14, 14, 14, 14],
-                md_bg_color=COLOR_CARD_DARK,
-                line_color=COLOR_CARD_BORDER,
+                height="135dp",
+                radius=[16, 16, 16, 16],
+                line_color=col1,
                 elevation=0
             )
 

@@ -5,11 +5,14 @@ Custom Theme Palette:
   #8494FF (Secondary Soft Blue)
   #C9BEFF (Light Lavender Accent)
   #FFDBFD (Soft Pastel Pink Highlight)
+Includes Native Kivy Linear Gradient Canvas Engine.
 """
 
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.card import MDCard
+from kivy.graphics.texture import Texture
+from kivy.graphics import Rectangle, Color
 
 # Required Theme Colors
 COLOR_6367FF = [0.388, 0.404, 1.0, 1.0]   # Primary Electric Indigo #6367FF
@@ -46,6 +49,52 @@ COLOR_TOPBAR_LIGHT = [1.0, 1.0, 1.0, 1.0]
 COLOR_SIDEBAR_LIGHT = [0.92, 0.94, 0.97, 1.0]
 COLOR_CARD_LIGHT = [1.0, 1.0, 1.0, 1.0]
 COLOR_CARD_BORDER_LIGHT = [0.85, 0.88, 0.92, 1.0]
+
+
+def create_gradient_texture(color1_rgb, color2_rgb, width=128, height=128, orientation="horizontal"):
+    """
+    Creates a smooth 2-color linear gradient Texture for Kivy canvas backgrounds.
+    """
+    texture = Texture.create(size=(width, height), colorfmt='rgba')
+    buf = bytearray()
+
+    r1, g1, b1 = int(color1_rgb[0] * 255), int(color1_rgb[1] * 255), int(color1_rgb[2] * 255)
+    r2, g2, b2 = int(color2_rgb[0] * 255), int(color2_rgb[1] * 255), int(color2_rgb[2] * 255)
+
+    for y in range(height):
+        for x in range(width):
+            t = (x / (width - 1)) if orientation == "horizontal" else (y / (height - 1))
+            r = int(r1 + (r2 - r1) * t)
+            g = int(g1 + (g2 - g1) * t)
+            b = int(b1 + (b2 - b1) * t)
+            buf.extend([r, g, b, 255])
+
+    texture.blit_buffer(bytes(buf), colorfmt='rgba', bufferfmt='ubyte')
+    return texture
+
+
+class GradientCard(MDCard):
+    """Card widget with a native Kivy canvas linear gradient background."""
+    def __init__(self, color1=COLOR_6367FF, color2=COLOR_8494FF, orientation="horizontal", **kwargs):
+        super().__init__(**kwargs)
+        self.gradient_color1 = color1
+        self.gradient_color2 = color2
+        self.gradient_orientation = orientation
+        self.elevation = kwargs.get('elevation', 0)
+        self.radius = kwargs.get('radius', [16, 16, 16, 16])
+        self.md_bg_color = [0, 0, 0, 0]  # Translucent so canvas gradient shows
+        self.bind(size=self._update_gradient, pos=self._update_gradient)
+        self._update_gradient()
+
+    def _update_gradient(self, *args):
+        self.canvas.before.clear()
+        with self.canvas.before:
+            texture = create_gradient_texture(
+                self.gradient_color1, self.gradient_color2,
+                orientation=self.gradient_orientation
+            )
+            Color(1, 1, 1, 1)
+            Rectangle(texture=texture, pos=self.pos, size=self.size)
 
 
 def get_theme_colors(theme_mode="Dark"):

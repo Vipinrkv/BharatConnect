@@ -1,5 +1,5 @@
 """
-BharatConnect Main Dashboard Screen (Focus on Core Messaging & Contact Matching)
+BharatConnect Main Dashboard Screen (Gradient UI & Core Messaging Edition)
 Theme Palette: #6367FF, #8494FF, #C9BEFF, #FFDBFD
 """
 
@@ -15,7 +15,7 @@ from kivy.clock import Clock
 
 from database.db import db_engine
 from app.theme import (
-    get_theme_colors, create_presence_badge, create_pill_badge,
+    get_theme_colors, create_presence_badge, create_pill_badge, GradientCard,
     COLOR_6367FF, COLOR_8494FF, COLOR_C9BEFF, COLOR_FFDBFD, COLOR_EMERALD, COLOR_AMBER
 )
 
@@ -39,7 +39,7 @@ class DashboardScreen(MDScreen):
         )
 
         # ---------------------------------------------------------
-        # TOP HEADER NAVBAR
+        # TOP HEADER NAVBAR WITH GRADIENT
         # ---------------------------------------------------------
         top_bar = MDBoxLayout(
             orientation="horizontal",
@@ -67,7 +67,7 @@ class DashboardScreen(MDScreen):
             theme_text_color="Custom",
             text_color=colors["text_main"]
         ))
-        logo_box.add_widget(create_pill_badge("MESSAGING CORE", bg_color=[0.388, 0.404, 1.0, 0.2], text_color=COLOR_C9BEFF, height="22dp"))
+        logo_box.add_widget(create_pill_badge("GRADIENT CORE", bg_color=[0.388, 0.404, 1.0, 0.25], text_color=COLOR_C9BEFF, height="22dp"))
         
         user_info_lbl = MDLabel(
             text=f"• User: [b]{user['display_name']}[/b] ({user['phone']})",
@@ -226,7 +226,7 @@ class DashboardScreen(MDScreen):
         self.build_ui()
 
     # ---------------------------------------------------------
-    # CORE MESSAGE BUBBLE INTERFACE & CHATS VIEW
+    # CORE MESSAGE BUBBLE INTERFACE WITH GRADIENT BUBBLES
     # ---------------------------------------------------------
     def build_chats_view(self):
         colors = get_theme_colors(self.theme_cls.theme_style)
@@ -435,7 +435,7 @@ class DashboardScreen(MDScreen):
         self.chat_main_pane.add_widget(input_bar)
 
     def render_messages(self):
-        """Renders message bubbles using #6367FF, #8494FF, #C9BEFF, and #FFDBFD theme colors."""
+        """Renders Gradient Message Bubbles using #6367FF -> #8494FF linear textures for current user."""
         colors = get_theme_colors(self.theme_cls.theme_style)
         self.msg_box.clear_widgets()
         msgs = db_engine.get_messages_for_chat(self.active_chat_id)
@@ -450,19 +450,35 @@ class DashboardScreen(MDScreen):
             if is_me:
                 bubble_wrapper.add_widget(MDBoxLayout(size_hint_x=0.25))
 
-            # Sender Bubble (#6367FF) vs Recipient Bubble (#8494FF slate container)
-            bubble_card = MDCard(
-                orientation="vertical",
-                padding="10dp",
-                spacing="2dp",
-                size_hint_x=0.75,
-                size_hint_y=None,
-                height="60dp",
-                radius=[16, 16, 4, 16] if is_me else [16, 16, 16, 4],
-                md_bg_color=COLOR_6367FF if is_me else [0.15, 0.18, 0.32, 0.95],
-                line_color=COLOR_8494FF if not is_me else [0, 0, 0, 0],
-                elevation=0
-            )
+            if is_me:
+                # Gradient Bubble for Sender (#6367FF -> #8494FF)
+                bubble_card = GradientCard(
+                    color1=COLOR_6367FF,
+                    color2=COLOR_8494FF,
+                    orientation="horizontal",
+                    orientation_box="vertical",
+                    padding="10dp",
+                    spacing="2dp",
+                    size_hint_x=0.75,
+                    size_hint_y=None,
+                    height="60dp",
+                    radius=[16, 16, 4, 16],
+                    elevation=0
+                )
+            else:
+                # Dark Slate Bubble for Recipient
+                bubble_card = MDCard(
+                    orientation="vertical",
+                    padding="10dp",
+                    spacing="2dp",
+                    size_hint_x=0.75,
+                    size_hint_y=None,
+                    height="60dp",
+                    radius=[16, 16, 16, 4],
+                    md_bg_color=[0.15, 0.18, 0.32, 0.95],
+                    line_color=COLOR_8494FF,
+                    elevation=0
+                )
 
             header_text = f"[b]{sender_name}[/b] • {msg['created_at']}"
             if msg.get("status") == "READ" and is_me:
@@ -524,7 +540,7 @@ class DashboardScreen(MDScreen):
         self.typing_label.text = ""
         replies = [
             "Got it! Thanks for sending the updates.",
-            "Looks awesome! Core message bubble interface is super crisp.",
+            "Looks awesome! Native Kivy gradient bubbles are super smooth.",
             "Confirmed. Address book phone numbers matched successfully!",
             "Great progress! Let's ship this update."
         ]
@@ -563,15 +579,17 @@ class DashboardScreen(MDScreen):
         grid.bind(minimum_height=grid.setter("height"))
 
         for comm in db_engine.communities:
-            card = MDCard(
-                orientation="vertical",
+            card = GradientCard(
+                color1=[0.11, 0.14, 0.28, 1.0],
+                color2=[0.15, 0.18, 0.35, 1.0],
+                orientation="horizontal",
+                orientation_box="vertical",
                 padding="16dp",
                 spacing="10dp",
                 size_hint_y=None,
-                height="180dp",
-                radius=[14, 14, 14, 14],
-                md_bg_color=colors["card"],
-                line_color=colors["border"],
+                height="185dp",
+                radius=[16, 16, 16, 16],
+                line_color=COLOR_6367FF,
                 elevation=0
             )
             card.add_widget(MDLabel(
@@ -645,15 +663,17 @@ class DashboardScreen(MDScreen):
         grid.bind(minimum_height=grid.setter("height"))
 
         for item in db_engine.marketplace:
-            card = MDCard(
-                orientation="vertical",
+            card = GradientCard(
+                color1=[0.11, 0.14, 0.28, 1.0],
+                color2=[0.15, 0.18, 0.35, 1.0],
+                orientation="horizontal",
+                orientation_box="vertical",
                 padding="16dp",
                 spacing="10dp",
                 size_hint_y=None,
-                height="200dp",
-                radius=[14, 14, 14, 14],
-                md_bg_color=colors["card"],
-                line_color=colors["border"],
+                height="205dp",
+                radius=[16, 16, 16, 16],
+                line_color=COLOR_8494FF,
                 elevation=0
             )
             row1 = MDBoxLayout(orientation="horizontal", spacing="8dp", size_hint_y=None, height="28dp")
@@ -738,15 +758,17 @@ class DashboardScreen(MDScreen):
         grid.bind(minimum_height=grid.setter("height"))
 
         for dev in db_engine.nearby:
-            card = MDCard(
-                orientation="vertical",
+            card = GradientCard(
+                color1=[0.11, 0.14, 0.28, 1.0],
+                color2=[0.15, 0.18, 0.35, 1.0],
+                orientation="horizontal",
+                orientation_box="vertical",
                 padding="16dp",
                 spacing="8dp",
                 size_hint_y=None,
-                height="175dp",
-                radius=[14, 14, 14, 14],
-                md_bg_color=colors["card"],
-                line_color=colors["border"],
+                height="180dp",
+                radius=[16, 16, 16, 16],
+                line_color=COLOR_C9BEFF,
                 elevation=0
             )
             r1 = MDBoxLayout(orientation="horizontal", spacing="8dp", size_hint_y=None, height="28dp")
@@ -831,15 +853,17 @@ class DashboardScreen(MDScreen):
 
         user = db_engine.get_current_user()
 
-        card_prof = MDCard(
-            orientation="vertical",
+        card_prof = GradientCard(
+            color1=[0.11, 0.14, 0.28, 1.0],
+            color2=[0.15, 0.18, 0.35, 1.0],
+            orientation="horizontal",
+            orientation_box="vertical",
             padding="20dp",
             spacing="14dp",
             size_hint_y=None,
-            height="320dp",
-            radius=[14, 14, 14, 14],
-            md_bg_color=colors["card"],
-            line_color=colors["border"],
+            height="325dp",
+            radius=[16, 16, 16, 16],
+            line_color=COLOR_6367FF,
             elevation=0
         )
         card_prof.add_widget(MDLabel(
