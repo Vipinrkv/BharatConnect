@@ -68,18 +68,21 @@ class GradientCard(MDCard):
         self.elevation = kwargs.get('elevation', 0)
         self.radius = kwargs.get('radius', [16, 16, 16, 16])
         self.md_bg_color = [0, 0, 0, 0]  # Translucent canvas layer
-        self.bind(size=self._update_gradient, pos=self._update_gradient)
-        self._update_gradient()
 
-    def _update_gradient(self, *args):
-        self.canvas.before.clear()
+        self.texture = create_gradient_texture(
+            self.gradient_color1, self.gradient_color2,
+            orientation=self.gradient_orientation
+        )
+
         with self.canvas.before:
-            texture = create_gradient_texture(
-                self.gradient_color1, self.gradient_color2,
-                orientation=self.gradient_orientation
-            )
             Color(1, 1, 1, 1)
-            Rectangle(texture=texture, pos=self.pos, size=self.size)
+            self.rect = Rectangle(texture=self.texture, pos=self.pos, size=self.size)
+
+        self.bind(pos=self._update_rect, size=self._update_rect)
+
+    def _update_rect(self, instance, value):
+        self.rect.pos = instance.pos
+        self.rect.size = instance.size
 
 
 def get_theme_colors(theme_mode="Dark"):

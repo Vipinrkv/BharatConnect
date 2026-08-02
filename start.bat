@@ -4,7 +4,7 @@ color 0A
 
 echo =======================================================================
 echo          🇮🇳 BHARATCONNECT (Python Kivy + KivyMD Edition) 🇮🇳
-echo          Sub-50ms Realtime Text Messaging & Contact Sync
+echo          Sub-50ms Realtime Text Messaging ^& Contact Sync
 echo =======================================================================
 echo.
 
