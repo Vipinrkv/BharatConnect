@@ -1,6 +1,6 @@
 """
-BharatConnect Winter Vintage Design System & Theme Engine
-Color Scheme Palette:
+BharatConnect Vibrant Mobile Design System & Theme Engine
+Gradient Palette:
   #6367FF (Primary Electric Indigo)
   #8494FF (Soft Ice Blue Accent)
   #C9BEFF (Light Frost Lavender)
@@ -27,19 +27,16 @@ COLOR_162E93 = [0.086, 0.180, 0.576, 1.0]   # Midnight Winter Blue
 COLOR_1A1953 = [0.102, 0.098, 0.325, 1.0]   # Cold Navy Surface Card
 COLOR_080616 = [0.031, 0.024, 0.086, 1.0]   # Deep Frost Midnight Background
 
-# Border & Text Tokens
-COLOR_BORDER = [0.280, 0.290, 0.550, 0.6]
-COLOR_TEXT_MAIN = [0.970, 0.980, 1.000, 1.0]
-COLOR_TEXT_MUTED = [0.720, 0.750, 0.890, 1.0]
-COLOR_TEXT_SUBTLE = [0.480, 0.520, 0.680, 1.0]
-COLOR_EMERALD = [0.060, 0.730, 0.510, 1.0]
-COLOR_AMBER = [0.960, 0.620, 0.160, 1.0]
+# Vibrant Text & Accent Tokens
+COLOR_TEXT_MAIN = [1.000, 1.000, 1.000, 1.0]
+COLOR_TEXT_MUTED = [0.850, 0.880, 1.000, 1.0]
+COLOR_TEXT_SUBTLE = [0.650, 0.700, 0.900, 1.0]
+COLOR_EMERALD = [0.000, 0.900, 0.600, 1.0]
+COLOR_AMBER = [1.000, 0.700, 0.200, 1.0]
 
 
 def create_gradient_texture(color1_rgb, color2_rgb, width=128, height=128, orientation="horizontal"):
-    """
-    Creates a smooth 2-color linear gradient Texture for Kivy canvas backgrounds.
-    """
+    """Creates a smooth 2-color linear gradient Texture."""
     texture = Texture.create(size=(width, height), colorfmt='rgba')
     buf = bytearray()
 
@@ -58,21 +55,56 @@ def create_gradient_texture(color1_rgb, color2_rgb, width=128, height=128, orien
     return texture
 
 
+def create_vibrant_3stop_gradient(c1, c2, c3, width=128, height=128, orientation="horizontal"):
+    """Creates a ultra-vibrant 3-color linear gradient Texture."""
+    texture = Texture.create(size=(width, height), colorfmt='rgba')
+    buf = bytearray()
+
+    r1, g1, b1 = int(c1[0] * 255), int(c1[1] * 255), int(c1[2] * 255)
+    r2, g2, b2 = int(c2[0] * 255), int(c2[1] * 255), int(c2[2] * 255)
+    r3, g3, b3 = int(c3[0] * 255), int(c3[1] * 255), int(c3[2] * 255)
+
+    for y in range(height):
+        for x in range(width):
+            t = (x / (width - 1)) if orientation == "horizontal" else (y / (height - 1))
+            if t < 0.5:
+                factor = t * 2.0
+                r = int(r1 + (r2 - r1) * factor)
+                g = int(g1 + (g2 - g1) * factor)
+                b = int(b1 + (b2 - b1) * factor)
+            else:
+                factor = (t - 0.5) * 2.0
+                r = int(r2 + (r3 - r2) * factor)
+                g = int(g2 + (g3 - g2) * factor)
+                b = int(b2 + (b3 - b2) * factor)
+            buf.extend([r, g, b, 255])
+
+    texture.blit_buffer(bytes(buf), colorfmt='rgba', bufferfmt='ubyte')
+    return texture
+
+
 class GradientCard(MDCard):
     """Card widget with native Kivy linear gradient texture background."""
-    def __init__(self, color1=COLOR_6367FF, color2=COLOR_2F2FE4, orientation="horizontal", **kwargs):
+    def __init__(self, color1=COLOR_6367FF, color2=COLOR_2F2FE4, color3=None, orientation="horizontal", **kwargs):
         super().__init__(**kwargs)
         self.gradient_color1 = color1
         self.gradient_color2 = color2
+        self.gradient_color3 = color3
         self.gradient_orientation = orientation
         self.elevation = kwargs.get('elevation', 0)
         self.radius = kwargs.get('radius', [16, 16, 16, 16])
         self.md_bg_color = [0, 0, 0, 0]  # Translucent canvas layer
 
-        self.texture = create_gradient_texture(
-            self.gradient_color1, self.gradient_color2,
-            orientation=self.gradient_orientation
-        )
+        if self.gradient_color3:
+            self.texture = create_vibrant_3stop_gradient(
+                self.gradient_color1, self.gradient_color2, self.gradient_color3,
+                orientation=self.gradient_orientation
+            )
+        else:
+            self.texture = create_gradient_texture(
+                self.gradient_color1, self.gradient_color2,
+                orientation=self.gradient_orientation
+            )
 
         with self.canvas.before:
             Color(1, 1, 1, 1)
@@ -87,16 +119,23 @@ class GradientCard(MDCard):
 
 class GradientBox(MDBoxLayout):
     """Layout widget with native Kivy linear gradient background."""
-    def __init__(self, color1=COLOR_162E93, color2=COLOR_1A1953, orientation_grad="horizontal", **kwargs):
+    def __init__(self, color1=COLOR_162E93, color2=COLOR_1A1953, color3=None, orientation_grad="horizontal", **kwargs):
         super().__init__(**kwargs)
         self.gradient_color1 = color1
         self.gradient_color2 = color2
+        self.gradient_color3 = color3
         self.gradient_orientation = orientation_grad
 
-        self.texture = create_gradient_texture(
-            self.gradient_color1, self.gradient_color2,
-            orientation=self.gradient_orientation
-        )
+        if self.gradient_color3:
+            self.texture = create_vibrant_3stop_gradient(
+                self.gradient_color1, self.gradient_color2, self.gradient_color3,
+                orientation=self.gradient_orientation
+            )
+        else:
+            self.texture = create_gradient_texture(
+                self.gradient_color1, self.gradient_color2,
+                orientation=self.gradient_orientation
+            )
 
         with self.canvas.before:
             Color(1, 1, 1, 1)
@@ -109,15 +148,13 @@ class GradientBox(MDBoxLayout):
         self.rect.size = instance.size
 
 
-
 def get_theme_colors(theme_mode="Dark"):
-    """Returns color dictionary based on active theme mode."""
+    """Returns vibrant color dictionary."""
     return {
         "bg": COLOR_080616,
         "topbar": COLOR_162E93,
         "sidebar": COLOR_1A1953,
         "card": COLOR_1A1953,
-        "border": COLOR_BORDER,
         "text_main": COLOR_TEXT_MAIN,
         "text_muted": COLOR_TEXT_MUTED,
         "text_subtle": COLOR_TEXT_SUBTLE,
@@ -131,18 +168,15 @@ def get_theme_colors(theme_mode="Dark"):
         "c_080616": COLOR_080616,
         "emerald": COLOR_EMERALD,
         "amber": COLOR_AMBER,
-        "bubble_me": COLOR_6367FF,
-        "bubble_other": COLOR_1A1953,
-        "active_item": [0.388, 0.404, 1.000, 0.25],
     }
 
 
 def create_pill_badge(text, bg_color=None, text_color=None, height="24dp"):
-    """Utility to create a minimalist pill/tag badge widget."""
+    """Utility to create a minimalist vibrant pill/tag badge widget."""
     if bg_color is None:
-        bg_color = [0.388, 0.404, 1.000, 0.2]
+        bg_color = [0.388, 0.404, 1.000, 0.35]
     if text_color is None:
-        text_color = COLOR_C9BEFF
+        text_color = COLOR_FFDBFD
 
     badge_card = MDCard(
         orientation="horizontal",

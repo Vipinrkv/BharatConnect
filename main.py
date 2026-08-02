@@ -1,6 +1,6 @@
 """
-BharatConnect 🇮🇳 — WhatsApp-Style Python Kivy & KivyMD Application
-Theme Palette: #6367FF, #8494FF, #C9BEFF, #FFDBFD, #2F2FE4, #162E93, #1A1953, #080616
+BharatConnect 🇮🇳 — Mobile Responsive WhatsApp-Style Python Messaging Platform
+Palette: #6367FF, #8494FF, #C9BEFF, #FFDBFD, #2F2FE4, #162E93, #1A1953, #080616
 Single command launcher: python main.py
 """
 
@@ -11,10 +11,11 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from kivy.config import Config
-Config.set('graphics', 'width', '1150')
-Config.set('graphics', 'height', '740')
-Config.set('graphics', 'minimum_width', '850')
-Config.set('graphics', 'minimum_height', '620')
+# Mobile Phone Screen Dimensions (Portrait Mode)
+Config.set('graphics', 'width', '410')
+Config.set('graphics', 'height', '730')
+Config.set('graphics', 'minimum_width', '360')
+Config.set('graphics', 'minimum_height', '600')
 
 from kivy.core.window import Window
 from kivy.uix.screenmanager import ScreenManager, FadeTransition
@@ -30,7 +31,7 @@ from app.screens.dashboard import DashboardScreen
 
 class BharatConnectApp(MDApp):
     def build(self):
-        self.title = "BharatConnect 🇮🇳 — WhatsApp-Style Messaging App (Python)"
+        self.title = "BharatConnect 🇮🇳 — WhatsApp Mobile App"
         self.theme_cls.theme_style = "Dark"
         self.theme_cls.primary_palette = "Indigo"
 
@@ -49,5 +50,5 @@ class BharatConnectApp(MDApp):
 
 
 if __name__ == "__main__":
-    print("🚀 Launching BharatConnect WhatsApp-Style Messaging App...")
+    print("🚀 Launching BharatConnect Mobile WhatsApp Messaging App...")
     BharatConnectApp().run()

@@ -1,5 +1,5 @@
 """
-BharatConnect Authentication Screen (Winter Vintage Edition)
+BharatConnect Mobile Authentication Screen (Vibrant Gradient Edition)
 Palette: #6367FF, #8494FF, #C9BEFF, #FFDBFD, #2F2FE4, #162E93, #1A1953, #080616
 """
 
@@ -13,7 +13,7 @@ from kivy.uix.scrollview import ScrollView
 
 from database.db import db_engine
 from app.theme import (
-    COLOR_080616, COLOR_1A1953, COLOR_BORDER,
+    COLOR_080616, COLOR_1A1953, COLOR_162E93,
     COLOR_6367FF, COLOR_8494FF, COLOR_C9BEFF, COLOR_FFDBFD, COLOR_2F2FE4,
     COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, create_pill_badge, GradientCard
 )
@@ -32,38 +32,38 @@ class AuthScreen(MDScreen):
 
         root = MDBoxLayout(
             orientation="vertical",
-            padding="24dp",
-            spacing="16dp",
+            padding="16dp",
+            spacing="12dp",
             md_bg_color=COLOR_080616
         )
 
         # Header Title with Gradient Pill Banner
-        header_box = MDBoxLayout(orientation="vertical", spacing="6dp", size_hint_y=None, height="64dp")
+        header_box = MDBoxLayout(orientation="vertical", spacing="4dp", size_hint_y=None, height="60dp")
         
-        row_title = MDBoxLayout(orientation="horizontal", spacing="10dp", size_hint_y=None, height="32dp")
+        row_title = MDBoxLayout(orientation="horizontal", spacing="8dp", size_hint_y=None, height="30dp")
         row_title.add_widget(MDLabel(
             text="🇮🇳 BharatConnect Auth",
-            font_style="Headline",
-            role="small",
+            font_style="Title",
+            role="medium",
             bold=True,
             adaptive_width=True,
             theme_text_color="Custom",
             text_color=COLOR_TEXT_MAIN
         ))
-        row_title.add_widget(create_pill_badge("WINTER SECURE AUTH", bg_color=[0.388, 0.404, 1.0, 0.25], text_color=COLOR_C9BEFF))
+        row_title.add_widget(create_pill_badge("SECURE AUTH", bg_color=[0.388, 0.404, 1.0, 0.35], text_color=COLOR_FFDBFD))
         header_box.add_widget(row_title)
 
         header_box.add_widget(MDLabel(
             text="Sign in using email, mobile number, or username — or register a new account.",
             font_style="Body",
-            role="medium",
+            role="small",
             theme_text_color="Custom",
             text_color=COLOR_TEXT_MUTED
         ))
         root.add_widget(header_box)
 
         # Tab Navigation (Sign In / Register / Forgot Password)
-        nav_tab_box = MDBoxLayout(orientation="horizontal", spacing="10dp", size_hint_y=None, height="44dp")
+        nav_tab_box = MDBoxLayout(orientation="horizontal", spacing="8dp", size_hint_y=None, height="40dp")
         
         btn_tab_signin = MDButton(
             style="filled" if self.active_mode == "signin" else "outlined",
@@ -86,7 +86,7 @@ class AuthScreen(MDScreen):
             size_hint_x=0.34,
             on_release=lambda inst: self.switch_mode("forgot")
         )
-        btn_tab_forgot.add_widget(MDButtonText(text="🔒 Forgot Password"))
+        btn_tab_forgot.add_widget(MDButtonText(text="🔒 Forgot"))
         nav_tab_box.add_widget(btn_tab_forgot)
 
         root.add_widget(nav_tab_box)
@@ -109,9 +109,9 @@ class AuthScreen(MDScreen):
         scroll = ScrollView()
         self.form_box = MDBoxLayout(
             orientation="vertical",
-            spacing="14dp",
+            spacing="12dp",
             size_hint_y=None,
-            padding=["0dp", "8dp", "0dp", "16dp"]
+            padding=["0dp", "4dp", "0dp", "12dp"]
         )
         self.form_box.bind(minimum_height=self.form_box.setter("height"))
 
@@ -126,7 +126,7 @@ class AuthScreen(MDScreen):
         root.add_widget(scroll)
 
         # Bottom Bar
-        bottom_bar = MDBoxLayout(orientation="horizontal", spacing="16dp", size_hint_y=None, height="44dp")
+        bottom_bar = MDBoxLayout(orientation="horizontal", spacing="16dp", size_hint_y=None, height="40dp")
         btn_back = MDButton(style="text", on_release=self.go_back)
         btn_back.add_widget(MDButtonText(text="← Back to Splash"))
         bottom_bar.add_widget(btn_back)
@@ -144,18 +144,19 @@ class AuthScreen(MDScreen):
     # ---------------------------------------------------------
     def build_signin_form(self):
         card = GradientCard(
-            color1=COLOR_1A1953,
-            color2=[0.14, 0.16, 0.42, 1.0],
+            color1=COLOR_6367FF,
+            color2=COLOR_2F2FE4,
+            color3=COLOR_162E93,
             orientation="horizontal",
-            padding="20dp",
-            spacing="14dp",
+            padding="16dp",
+            spacing="12dp",
             size_hint_y=None,
-            height="325dp",
+            height="315dp",
             radius=[18, 18, 18, 18],
             elevation=0
         )
         card.add_widget(MDLabel(
-            text="🔑 Sign In to Your BharatConnect Account",
+            text="🔑 Sign In to BharatConnect",
             font_style="Title",
             role="medium",
             bold=True,
@@ -163,11 +164,11 @@ class AuthScreen(MDScreen):
             text_color=COLOR_TEXT_MAIN
         ))
 
-        self.input_login_id = MDTextField(mode="outlined", size_hint_y=None, height="52dp")
+        self.input_login_id = MDTextField(mode="outlined", size_hint_y=None, height="48dp")
         self.input_login_id.add_widget(MDTextFieldHintText(text="Email, Mobile Number (+91), or Username"))
         card.add_widget(self.input_login_id)
 
-        self.input_login_pass = MDTextField(mode="outlined", password=True, size_hint_y=None, height="52dp")
+        self.input_login_pass = MDTextField(mode="outlined", password=True, size_hint_y=None, height="48dp")
         self.input_login_pass.add_widget(MDTextFieldHintText(text="Password"))
         card.add_widget(self.input_login_pass)
 
@@ -177,21 +178,21 @@ class AuthScreen(MDScreen):
             height="44dp",
             on_release=self.do_signin
         )
-        btn_submit.add_widget(MDButtonText(text="Verify Credentials & Open Dashboard Home 🚀"))
+        btn_submit.add_widget(MDButtonText(text="Verify & Open WhatsApp Home 🚀"))
         card.add_widget(btn_submit)
 
         self.form_box.add_widget(card)
 
         # Quick Test Accounts Selector Card
-        quick_card = MDCard(
-            orientation="vertical",
-            padding="16dp",
-            spacing="10dp",
+        quick_card = GradientCard(
+            color1=COLOR_1A1953,
+            color2=COLOR_162E93,
+            orientation="horizontal",
+            padding="14dp",
+            spacing="8dp",
             size_hint_y=None,
-            height="180dp",
+            height="170dp",
             radius=[16, 16, 16, 16],
-            md_bg_color=COLOR_1A1953,
-            line_color=COLOR_BORDER,
             elevation=0
         )
         quick_card.add_widget(MDLabel(
@@ -200,10 +201,10 @@ class AuthScreen(MDScreen):
             role="small",
             bold=True,
             theme_text_color="Custom",
-            text_color=COLOR_C9BEFF
+            text_color=COLOR_FFDBFD
         ))
 
-        row_quick = MDBoxLayout(orientation="horizontal", spacing="10dp", size_hint_y=None, height="44dp")
+        row_quick = MDBoxLayout(orientation="horizontal", spacing="8dp", size_hint_y=None, height="42dp")
         for uid, user in list(db_engine.users.items())[:3]:
             btn_u = MDButton(
                 style="outlined",
@@ -234,22 +235,23 @@ class AuthScreen(MDScreen):
         self.manager.current = "dashboard"
 
     # ---------------------------------------------------------
-    # REGISTER FORM (Full Name, Email, Phone, Username, DOB, Password)
+    # REGISTER FORM
     # ---------------------------------------------------------
     def build_register_form(self):
         card = GradientCard(
-            color1=COLOR_1A1953,
-            color2=[0.14, 0.16, 0.42, 1.0],
+            color1=COLOR_6367FF,
+            color2=COLOR_2F2FE4,
+            color3=COLOR_162E93,
             orientation="horizontal",
-            padding="20dp",
-            spacing="12dp",
+            padding="16dp",
+            spacing="10dp",
             size_hint_y=None,
-            height="525dp",
+            height="505dp",
             radius=[18, 18, 18, 18],
             elevation=0
         )
         card.add_widget(MDLabel(
-            text="📝 Register New BharatConnect Account",
+            text="📝 Register New Account",
             font_style="Title",
             role="medium",
             bold=True,
@@ -257,31 +259,31 @@ class AuthScreen(MDScreen):
             text_color=COLOR_TEXT_MAIN
         ))
 
-        self.reg_fullname = MDTextField(mode="outlined", size_hint_y=None, height="48dp")
+        self.reg_fullname = MDTextField(mode="outlined", size_hint_y=None, height="46dp")
         self.reg_fullname.add_widget(MDTextFieldHintText(text="Full Name (e.g. Vikramaditya Singh)"))
         card.add_widget(self.reg_fullname)
 
-        self.reg_email = MDTextField(mode="outlined", size_hint_y=None, height="48dp")
+        self.reg_email = MDTextField(mode="outlined", size_hint_y=None, height="46dp")
         self.reg_email.add_widget(MDTextFieldHintText(text="Email Address (e.g. vikram@domain.com)"))
         card.add_widget(self.reg_email)
 
-        self.reg_phone = MDTextField(mode="outlined", size_hint_y=None, height="48dp", text="+91 ")
-        self.reg_phone.add_widget(MDTextFieldHintText(text="Phone Number with Country Code (+91 98765 11223)"))
+        self.reg_phone = MDTextField(mode="outlined", size_hint_y=None, height="46dp", text="+91 ")
+        self.reg_phone.add_widget(MDTextFieldHintText(text="Phone (+91 98765 11223)"))
         card.add_widget(self.reg_phone)
 
-        self.reg_username = MDTextField(mode="outlined", size_hint_y=None, height="48dp")
+        self.reg_username = MDTextField(mode="outlined", size_hint_y=None, height="46dp")
         self.reg_username.add_widget(MDTextFieldHintText(text="Username (e.g. vikram_dev)"))
         card.add_widget(self.reg_username)
 
-        self.reg_dob = MDTextField(mode="outlined", size_hint_y=None, height="48dp", text="2000-01-15")
+        self.reg_dob = MDTextField(mode="outlined", size_hint_y=None, height="46dp", text="2000-01-15")
         self.reg_dob.add_widget(MDTextFieldHintText(text="Date of Birth (YYYY-MM-DD)"))
         card.add_widget(self.reg_dob)
 
-        self.reg_pass = MDTextField(mode="outlined", password=True, size_hint_y=None, height="48dp")
+        self.reg_pass = MDTextField(mode="outlined", password=True, size_hint_y=None, height="46dp")
         self.reg_pass.add_widget(MDTextFieldHintText(text="Password"))
         card.add_widget(self.reg_pass)
 
-        self.reg_confirm = MDTextField(mode="outlined", password=True, size_hint_y=None, height="48dp")
+        self.reg_confirm = MDTextField(mode="outlined", password=True, size_hint_y=None, height="46dp")
         self.reg_confirm.add_widget(MDTextFieldHintText(text="Confirm Password"))
         card.add_widget(self.reg_confirm)
 
@@ -315,18 +317,19 @@ class AuthScreen(MDScreen):
     # ---------------------------------------------------------
     def build_forgot_form(self):
         card = GradientCard(
-            color1=COLOR_1A1953,
-            color2=[0.14, 0.16, 0.42, 1.0],
+            color1=COLOR_6367FF,
+            color2=COLOR_2F2FE4,
+            color3=COLOR_162E93,
             orientation="horizontal",
-            padding="20dp",
-            spacing="14dp",
+            padding="16dp",
+            spacing="12dp",
             size_hint_y=None,
-            height="340dp",
+            height="325dp",
             radius=[18, 18, 18, 18],
             elevation=0
         )
         card.add_widget(MDLabel(
-            text="🔒 Reset Password via Email Verification",
+            text="🔒 Reset Password via Email OTP",
             font_style="Title",
             role="medium",
             bold=True,
@@ -334,15 +337,15 @@ class AuthScreen(MDScreen):
             text_color=COLOR_TEXT_MAIN
         ))
 
-        self.forgot_email = MDTextField(mode="outlined", size_hint_y=None, height="52dp")
+        self.forgot_email = MDTextField(mode="outlined", size_hint_y=None, height="48dp")
         self.forgot_email.add_widget(MDTextFieldHintText(text="Enter Registered Email (vipin@bharatconnect.com)"))
         card.add_widget(self.forgot_email)
 
-        self.forgot_otp = MDTextField(mode="outlined", size_hint_y=None, height="52dp", text="849201")
+        self.forgot_otp = MDTextField(mode="outlined", size_hint_y=None, height="48dp", text="849201")
         self.forgot_otp.add_widget(MDTextFieldHintText(text="Email Verification Code (OTP)"))
         card.add_widget(self.forgot_otp)
 
-        self.forgot_newpass = MDTextField(mode="outlined", password=True, size_hint_y=None, height="52dp")
+        self.forgot_newpass = MDTextField(mode="outlined", password=True, size_hint_y=None, height="48dp")
         self.forgot_newpass.add_widget(MDTextFieldHintText(text="New Password"))
         card.add_widget(self.forgot_newpass)
 
