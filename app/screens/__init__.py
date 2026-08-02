@@ -1,1 +1,0 @@
-# BharatConnect App Screens Package
