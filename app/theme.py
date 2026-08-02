@@ -203,17 +203,17 @@ def create_pill_badge(text, bg_color=None, text_color=None, height="24dp"):
 
 
 def create_presence_badge(presence):
-    """Utility to create a sleek status indicator dot + text badge."""
+    """Utility to create a sleek status indicator dot + text badge using exact palette tokens."""
     p_upper = (presence or "OFFLINE").upper()
     if p_upper == "ONLINE":
-        dot_color = COLOR_EMERALD
-        text_color = COLOR_EMERALD
+        dot_color = COLOR_6367FF
+        text_color = COLOR_FFDBFD
     elif p_upper == "IDLE":
-        dot_color = COLOR_AMBER
-        text_color = COLOR_AMBER
+        dot_color = COLOR_8494FF
+        text_color = COLOR_C9BEFF
     else:
-        dot_color = COLOR_TEXT_SUBTLE
-        text_color = COLOR_TEXT_SUBTLE
+        dot_color = COLOR_162E93
+        text_color = COLOR_TEXT_MUTED
 
     box = MDBoxLayout(
         orientation="horizontal",
