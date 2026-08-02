@@ -22,3 +22,10 @@ Thumbs.db
 
 # Antigravity system logs
 .system_generated/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+

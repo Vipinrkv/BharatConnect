@@ -1,127 +1,80 @@
-# System Architecture Document - BharatSphere
+# System Architecture Document — BharatConnect (Python Edition)
 
-This document describes the system architecture, component boundaries, communication protocols, and technology selections for BharatSphere.
+This document describes the Python system architecture, component boundaries, Kivy/KivyMD UI layout specs, FastAPI REST & WebSocket server protocols, and $O(1)$ database storage engine.
 
 ---
 
-## 1. System Topology
+## 1. System Topology & Performance Architecture
 
-BharatSphere is structured as a client-server architecture. The frontend communicates with the backend via two protocols:
-1. **REST APIs**: For non-realtime operations (authentication, feed fetching, posting marketplace items, updating locations, user searches).
-2. **WebSockets (Socket.io)**: For bidirectional, low-latency communication (direct messages, group typing indicators, live messaging state).
+BharatConnect is built as a pure **Python modular client-server architecture**:
 
 ```
-                      +-----------------------------+
-                      |     React + Vite Client     |
-                      |   (Mobile Sandbox Shell)    |
-                      +--------------+--------------+
++-------------------------------------------------------------------------+
+|                  Kivy / KivyMD GUI Application (app/)                   |
+|  [screens/]                                   [components/]             |
+|  - splash.py (Hero Landing)                   - Custom MDCard           |
+|  - login.py (Account Switcher)                - Custom Speech Bubbles   |
+|  - dashboard.py (Chats, Communities,          - Custom MDButton         |
+|    Marketplace, Nearby, Settings)                                       |
++------------------------------------+------------------------------------+
                                      |
-                       HTTP REST     |   WebSockets
-                       (JSON APIs)   |   (Socket.io)
+                          [FastAPI REST & WebSockets]
+                          (/api/v1  &  /ws/{user_id})
+                                     |
                                      v
-                      +--------------+--------------+
-                      |   Node.js + Express Backend  |
-                      |   (Application Server)      |
-                      +--------------+--------------+
++-------------------------------------------------------------------------+
+|                Python FastAPI Server & WebSocket Gateway                 |
+|                       (api/server.py & api/ws.py)                       |
++------------------------------------+------------------------------------+
                                      |
-                       +-------------+-------------+
-                       |                           |
-                       v                           v
-              +--------+--------+         +--------+--------+
-              |     SQLite      |         |  Local Storage  |
-              |  Database File  |         |  Media Assets   |
-              +-----------------+         +-----------------+
+                                     v
++-------------------------------------------------------------------------+
+|                         In-Memory Storage Engine                        |
+|                  (database/db.py - O(1) Hash Map Indexing)              |
++-------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Component Design
+## 2. Component Design & Directory Boundaries
 
-### 2.1 Backend Core (Express + Socket.io)
-The server runs on Node.js using Express. It is designed to be fully self-contained for local running.
-- **REST Endpoints**: Divided into controllers:
-  - `/api/auth`: Handles login, registration (10-digit UID generation, password checks).
-  - `/api/users`: Contact syncing, global search, profile management.
-  - `/api/friends`: Friendship requests, acceptance, and blocking.
-  - `/api/posts`: Uploading posts, home feed generation.
-  - `/api/marketplace`: Listing products/services, searching listings.
-  - `/api/nearby`: Hyper-local query aggregator.
-- **WebSockets Server**: Leverages `socket.io` over the same HTTP port. Binds active socket connections to authenticated User UIDs.
-- **SQLite Engine**: Uses `sqlite3` to store state. Provides ease of local deployment with zero external dependencies.
+### 2.1 Native GUI Layer (`app/`)
+- **`main.py`**: App entry point configuring Window dimensions (1100x720), KivyMD Material Design Dark/Light themes, and screen routing via `ScreenManager`.
+- **`app/screens/`**:
+  - `splash.py`: Welcome landing screen with hero branding and action triggers.
+  - `login.py`: Multi-identity account quick switcher grid (`@vipin_k`, `@rahul_dev`, `@priya_design`, `@ananya_pm`) plus custom credential login form.
+  - `dashboard.py`: Core dashboard housing sidebar tabs:
+    - 💬 **Chats View**: Direct & group chat list, unread badges, presence indicators, message timeline stream (bubbles, timestamps, `✓✓` read checkmarks), typing simulator, quick emoji dispatches (`🇮🇳`, `🚀`), and search filter.
+    - 🌐 **Communities Hub**: Discover and join developer & startup communities across India with toggle actions.
+    - 🛒 **Marketplace**: Hardware gear & technical service listings with direct seller chat initiation.
+    - 📍 **Nearby Developers**: Proximity listing across Bengaluru, Mumbai, Gurgaon, and Hyderabad tech hubs.
+    - ⚙️ **Settings & Profile**: Profile customization, status message editor, and dark/light mode toggle.
 
-### 2.2 Frontend Shell (React + CSS)
-Since the app features WhatsApp, Instagram, Telegram, and location tools, we require a layout that organizes these distinct applications nicely.
-- **Mobile Sandbox Shell**: The app renders a clean mobile-style phone container on desktop viewports, with dynamic dimensions, glassmorphic styling, and native-feeling slide animations. On mobile devices, it scales to full screen.
-- **Top Utility Bar**: Displays the system date, day, and time using a React state ticking every second.
-- **Application Sandbox Grid**: A bottom-nav-driven layout switching between tabs:
-  - **Chats**: Lists DM threads and group channels.
-  - **Feed**: Scrollable timeline of posts (text, photos, video previews) with comments/likes.
-  - **Marketplace**: Classified ads filtered by category (Job/Gig/Product/Emergency) with post button.
-  - **Nearby Explorer**: Proximity radar showing active users, emergency posts, and products.
-  - **Profile / Contacts**: Configuration settings, location overrides, mock phone contacts sync list.
+### 2.2 Backend & Storage Layer (`api/` & `database/`)
+- **FastAPI Gateway (`api/server.py`)**: Mounts REST endpoints under `/api/v1` and WebSocket endpoint under `/ws/{user_id}`.
+- **WebSocket Manager (`api/ws.py`)**: Handles active client socket connections, heartbeats, and real-time event broadcasting.
+- **Database Engine (`database/db.py`)**: High-performance storage engine using $O(1)$ Hash Map lookups (`users`, `chats`, `messages`, `communities`, `marketplace`, `nearby`).
 
 ---
 
 ## 3. Communication Protocols & Events
 
-### 3.1 REST API Routes Reference
+### 3.1 REST API Endpoints (`api/routes.py`)
 
-| Method | Endpoint | Description | Auth Required |
+| Endpoint | Method | Description | Service Handler |
 |:---|:---|:---|:---|
-| `POST` | `/api/auth/register` | Create account (validates password, assigns unique 10-char ID) | No |
-| `POST` | `/api/auth/login` | Login user, issues JWT token | No |
-| `GET` | `/api/users/search` | Search user profiles by username | Yes |
-| `POST` | `/api/users/sync-contacts` | Sync mock phone contacts list and match users | Yes |
-| `GET` | `/api/friends/status` | Get relationship status between logged-in user and another user | Yes |
-| `POST` | `/api/friends/request` | Send friendship request | Yes |
-| `POST` | `/api/friends/accept` | Accept friendship request (mutually unlocks chat) | Yes |
-| `GET` | `/api/posts` | Fetch home posts feed | Yes |
-| `POST` | `/api/posts/create` | Create a post (text and optional media reference) | Yes |
-| `GET` | `/api/marketplace` | Fetch classified listings (optional category filters) | Yes |
-| `POST` | `/api/marketplace/create` | Create job/gig/product/emergency listing | Yes |
-| `GET` | `/api/nearby` | Query items (users, marketplace, emergencies) within radius | Yes |
-| `POST` | `/api/users/location` | Update current coordinates (lat, long) | Yes |
+| `/api/v1/users` | `GET` | Fetch all user profiles | `db_engine.users` |
+| `/api/v1/users/me` | `GET` | Get active user profile | `db_engine.get_current_user()` |
+| `/api/v1/users/switch/{user_id}` | `POST` | Switch active identity | `db_engine.switch_user()` |
+| `/api/v1/chats` | `GET` | Get user chat list | `db_engine.get_user_chats()` |
+| `/api/v1/messages/{chat_id}` | `GET` | Get messages for chat | `db_engine.get_messages_for_chat()` |
+| `/api/v1/messages` | `POST` | Send new message | `db_engine.send_message()` |
+| `/api/v1/communities` | `GET` | List tech communities | `db_engine.communities` |
+| `/api/v1/marketplace` | `GET` | List marketplace items | `db_engine.marketplace` |
+| `/api/v1/nearby` | `GET` | List nearby developers | `db_engine.nearby` |
 
-### 3.2 WebSocket Events
+### 3.2 WebSocket Realtime Protocol (`/ws/{user_id}`)
 
-- **Authentication Event**:
-  - `client -> server`: `register_socket` with payload `{ token: "JWT_TOKEN" }`. Links connection ID to user ID.
-- **Direct Messaging**:
-  - `client -> server`: `send_message` with payload `{ receiverId: "UID_10", content: "text", mediaUrl: "optional" }`.
-  - `server -> client`: `receive_message` delivering incoming message to active socket.
-  - `server -> client`: `message_delivered` confirmation.
-- **Typing Indicators**:
-  - `client -> server`: `typing_start` / `typing_stop` with `{ receiverId: "UID_10" }`.
-  - `server -> client`: `user_typing` toggling UI indicator.
-- **Group Messaging**:
-  - `client -> server`: `join_room` / `leave_room` with `{ groupId: "ID" }`.
-  - `client -> server`: `send_group_message` with `{ groupId: "ID", content: "text" }`.
-
----
-
-## 4. Smart Storage Implementation
-
-```
-[Uploaded File] ---> [Calculate SHA-256 Hash] ---> [Query DB for Hash]
-                                                           |
-                                      +--------------------+--------------------+
-                                      | Yes                                     | No
-                                      v                                         v
-                            [Use Existing File Path]                  [Save to Disk]
-                            [Delete Uploaded Temp]                    [Insert File Path to DB]
-                            [Link Record to Hash]                     [Link Record to Hash]
-```
-
-### Hash Check Algorithm (Middleware)
-1. Media uploads are written to a temporary directory (`uploads/temp/`).
-2. Multer middleware intercepts request and hashes the file.
-3. Server executes:
-   ```sql
-   SELECT file_path FROM media_assets WHERE file_hash = ?;
-   ```
-4. If a match is found:
-   - The file at `uploads/temp/filename` is immediately deleted to save space.
-   - The application links the new message or post record to the existing `file_path`.
-5. If no match is found:
-   - The file is renamed and moved to `uploads/media/`.
-   - A new row is inserted into `media_assets` with the hash and physical path.
+- **`message.send`**: Computes `seq_id`, persists message, returns ACK, and broadcasts `message.received` to chat room participants.
+- **`typing.start` / `typing.stop`**: Emits real-time typing indicators to room.
+- **`presence.update`**: Broadcasts `ONLINE`, `IDLE`, or `OFFLINE` status changes.
