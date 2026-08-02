@@ -1,5 +1,6 @@
 """
-BharatConnect Minimalist Vibrant Main Dashboard Screen
+BharatConnect Main Dashboard Screen (Focus on Core Messaging & Contact Matching)
+Theme Palette: #6367FF, #8494FF, #C9BEFF, #FFDBFD
 """
 
 from kivymd.uix.screen import MDScreen
@@ -15,7 +16,7 @@ from kivy.clock import Clock
 from database.db import db_engine
 from app.theme import (
     get_theme_colors, create_presence_badge, create_pill_badge,
-    COLOR_CYAN_GLOW, COLOR_EMERALD, COLOR_AMBER
+    COLOR_6367FF, COLOR_8494FF, COLOR_C9BEFF, COLOR_FFDBFD, COLOR_EMERALD, COLOR_AMBER
 )
 
 
@@ -23,7 +24,7 @@ class DashboardScreen(MDScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.name = "dashboard"
-        self.active_tab = "chats"
+        self.active_tab = "chats"  # Focus on chat first!
         self.active_chat_id = "c-group-1"
         self.build_ui()
 
@@ -66,10 +67,10 @@ class DashboardScreen(MDScreen):
             theme_text_color="Custom",
             text_color=colors["text_main"]
         ))
-        logo_box.add_widget(create_pill_badge("PYTHON ENGINE", bg_color=[0.02, 0.71, 0.83, 0.15], text_color=COLOR_CYAN_GLOW, height="22dp"))
+        logo_box.add_widget(create_pill_badge("MESSAGING CORE", bg_color=[0.388, 0.404, 1.0, 0.2], text_color=COLOR_C9BEFF, height="22dp"))
         
         user_info_lbl = MDLabel(
-            text=f"•  User: [b]{user['display_name']}[/b] (@{user['username']})",
+            text=f"• User: [b]{user['display_name']}[/b] ({user['phone']})",
             font_style="Body",
             role="small",
             markup=True,
@@ -80,23 +81,23 @@ class DashboardScreen(MDScreen):
         logo_box.add_widget(user_info_lbl)
         top_bar.add_widget(logo_box)
 
+        btn_contacts = MDButton(
+            style="outlined",
+            size_hint_x=None,
+            width="150dp",
+            on_release=self.open_permissions_screen
+        )
+        btn_contacts.add_widget(MDButtonText(text="📇 Phone Sync"))
+        top_bar.add_widget(btn_contacts)
+
         btn_switch = MDButton(
             style="outlined",
             size_hint_x=None,
-            width="140dp",
+            width="120dp",
             on_release=self.open_identity_dialog
         )
-        btn_switch.add_widget(MDButtonText(text="🔄 Switch User"))
+        btn_switch.add_widget(MDButtonText(text="🔄 Account"))
         top_bar.add_widget(btn_switch)
-
-        btn_theme = MDButton(
-            style="text",
-            size_hint_x=None,
-            width="110dp",
-            on_release=self.toggle_theme
-        )
-        btn_theme.add_widget(MDButtonText(text="🌙 Dark/Light"))
-        top_bar.add_widget(btn_theme)
 
         main_box.add_widget(top_bar)
 
@@ -149,7 +150,7 @@ class DashboardScreen(MDScreen):
             elevation=0
         )
         telemetry.add_widget(MDLabel(
-            text="⚡ Python Platform",
+            text="⚡ #6367FF Engine",
             font_style="Label",
             role="small",
             bold=True,
@@ -157,18 +158,18 @@ class DashboardScreen(MDScreen):
             text_color=colors["text_main"]
         ))
         telemetry.add_widget(MDLabel(
-            text="FastAPI + KivyMD Engine",
+            text="Contact Matching Active",
             font_style="Label",
             role="small",
             theme_text_color="Custom",
             text_color=colors["text_muted"]
         ))
         telemetry.add_widget(MDLabel(
-            text="O(1) Hash Sync • Sub-50ms",
+            text="Sub-50ms Message Sync",
             font_style="Label",
             role="small",
             theme_text_color="Custom",
-            text_color=COLOR_CYAN_GLOW
+            text_color=COLOR_C9BEFF
         ))
         sidebar.add_widget(telemetry)
 
@@ -225,7 +226,7 @@ class DashboardScreen(MDScreen):
         self.build_ui()
 
     # ---------------------------------------------------------
-    # CONVERSATIONS / CHATS VIEW
+    # CORE MESSAGE BUBBLE INTERFACE & CHATS VIEW
     # ---------------------------------------------------------
     def build_chats_view(self):
         colors = get_theme_colors(self.theme_cls.theme_style)
@@ -236,7 +237,7 @@ class DashboardScreen(MDScreen):
 
         chats_header = MDBoxLayout(orientation="horizontal", spacing="8dp", size_hint_y=None, height="38dp")
         chats_header.add_widget(MDLabel(
-            text="💬 Chats",
+            text="💬 Conversations",
             font_style="Title",
             role="medium",
             bold=True,
@@ -255,7 +256,7 @@ class DashboardScreen(MDScreen):
         chats_sidebar.add_widget(chats_header)
 
         self.input_search_chats = MDTextField(mode="outlined", size_hint_y=None, height="44dp")
-        self.input_search_chats.add_widget(MDTextFieldHintText(text="🔍 Search conversations..."))
+        self.input_search_chats.add_widget(MDTextFieldHintText(text="🔍 Search conversations & contacts..."))
         self.input_search_chats.bind(text=self.filter_chats_list)
         chats_sidebar.add_widget(self.input_search_chats)
 
@@ -269,7 +270,7 @@ class DashboardScreen(MDScreen):
 
         chats_layout.add_widget(chats_sidebar)
 
-        # Chat Message Main Pane
+        # Core Message Pane
         self.chat_main_pane = MDBoxLayout(orientation="vertical", spacing="10dp", size_hint_x=0.65)
         self.populate_message_pane()
 
@@ -295,7 +296,7 @@ class DashboardScreen(MDScreen):
                 height="72dp",
                 radius=[12, 12, 12, 12],
                 md_bg_color=colors["active_item"] if is_active else colors["card"],
-                line_color=colors["cyan"] if is_active else colors["border"],
+                line_color=COLOR_6367FF if is_active else colors["border"],
                 ripple_behavior=True,
                 elevation=0,
                 on_release=lambda inst, c_id=chat["chat_id"]: self.select_active_chat(c_id)
@@ -354,7 +355,7 @@ class DashboardScreen(MDScreen):
         active_chat_info = next((c for c in user_chats if c["chat_id"] == self.active_chat_id), chat)
         chat_title = active_chat_info.get("title") or "Chat"
 
-        # Stream Header
+        # Stream Header Card
         stream_header = MDCard(
             orientation="horizontal",
             padding=["16dp", "8dp", "16dp", "8dp"],
@@ -383,6 +384,7 @@ class DashboardScreen(MDScreen):
 
         self.chat_main_pane.add_widget(stream_header)
 
+        # Message Scroll Area
         self.msg_scroll = ScrollView()
         self.msg_box = MDBoxLayout(
             orientation="vertical",
@@ -401,7 +403,7 @@ class DashboardScreen(MDScreen):
             font_style="Label",
             role="small",
             theme_text_color="Custom",
-            text_color=COLOR_CYAN_GLOW,
+            text_color=COLOR_C9BEFF,
             size_hint_y=None,
             height="18dp"
         )
@@ -410,7 +412,7 @@ class DashboardScreen(MDScreen):
         # Input Bar
         input_bar = MDBoxLayout(orientation="vertical", spacing="6dp", size_hint_y=None, height="96dp")
 
-        # Quick Emoji Bar
+        # Quick Emoji Bar with #FFDBFD highlights
         emoji_box = MDBoxLayout(orientation="horizontal", spacing="6dp", size_hint_y=None, height="30dp")
         for emoji in ["🇮🇳", "🚀", "❤️", "👍", "💻", "🔥"]:
             b = MDButton(style="outlined", size_hint_x=None, width="42dp", on_release=lambda inst, e=emoji: self.append_emoji(e))
@@ -420,7 +422,7 @@ class DashboardScreen(MDScreen):
 
         row_send = MDBoxLayout(orientation="horizontal", spacing="8dp", size_hint_y=None, height="52dp")
         self.msg_input = MDTextField(mode="outlined", size_hint_x=0.84)
-        self.msg_input.add_widget(MDTextFieldHintText(text="Write a message..."))
+        self.msg_input.add_widget(MDTextFieldHintText(text="Type a message..."))
         self.msg_input.bind(on_text_validate=self.send_text_message)
 
         btn_send = MDButton(style="filled", size_hint_x=0.16, on_release=self.send_text_message)
@@ -433,6 +435,7 @@ class DashboardScreen(MDScreen):
         self.chat_main_pane.add_widget(input_bar)
 
     def render_messages(self):
+        """Renders message bubbles using #6367FF, #8494FF, #C9BEFF, and #FFDBFD theme colors."""
         colors = get_theme_colors(self.theme_cls.theme_style)
         self.msg_box.clear_widgets()
         msgs = db_engine.get_messages_for_chat(self.active_chat_id)
@@ -447,6 +450,7 @@ class DashboardScreen(MDScreen):
             if is_me:
                 bubble_wrapper.add_widget(MDBoxLayout(size_hint_x=0.25))
 
+            # Sender Bubble (#6367FF) vs Recipient Bubble (#8494FF slate container)
             bubble_card = MDCard(
                 orientation="vertical",
                 padding="10dp",
@@ -454,9 +458,9 @@ class DashboardScreen(MDScreen):
                 size_hint_x=0.75,
                 size_hint_y=None,
                 height="60dp",
-                radius=[14, 14, 2, 14] if is_me else [14, 14, 14, 2],
-                md_bg_color=colors["bubble_me"] if is_me else colors["bubble_other"],
-                line_color=colors["border"] if not is_me else [0, 0, 0, 0],
+                radius=[16, 16, 4, 16] if is_me else [16, 16, 16, 4],
+                md_bg_color=COLOR_6367FF if is_me else [0.15, 0.18, 0.32, 0.95],
+                line_color=COLOR_8494FF if not is_me else [0, 0, 0, 0],
                 elevation=0
             )
 
@@ -470,7 +474,7 @@ class DashboardScreen(MDScreen):
                 role="small",
                 markup=True,
                 theme_text_color="Custom",
-                text_color=[1, 1, 1, 0.85] if is_me else colors["text_muted"]
+                text_color=[1, 1, 1, 0.9] if is_me else COLOR_C9BEFF
             ))
 
             bubble_card.add_widget(MDLabel(
@@ -520,8 +524,8 @@ class DashboardScreen(MDScreen):
         self.typing_label.text = ""
         replies = [
             "Got it! Thanks for sending the updates.",
-            "Looks awesome! Realtime Python Kivy messaging is super crisp.",
-            "Confirmed. Everything is indexed and sub-50ms ready!",
+            "Looks awesome! Core message bubble interface is super crisp.",
+            "Confirmed. Address book phone numbers matched successfully!",
             "Great progress! Let's ship this update."
         ]
         import random
@@ -587,10 +591,8 @@ class DashboardScreen(MDScreen):
             ))
 
             info_row = MDBoxLayout(orientation="horizontal", spacing="8dp", size_hint_y=None, height="36dp")
-            
-            badge_cat = create_pill_badge(f"👥 {comm['members_count']} • {comm['category']}", bg_color=[0.02, 0.71, 0.83, 0.12], text_color=COLOR_CYAN_GLOW)
+            badge_cat = create_pill_badge(f"👥 {comm['members_count']} • {comm['category']}", bg_color=[0.388, 0.404, 1.0, 0.15], text_color=COLOR_C9BEFF)
             info_row.add_widget(badge_cat)
-
             info_row.add_widget(MDBoxLayout(size_hint_x=1))
 
             btn_join = MDButton(
@@ -677,7 +679,7 @@ class DashboardScreen(MDScreen):
             ))
 
             card.add_widget(MDLabel(
-                text=f"📍 {item['location']}  •  Seller: {item['seller_name']}",
+                text=f"📍 {item['location']} • Seller: {item['seller_name']}",
                 font_style="Label",
                 role="small",
                 theme_text_color="Custom",
@@ -885,12 +887,11 @@ class DashboardScreen(MDScreen):
         )
         self.reload_user_session()
 
-    def open_identity_dialog(self, *args):
-        self.manager.current = "login"
+    def open_permissions_screen(self, *args):
+        self.manager.current = "permissions"
 
-    def toggle_theme(self, *args):
-        self.theme_cls.theme_style = "Light" if self.theme_cls.theme_style == "Dark" else "Dark"
-        self.build_ui()
+    def open_identity_dialog(self, *args):
+        self.manager.current = "auth"
 
     def open_new_chat_dialog(self, *args):
         other_users = [u for u in db_engine.users.values() if u["user_id"] != db_engine.current_user_id]

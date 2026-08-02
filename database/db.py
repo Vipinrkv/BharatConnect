@@ -1,6 +1,6 @@
 """
 BharatConnect Core Python Database Engine
-Features O(1) Hash Map indexing, data sanitization, and real-time state management.
+Features O(1) Hash Map indexing, Contact Sync & Phone Number Matching, and real-time state management.
 """
 
 import time
@@ -23,7 +23,7 @@ class DatabaseEngine:
                 "bio": "Senior Architect & Core Developer",
                 "presence": "ONLINE",
                 "last_seen": "Just now",
-                "avatar_color": "#673AB7"
+                "avatar_color": "#6367FF"
             },
             "u-102": {
                 "user_id": "u-102",
@@ -37,7 +37,7 @@ class DatabaseEngine:
                 "bio": "Fullstack Engineer | Open Source Contributor",
                 "presence": "ONLINE",
                 "last_seen": "Just now",
-                "avatar_color": "#009688"
+                "avatar_color": "#8494FF"
             },
             "u-103": {
                 "user_id": "u-103",
@@ -51,7 +51,7 @@ class DatabaseEngine:
                 "bio": "Lead Product & UI/UX Designer",
                 "presence": "IDLE",
                 "last_seen": "15 min ago",
-                "avatar_color": "#E91E63"
+                "avatar_color": "#C9BEFF"
             },
             "u-104": {
                 "user_id": "u-104",
@@ -65,9 +65,18 @@ class DatabaseEngine:
                 "bio": "Lead Product Manager | Tech Enthusiast",
                 "presence": "OFFLINE",
                 "last_seen": "2 hours ago",
-                "avatar_color": "#FF9800"
+                "avatar_color": "#FFDBFD"
             }
         }
+
+        # Simulated Device Contacts for Phone Number Matching Engine
+        self.device_address_book = [
+            {"name": "Rahul Sharma", "phone": "+91 98123 45678"},
+            {"name": "Priya Patel", "phone": "+91 98999 11122"},
+            {"name": "Ananya Verma", "phone": "+91 98777 33344"},
+            {"name": "Amit Patel (DevOps)", "phone": "+91 98444 55566"},
+            {"name": "Sneha Gupta", "phone": "+91 98111 22233"},
+        ]
 
         self.chats = {
             "c-group-1": {
@@ -113,7 +122,7 @@ class DatabaseEngine:
                 "message_id": "m-1",
                 "chat_id": "c-group-1",
                 "sender_id": "u-101",
-                "content": "Welcome to BharatConnect! Ultra-fast real-time text messaging platform built for India 🇮🇳.",
+                "content": "Welcome to BharatConnect! Core message bubble interface powered by #6367FF theme 🇮🇳.",
                 "is_pinned": True,
                 "status": "READ",
                 "created_at": "10:30 AM",
@@ -123,7 +132,7 @@ class DatabaseEngine:
                 "message_id": "m-2",
                 "chat_id": "c-group-1",
                 "sender_id": "u-103",
-                "content": "The Material UI/UX components look super clean! Great work team.",
+                "content": "The #C9BEFF lavender & #FFDBFD pink bubble contrast looks super clean!",
                 "is_pinned": False,
                 "status": "READ",
                 "created_at": "10:32 AM",
@@ -133,7 +142,7 @@ class DatabaseEngine:
                 "message_id": "m-3",
                 "chat_id": "c-direct-1",
                 "sender_id": "u-102",
-                "content": "Hey Vipin! Workspace engine and real-time Python messaging are running smoothly.",
+                "content": "Hey Vipin! Contact matching synced 3 registered users from my phone contacts.",
                 "is_pinned": False,
                 "status": "READ",
                 "created_at": "11:05 AM",
@@ -143,20 +152,10 @@ class DatabaseEngine:
                 "message_id": "m-4",
                 "chat_id": "c-direct-1",
                 "sender_id": "u-101",
-                "content": "Awesome Rahul! Let's verify all Kivy & KivyMD screens.",
+                "content": "Awesome Rahul! Let's test the core message bubble interface.",
                 "is_pinned": False,
                 "status": "READ",
                 "created_at": "11:06 AM",
-                "reactions": []
-            },
-            {
-                "message_id": "m-5",
-                "chat_id": "c-direct-2",
-                "sender_id": "u-103",
-                "content": "Hi Vipin, I finished reviewing the responsive layout designs.",
-                "is_pinned": False,
-                "status": "READ",
-                "created_at": "01:15 PM",
                 "reactions": []
             }
         ]
@@ -175,36 +174,14 @@ class DatabaseEngine:
             },
             {
                 "community_id": "comm-102",
-                "name": "Python & Kivy Developers",
-                "slug": "kivy-python-india",
+                "name": "Python & Mobile Developers",
+                "slug": "python-mobile-india",
                 "description": "Community dedicated to building native desktop and mobile GUI apps with Python.",
                 "category": "OPEN SOURCE",
                 "owner_id": "u-102",
                 "members_count": 890,
                 "is_joined": True,
                 "icon": "language-python"
-            },
-            {
-                "community_id": "comm-103",
-                "name": "Startup Founders Bharat",
-                "slug": "startup-founders-bharat",
-                "description": "Network for founders, builders, and product leaders launching next-gen startups.",
-                "category": "ENTREPRENEURSHIP",
-                "owner_id": "u-104",
-                "members_count": 2150,
-                "is_joined": False,
-                "icon": "rocket-launch"
-            },
-            {
-                "community_id": "comm-104",
-                "name": "UI/UX Design Systems India",
-                "slug": "uiux-design-india",
-                "description": "Crafting accessible, gorgeous, and performant user interfaces.",
-                "category": "DESIGN",
-                "owner_id": "u-103",
-                "members_count": 640,
-                "is_joined": False,
-                "icon": "palette"
             }
         ]
 
@@ -230,17 +207,6 @@ class DatabaseEngine:
                 "description": "Comprehensive performance, security, and schema code review for your startup backend.",
                 "location": "New Delhi / Remote",
                 "tags": ["Service", "Backend", "Python"]
-            },
-            {
-                "item_id": "item-3",
-                "title": "4K Ultra-Wide Monitor (27 inch)",
-                "price": "₹22,000",
-                "seller_id": "u-103",
-                "seller_name": "Priya Patel",
-                "category": "HARDWARE",
-                "description": "High color accuracy IPS panel perfect for UI/UX designers and video editors.",
-                "location": "Mumbai, Maharashtra",
-                "tags": ["Display", "Hardware", "Design"]
             }
         ]
 
@@ -264,26 +230,6 @@ class DatabaseEngine:
                 "city": "Mumbai (Bandra)",
                 "skills": ["Figma", "Design Systems", "UI/UX"],
                 "presence": "IDLE"
-            },
-            {
-                "user_id": "u-104",
-                "display_name": "Ananya Verma",
-                "username": "ananya_pm",
-                "role": "Product Manager",
-                "distance_km": "5.0 km",
-                "city": "Gurgaon (DLF Cyber City)",
-                "skills": ["Agile", "Product Roadmap", "Strategy"],
-                "presence": "OFFLINE"
-            },
-            {
-                "user_id": "u-105",
-                "display_name": "Amit Patel",
-                "username": "amit_cloud",
-                "role": "DevOps Architect",
-                "distance_km": "7.8 km",
-                "city": "Hyderabad (Hitech City)",
-                "skills": ["Docker", "Kubernetes", "GCP"],
-                "presence": "ONLINE"
             }
         ]
 
@@ -298,6 +244,65 @@ class DatabaseEngine:
             return self.users[user_id]
         return None
 
+    def register_user(self, full_name, email, username, phone, password, dob):
+        """Registers a new user account."""
+        uid = f"u-{uuid.uuid4().hex[:6]}"
+        clean_phone = phone if phone.startswith("+") else f"+91 {phone.strip()}"
+        new_user = {
+            "user_id": uid,
+            "username": username.lower().strip(),
+            "display_name": full_name.strip(),
+            "email": email.lower().strip(),
+            "phone": clean_phone,
+            "country": "India 🇮🇳",
+            "dob": dob,
+            "status_message": "Hey there! I am using BharatConnect 🇮🇳",
+            "bio": "New BharatConnect Member",
+            "presence": "ONLINE",
+            "last_seen": "Just now",
+            "avatar_color": "#6367FF"
+        }
+        self.users[uid] = new_user
+        self.current_user_id = uid
+        return new_user
+
+    def reset_password_with_email(self, email, otp_code, new_password):
+        """Simulates email verification & password reset."""
+        for u in self.users.values():
+            if u["email"].lower() == email.lower().strip():
+                return True, f"Password successfully reset for {u['display_name']}!"
+        return False, "Email address not found in registered accounts."
+
+    def match_device_contacts(self):
+        """Matches phone numbers from device address book against registered BharatConnect users."""
+        matched = []
+        registered_phones = {u["phone"].replace(" ", ""): u for u in self.users.values()}
+        
+        for c in self.device_address_book:
+            clean_p = c["phone"].replace(" ", "")
+            reg_user = registered_phones.get(clean_p)
+            if reg_user:
+                matched.append({
+                    "name": c["name"],
+                    "phone": c["phone"],
+                    "is_registered": True,
+                    "matched_user_id": reg_user["user_id"],
+                    "username": reg_user["username"],
+                    "status_message": reg_user["status_message"],
+                    "presence": reg_user["presence"]
+                })
+            else:
+                matched.append({
+                    "name": c["name"],
+                    "phone": c["phone"],
+                    "is_registered": False,
+                    "matched_user_id": None,
+                    "username": None,
+                    "status_message": "Not on BharatConnect yet",
+                    "presence": "OFFLINE"
+                })
+        return matched
+
     def get_user_chats(self, user_id=None):
         uid = user_id or self.current_user_id
         user_chats = []
@@ -305,11 +310,12 @@ class DatabaseEngine:
             if uid in chat["participants"]:
                 chat_copy = dict(chat)
                 if chat["chat_type"] == "DIRECT":
-                    other_id = [p for p in chat["participants"] if p != uid][0]
-                    other_user = self.users.get(other_id, {})
-                    chat_copy["title"] = other_user.get("display_name", "Unknown User")
-                    chat_copy["presence"] = other_user.get("presence", "OFFLINE")
-                    chat_copy["status_message"] = other_user.get("status_message", "")
+                    other_ids = [p for p in chat["participants"] if p != uid]
+                    if other_ids:
+                        other_user = self.users.get(other_ids[0], {})
+                        chat_copy["title"] = other_user.get("display_name", "Unknown User")
+                        chat_copy["presence"] = other_user.get("presence", "OFFLINE")
+                        chat_copy["status_message"] = other_user.get("status_message", "")
                 user_chats.append(chat_copy)
         return user_chats
 
