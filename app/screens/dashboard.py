@@ -1,6 +1,6 @@
 """
 BharatConnect WhatsApp-Style Main Dashboard Screen (Winter Vintage Edition)
-Palette: #6367FF, #8494FF, #C9BEFF, #FFDBFD, #2F2FE4, #162E93, #1A1953, #080616
+Theme Palette: #6367FF, #8494FF, #C9BEFF, #FFDBFD, #2F2FE4, #162E93, #1A1953, #080616
 """
 
 from kivymd.uix.screen import MDScreen
@@ -15,7 +15,7 @@ from kivy.clock import Clock
 
 from database.db import db_engine
 from app.theme import (
-    get_theme_colors, create_presence_badge, create_pill_badge, GradientCard,
+    get_theme_colors, create_presence_badge, create_pill_badge, GradientCard, GradientBox,
     COLOR_6367FF, COLOR_8494FF, COLOR_C9BEFF, COLOR_FFDBFD, COLOR_2F2FE4,
     COLOR_162E93, COLOR_1A1953, COLOR_080616, COLOR_EMERALD, COLOR_AMBER
 )
@@ -40,15 +40,17 @@ class DashboardScreen(MDScreen):
         )
 
         # ---------------------------------------------------------
-        # TOP NAVBAR HEADER (WhatsApp Style with Gradient)
+        # TOP NAVBAR HEADER (Linear Gradient: #162E93 -> #2F2FE4)
         # ---------------------------------------------------------
-        top_bar = MDBoxLayout(
+        top_bar = GradientBox(
+            color1=COLOR_162E93,
+            color2=COLOR_2F2FE4,
+            orientation_grad="horizontal",
             orientation="horizontal",
             padding=["16dp", "8dp", "16dp", "8dp"],
             spacing="12dp",
             size_hint_y=None,
-            height="60dp",
-            md_bg_color=colors["topbar"]
+            height="60dp"
         )
 
         user = db_engine.get_current_user()
@@ -68,7 +70,7 @@ class DashboardScreen(MDScreen):
             theme_text_color="Custom",
             text_color=colors["text_main"]
         ))
-        logo_box.add_widget(create_pill_badge("WINTER EDITION", bg_color=[0.388, 0.404, 1.0, 0.25], text_color=COLOR_C9BEFF, height="22dp"))
+        logo_box.add_widget(create_pill_badge("WINTER GRADIENT EDITION", bg_color=[0.388, 0.404, 1.0, 0.3], text_color=COLOR_FFDBFD, height="22dp"))
         
         user_info_lbl = MDLabel(
             text=f"• Logged in: [b]{user['display_name']}[/b] ({user['phone']})",
@@ -94,18 +96,20 @@ class DashboardScreen(MDScreen):
         main_box.add_widget(top_bar)
 
         # ---------------------------------------------------------
-        # BODY LAYOUT: SIDEBAR NAVIGATION + CONTENT AREA
+        # BODY LAYOUT: GRADIENT SIDEBAR + CONTENT AREA
         # ---------------------------------------------------------
         self.body_layout = MDBoxLayout(orientation="horizontal", spacing="0dp")
 
-        # WhatsApp Navigation Sidebar
-        sidebar = MDBoxLayout(
+        # WhatsApp Navigation Sidebar with Vertical Gradient (#1A1953 -> #080616)
+        sidebar = GradientBox(
+            color1=COLOR_1A1953,
+            color2=COLOR_080616,
+            orientation_grad="vertical",
             orientation="vertical",
             padding=["10dp", "14dp", "10dp", "14dp"],
             spacing="8dp",
             size_hint_x=None,
-            width="210dp",
-            md_bg_color=colors["sidebar"]
+            width="210dp"
         )
 
         nav_items = [
@@ -118,36 +122,61 @@ class DashboardScreen(MDScreen):
 
         for tab_key, tab_label, callback in nav_items:
             is_active = (self.active_tab == tab_key)
-            btn = MDButton(
-                style="filled" if is_active else "text",
-                size_hint_x=1,
-                height="44dp",
-                on_release=lambda instance, c=callback: c()
-            )
-            btn.add_widget(MDButtonText(text=tab_label))
-            sidebar.add_widget(btn)
+            if is_active:
+                # Active Nav Button with Gradient Card Container (#6367FF -> #2F2FE4)
+                btn_card = GradientCard(
+                    color1=COLOR_6367FF,
+                    color2=COLOR_2F2FE4,
+                    orientation="horizontal",
+                    padding=["12dp", "6dp", "12dp", "6dp"],
+                    size_hint_x=1,
+                    size_hint_y=None,
+                    height="44dp",
+                    radius=[10, 10, 10, 10],
+                    ripple_behavior=True,
+                    elevation=0,
+                    on_release=lambda instance, c=callback: c()
+                )
+                btn_card.add_widget(MDLabel(
+                    text=tab_label,
+                    font_style="Title",
+                    role="small",
+                    bold=True,
+                    theme_text_color="Custom",
+                    text_color=colors["text_main"]
+                ))
+                sidebar.add_widget(btn_card)
+            else:
+                btn = MDButton(
+                    style="text",
+                    size_hint_x=1,
+                    height="44dp",
+                    on_release=lambda instance, c=callback: c()
+                )
+                btn.add_widget(MDButtonText(text=tab_label))
+                sidebar.add_widget(btn)
 
         sidebar.add_widget(MDBoxLayout(size_hint_y=1))
 
-        # Mini System Telemetry
-        telemetry = MDCard(
-            orientation="vertical",
+        # Mini System Telemetry Gradient Card
+        telemetry = GradientCard(
+            color1=COLOR_162E93,
+            color2=COLOR_1A1953,
+            orientation="horizontal",
             padding="12dp",
             spacing="4dp",
             size_hint_y=None,
-            height="85dp",
+            height="88dp",
             radius=[12, 12, 12, 12],
-            md_bg_color=colors["card"],
-            line_color=colors["border"],
             elevation=0
         )
         telemetry.add_widget(MDLabel(
-            text="⚡ Winter #6367FF Engine",
+            text="⚡ Winter Gradient Engine",
             font_style="Label",
             role="small",
             bold=True,
             theme_text_color="Custom",
-            text_color=colors["text_main"]
+            text_color=COLOR_FFDBFD
         ))
         telemetry.add_widget(MDLabel(
             text="Sub-50ms WhatsApp Sync",
@@ -280,19 +309,34 @@ class DashboardScreen(MDScreen):
                 continue
 
             is_active = (chat["chat_id"] == self.active_chat_id)
-            card = MDCard(
-                orientation="vertical",
-                padding="12dp",
-                spacing="4dp",
-                size_hint_y=None,
-                height="72dp",
-                radius=[12, 12, 12, 12],
-                md_bg_color=colors["active_item"] if is_active else colors["card"],
-                line_color=COLOR_6367FF if is_active else colors["border"],
-                ripple_behavior=True,
-                elevation=0,
-                on_release=lambda inst, c_id=chat["chat_id"]: self.select_active_chat(c_id)
-            )
+            if is_active:
+                # Active Chat Item Gradient Card (#6367FF -> #2F2FE4)
+                card = GradientCard(
+                    color1=COLOR_6367FF,
+                    color2=COLOR_2F2FE4,
+                    orientation="horizontal",
+                    padding="12dp",
+                    spacing="4dp",
+                    size_hint_y=None,
+                    height="72dp",
+                    radius=[12, 12, 12, 12],
+                    elevation=0,
+                    on_release=lambda inst, c_id=chat["chat_id"]: self.select_active_chat(c_id)
+                )
+            else:
+                card = MDCard(
+                    orientation="vertical",
+                    padding="12dp",
+                    spacing="4dp",
+                    size_hint_y=None,
+                    height="72dp",
+                    radius=[12, 12, 12, 12],
+                    md_bg_color=colors["card"],
+                    line_color=colors["border"],
+                    ripple_behavior=True,
+                    elevation=0,
+                    on_release=lambda inst, c_id=chat["chat_id"]: self.select_active_chat(c_id)
+                )
 
             row1 = MDBoxLayout(orientation="horizontal", spacing="6dp", size_hint_y=None, height="24dp")
             row1.add_widget(MDLabel(
@@ -315,7 +359,7 @@ class DashboardScreen(MDScreen):
                 font_style="Body",
                 role="small",
                 theme_text_color="Custom",
-                text_color=colors["text_muted"],
+                text_color=[1, 1, 1, 0.9] if is_active else colors["text_muted"],
                 shorten=True
             ))
 
@@ -347,16 +391,16 @@ class DashboardScreen(MDScreen):
         active_chat_info = next((c for c in user_chats if c["chat_id"] == self.active_chat_id), chat)
         chat_title = active_chat_info.get("title") or "Chat"
 
-        # Stream Header Card
-        stream_header = MDCard(
+        # Stream Header Gradient Card (#162E93 -> #1A1953)
+        stream_header = GradientCard(
+            color1=COLOR_162E93,
+            color2=COLOR_1A1953,
             orientation="horizontal",
             padding=["16dp", "8dp", "16dp", "8dp"],
             spacing="8dp",
             size_hint_y=None,
             height="52dp",
             radius=[12, 12, 12, 12],
-            md_bg_color=colors["card"],
-            line_color=colors["border"],
             elevation=0
         )
         stream_header.add_widget(MDLabel(
@@ -427,7 +471,7 @@ class DashboardScreen(MDScreen):
         self.chat_main_pane.add_widget(input_bar)
 
     def render_messages(self):
-        """Renders WhatsApp-style message bubbles in #6367FF -> #2F2FE4 winter gradient for sender."""
+        """Renders WhatsApp-style message bubbles in #6367FF -> #2F2FE4 gradient for sender, #1A1953 -> #162E93 for recipient."""
         colors = get_theme_colors(self.theme_cls.theme_style)
         self.msg_box.clear_widgets()
         msgs = db_engine.get_messages_for_chat(self.active_chat_id)
@@ -457,17 +501,17 @@ class DashboardScreen(MDScreen):
                     elevation=0
                 )
             else:
-                # Recipient Bubble in Cold Navy Surface Card
-                bubble_card = MDCard(
-                    orientation="vertical",
+                # Recipient Bubble with #1A1953 -> #162E93 Subtle Cold Navy Gradient
+                bubble_card = GradientCard(
+                    color1=COLOR_1A1953,
+                    color2=COLOR_162E93,
+                    orientation="horizontal",
                     padding="10dp",
                     spacing="2dp",
                     size_hint_x=0.75,
                     size_hint_y=None,
                     height="60dp",
                     radius=[16, 16, 16, 4],
-                    md_bg_color=COLOR_1A1953,
-                    line_color=COLOR_8494FF,
                     elevation=0
                 )
 
@@ -572,14 +616,13 @@ class DashboardScreen(MDScreen):
         for status in db_engine.statuses:
             card = GradientCard(
                 color1=COLOR_1A1953,
-                color2=[0.14, 0.16, 0.42, 1.0],
+                color2=COLOR_162E93,
                 orientation="horizontal",
                 padding="16dp",
                 spacing="10dp",
                 size_hint_y=None,
                 height="150dp",
                 radius=[16, 16, 16, 16],
-                line_color=COLOR_6367FF,
                 elevation=0
             )
             card.add_widget(MDLabel(
@@ -640,15 +683,15 @@ class DashboardScreen(MDScreen):
         grid.bind(minimum_height=grid.setter("height"))
 
         for call in db_engine.call_logs:
-            card = MDCard(
+            card = GradientCard(
+                color1=COLOR_1A1953,
+                color2=COLOR_162E93,
                 orientation="horizontal",
                 padding="16dp",
                 spacing="12dp",
                 size_hint_y=None,
                 height="70dp",
                 radius=[14, 14, 14, 14],
-                md_bg_color=COLOR_1A1953,
-                line_color=COLOR_BORDER,
                 elevation=0
             )
 
@@ -712,17 +755,30 @@ class DashboardScreen(MDScreen):
         grid.bind(minimum_height=grid.setter("height"))
 
         for contact in matched_contacts:
-            card = MDCard(
-                orientation="horizontal",
-                padding="16dp",
-                spacing="12dp",
-                size_hint_y=None,
-                height="65dp",
-                radius=[14, 14, 14, 14],
-                md_bg_color=COLOR_1A1953,
-                line_color=COLOR_6367FF if contact["is_registered"] else COLOR_BORDER,
-                elevation=0
-            )
+            if contact["is_registered"]:
+                card = GradientCard(
+                    color1=COLOR_1A1953,
+                    color2=COLOR_162E93,
+                    orientation="horizontal",
+                    padding="16dp",
+                    spacing="12dp",
+                    size_hint_y=None,
+                    height="65dp",
+                    radius=[14, 14, 14, 14],
+                    elevation=0
+                )
+            else:
+                card = MDCard(
+                    orientation="horizontal",
+                    padding="16dp",
+                    spacing="12dp",
+                    size_hint_y=None,
+                    height="65dp",
+                    radius=[14, 14, 14, 14],
+                    md_bg_color=COLOR_1A1953,
+                    line_color=colors["border"],
+                    elevation=0
+                )
 
             card.add_widget(MDLabel(
                 text=f"👤 {contact['name']} ({contact['phone']})",
@@ -795,14 +851,13 @@ class DashboardScreen(MDScreen):
 
         card_prof = GradientCard(
             color1=COLOR_1A1953,
-            color2=[0.14, 0.16, 0.42, 1.0],
+            color2=COLOR_162E93,
             orientation="horizontal",
             padding="20dp",
             spacing="14dp",
             size_hint_y=None,
             height="325dp",
             radius=[16, 16, 16, 16],
-            line_color=COLOR_6367FF,
             elevation=0
         )
         card_prof.add_widget(MDLabel(

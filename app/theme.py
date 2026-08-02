@@ -80,9 +80,29 @@ class GradientCard(MDCard):
 
         self.bind(pos=self._update_rect, size=self._update_rect)
 
+class GradientBox(MDBoxLayout):
+    """Layout widget with native Kivy linear gradient background."""
+    def __init__(self, color1=COLOR_162E93, color2=COLOR_1A1953, orientation_grad="horizontal", **kwargs):
+        super().__init__(**kwargs)
+        self.gradient_color1 = color1
+        self.gradient_color2 = color2
+        self.gradient_orientation = orientation_grad
+
+        self.texture = create_gradient_texture(
+            self.gradient_color1, self.gradient_color2,
+            orientation=self.gradient_orientation
+        )
+
+        with self.canvas.before:
+            Color(1, 1, 1, 1)
+            self.rect = Rectangle(texture=self.texture, pos=self.pos, size=self.size)
+
+        self.bind(pos=self._update_rect, size=self._update_rect)
+
     def _update_rect(self, instance, value):
         self.rect.pos = instance.pos
         self.rect.size = instance.size
+
 
 
 def get_theme_colors(theme_mode="Dark"):
