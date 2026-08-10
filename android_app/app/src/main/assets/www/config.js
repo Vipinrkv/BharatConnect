@@ -11,6 +11,9 @@ window.BHARATCONNECT_CONFIG = {
     // Universal Standalone FastAPI REST & WebSocket Endpoints
     API_BASE_URL: 'http://localhost:8000/api/v1',
     WS_BASE_URL: 'ws://localhost:8000/ws',
+    // Supabase Endpoints (Loaded dynamically or set via backend)
+    SUPABASE_URL: 'https://ykbfynoofjvibnyfkifi.supabase.co',
+    SUPABASE_PUBLISHABLE_KEY: '',
     DB_KEY: 'bharatconnect_db_v6_config',
     SESSION_KEY: 'bharatconnect_session_v6_config',
     ENABLE_E2EE: true,
