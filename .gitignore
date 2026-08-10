@@ -39,6 +39,7 @@ data/local_storage.json
 venv/
 ENV/
 *service_account*.json
+*credentials*.json
 firebase_service_account.json
 *.pem
 

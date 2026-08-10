@@ -16,7 +16,8 @@ window.BHARATCONNECT_CONFIG = {
     FCM_SENDER_ID: '247753000307',
     // Supabase Endpoints (Loaded dynamically or set via backend)
     SUPABASE_URL: 'https://ykbfynoofjvibnyfkifi.supabase.co',
-    SUPABASE_PUBLISHABLE_KEY: '',
+    SUPABASE_PUBLISHABLE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrYmZ5bm9vZmp2aWJueWZraWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNzAxNjQsImV4cCI6MjEwMTk0NjE2NH0.XDeixsULEe8Z03OsxTOeACHXGkQU30MbuOvXWQrO9xw',
+
     DB_KEY: 'bharatconnect_db_v6_config',
     SESSION_KEY: 'bharatconnect_session_v6_config',
     ENABLE_E2EE: true,
