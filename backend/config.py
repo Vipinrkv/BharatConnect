@@ -23,6 +23,12 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
 SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "")
 
+# Cloudinary Storage Credentials (loaded from .env or environment variables)
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
+CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL", "")
+
 # Universal Database Connection String
 DATA_DIR = os.path.join(str(BASE_DIR), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
