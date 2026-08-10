@@ -33,11 +33,16 @@ data/app.db
 data/session.dat
 data/local_storage.json
 
-# Environment / IDE
+# Credentials / Keys / Service Accounts
 .env
 .venv
 venv/
 ENV/
+*service_account*.json
+firebase_service_account.json
+*.pem
+
+# IDE
 .vscode/
 .idea/
 .DS_Store
