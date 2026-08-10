@@ -1,36 +1,40 @@
-# 📖 BharatConnect User Guide & Authentication Flow
+# 📖 BharatConnect User Guide & 1-Click Launch
 
 ## User Journey Overview
 
 ```
-SplashScreen ──► AuthScreen ──► DashboardScreen (Home/Chats Tab)
-  (Intro)       (Sign In/Reg)    (WhatsApp Message Bubbles & Tabs)
+SplashScreen ──► LoginScreen ──► DashboardScreen
+  (Intro)       (Auth / Demo)   (Home / Chats / Marketplace / Profile / Settings)
 ```
 
 ---
 
-## 🔑 Authentication Options
+## ⚡ 1-Click Launch Instructions (Windows)
 
-### 1. Sign In
-- Log in using your **Email**, **Mobile Number** (`+91`), or **Username** along with your password.
-- Successful verification automatically opens the Dashboard Home / Chats Tab.
-
-### 2. Registration (New Account)
-Fields required for registration:
-- **Full Name** (e.g. `Vikramaditya Singh`)
-- **Email Address** (e.g. `vikram@bharatconnect.com`)
-- **Mobile Number with Country Code** (e.g. `+91 98765 11223`)
-- **Username** (e.g. `vikram_dev`)
-- **Date of Birth (DOB)** (e.g. `2000-01-15`)
-- **Password** & **Confirm Password**
-
-### 3. Forgot Password (OTP Verification)
-- Enter your registered email address.
-- Input the email verification code (OTP).
-- Set a new password and log in immediately.
+1. Navigate to the `BharatConnect` root directory.
+2. Double-click **`start.bat`**.
+3. The script will automatically:
+   - Check and verify your Python 3.11+ setup.
+   - Install required packages (`kivy`, `kivymd`, `pillow`, `requests`) if missing.
+   - Launch **BharatConnect** in high-resolution mobile frame format (`410x730`).
 
 ---
 
-## ⚡ One-Click Windows Launcher
+## 🔑 Authentication & Demo Access
 
-Double-click `start.bat` in the project root folder to run the application on Windows.
+### Quick Demo Mode
+- On the Splash Screen, click **Continue as Demo** to bypass authentication and explore all screens directly.
+
+### Registered Demo Credentials
+- **Email / Username**: `alex.morgan@bharatconnect.com` / `alexmorgan`
+- **Password**: `password123`
+
+---
+
+## 📱 Interactive Feature Highlights
+
+1. **Home Feed**: View posts, like (`❤️`), comment, view story avatars, and add new posts.
+2. **Chats**: Filter threads by **Individual**, **Group**, and **Community**. Tap any conversation to open real-time message streams, pinned messages, call icons, and input field.
+3. **Marketplace**: Filter listings by **Items**, **Jobs**, and **Quick Jobs** with price pill badges.
+4. **Profile**: Inspect follower/following stats, bio, edit profile button, and quick menu items.
+5. **Settings**: Customize account preferences, privacy, theme, notifications, and click **Logout** to test the full authentication flow.

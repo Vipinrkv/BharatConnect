@@ -87,6 +87,7 @@ class GradientCard(MDCard):
     """Card widget with native Kivy linear gradient texture background."""
     def __init__(self, color1=COLOR_6367FF, color2=COLOR_2F2FE4, color3=None, orientation="horizontal", **kwargs):
         super().__init__(**kwargs)
+        self.orientation = orientation
         self.gradient_color1 = color1
         self.gradient_color2 = color2
         self.gradient_color3 = color3
@@ -194,7 +195,6 @@ def create_pill_badge(text, bg_color=None, text_color=None, height="24dp"):
         bold=True,
         theme_text_color="Custom",
         text_color=text_color,
-        adaptive_width=True,
         halign="center",
         valign="center"
     )
@@ -219,8 +219,7 @@ def create_presence_badge(presence):
         orientation="horizontal",
         spacing="6dp",
         size_hint=(None, None),
-        height="24dp",
-        adaptive_width=True
+        height="24dp"
     )
 
     dot = MDCard(
@@ -240,8 +239,46 @@ def create_presence_badge(presence):
         bold=True,
         theme_text_color="Custom",
         text_color=text_color,
-        adaptive_width=True,
         pos_hint={"center_y": 0.5}
     )
     box.add_widget(lbl)
     return box
+
+
+def hex_to_rgba(hex_str, alpha=1.0):
+    """Converts #RRGGBB string into Kivy RGBA list [0.0 - 1.0]."""
+    clean_hex = hex_str.lstrip('#')
+    if len(clean_hex) == 6:
+        r = int(clean_hex[0:2], 16) / 255.0
+        g = int(clean_hex[2:4], 16) / 255.0
+        b = int(clean_hex[4:6], 16) / 255.0
+        return [r, g, b, alpha]
+    return [0.388, 0.404, 1.0, alpha]
+
+
+def create_avatar_widget(initials="AM", bg_hex="#6367FF", size_dp=44, is_circle=True, show_camera_badge=False):
+    """Creates a circular/rounded avatar card with initials and vibrant gradient background."""
+    rgba = hex_to_rgba(bg_hex)
+    half_size = int(size_dp) // 2 if isinstance(size_dp, int) else int(size_dp.replace("dp", "")) // 2
+    radius_val = [half_size] * 4 if is_circle else [12, 12, 12, 12]
+
+    avatar_card = MDCard(
+        size_hint=(None, None),
+        size=(f"{size_dp}dp" if isinstance(size_dp, int) else size_dp, f"{size_dp}dp" if isinstance(size_dp, int) else size_dp),
+        radius=radius_val,
+        md_bg_color=rgba,
+        elevation=0
+    )
+
+    lbl = MDLabel(
+        text=initials,
+        font_style="Title",
+        role="medium" if half_size > 20 else "small",
+        bold=True,
+        halign="center",
+        valign="center",
+        theme_text_color="Custom",
+        text_color=COLOR_TEXT_MAIN
+    )
+    avatar_card.add_widget(lbl)
+    return avatar_card

@@ -13,21 +13,30 @@ BharatConnect follows a modular UI-driven architecture built on top of **Kivy 2.
             ┌────────────────┴────────────────┐
             ▼                                 ▼
    ScreenManager Engine                 DatabaseEngine
-(FadeTransition Controller)         (O(1) Hash Map Sync)
+(FadeTransition Controller)         (SQLite Local Persistence)
             │
-            ├──────► SplashScreen (Hero Banner & Intro)
-            ├──────► AuthScreen (Sign In / Register / Forgot Password)
-            └──────► DashboardScreen (WhatsApp Home / Chats / Status / Calls)
+            ├──────► SplashScreen (Top Pill Badge, Logo Squircle, Action Buttons)
+            ├──────► LoginScreen (Email/User Input, Password Toggle, Social Login)
+            ├──────► RegisterScreen (Account Registration & Input Validation)
+            ├──────► ForgotPasswordScreen (Password Recovery Instructions)
+            └──────► DashboardScreen (Bottom Nav Container: Home Feed, Chats, Marketplace, Profile, Settings)
 ```
 
 ---
 
-## 🎨 Cold Winter Vintage Theme Palette
+## 🎨 Single-Root View Hierarchy & Canvas Rendering
 
-The design system incorporates native linear gradient textures drawn using Kivy `Texture.create()` buffers.
+To ensure pixel-perfect visual styling without double-rendering or layout bugs:
+1. **Single-Root Python Views**: All screen views build clean, single-root layout trees in Python (`build_ui()`). Redundant `.kv` layout auto-loading is bypassed in `main.py` to prevent layout conflicts.
+2. **KivyMD 2.0 Theme Colors (`theme_bg_color="Custom"`)**: Cards and buttons explicitly set `theme_bg_color="Custom"` alongside `md_bg_color` so KivyMD 2.0 respects custom palette tokens rather than defaulting to dark surface grey.
+3. **Canvas Shader Texture Clipping (`RoundedRectangle`)**: `GradientCard` and `GradientBox` draw canvas gradient textures via Kivy's `RoundedRectangle` instruction mapped to `parse_kivy_radius()`, ensuring smooth rounded corners without protruding square artifacts.
+
+---
+
+## 🎨 Color Palette Tokens
 
 ```python
-# Color Definitions in app/theme.py
+# Color Definitions in utils/helper.py
 COLOR_6367FF = [0.388, 0.404, 1.000, 1.0]   # Electric Indigo Primary
 COLOR_8494FF = [0.518, 0.580, 1.000, 1.0]   # Soft Ice Blue Accent
 COLOR_C9BEFF = [0.788, 0.745, 1.000, 1.0]   # Light Frost Lavender
@@ -39,7 +48,7 @@ COLOR_080616 = [0.031, 0.024, 0.086, 1.0]   # Deep Frost Midnight Background
 ```
 
 ### Canvas Texture Gradient Generator
-`GradientCard` dynamically attaches a linear gradient background texture on its Kivy `canvas.before` layer:
+`GradientCard` dynamically attaches a linear gradient background texture on its Kivy canvas layer:
 
 ```python
 def create_gradient_texture(color1_rgb, color2_rgb, width=128, height=128, orientation="horizontal"):

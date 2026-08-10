@@ -46,7 +46,6 @@ class AuthScreen(MDScreen):
             font_style="Title",
             role="medium",
             bold=True,
-            adaptive_width=True,
             theme_text_color="Custom",
             text_color=COLOR_TEXT_MAIN
         ))

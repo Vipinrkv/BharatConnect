@@ -1,21 +1,31 @@
 """
-BharatConnect Mobile Responsive Splash Screen (Vibrant Gradient Edition)
-Palette: #6367FF, #8494FF, #C9BEFF, #FFDBFD, #2F2FE4, #162E93, #1A1953, #080616
+BharatConnect Splash Screen (app/screens/splash.py)
 """
 
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
-from kivymd.uix.label import MDLabel
+from kivymd.uix.label import MDLabel, MDIcon
 from kivymd.uix.card import MDCard
-from kivymd.uix.button import MDButton, MDButtonText
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.gridlayout import GridLayout
 
-from app.theme import (
-    COLOR_080616, COLOR_1A1953,
-    COLOR_6367FF, COLOR_8494FF, COLOR_C9BEFF, COLOR_FFDBFD, COLOR_2F2FE4,
-    COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, create_pill_badge, GradientCard
+
+from database.db import db_engine
+from utils.helper import (
+    COLOR_080616,
+    COLOR_6367FF,
+    COLOR_8494FF,
+    COLOR_C9BEFF,
+    COLOR_FFDBFD,
+    COLOR_TEXT_MAIN,
+    COLOR_TEXT_MUTED,
+    COLOR_2F2FE4,
+    COLOR_162E93,
+    COLOR_1A1953,
+    GradientCard,
+    create_pill_badge,
+    create_primary_button,
+    create_outlined_button,
 )
+
 
 
 class SplashScreen(MDScreen):
@@ -29,145 +39,129 @@ class SplashScreen(MDScreen):
 
         root = MDBoxLayout(
             orientation="vertical",
-            padding=["16dp", "16dp", "16dp", "16dp"],
+            padding=["24dp", "24dp", "24dp", "24dp"],
             spacing="16dp",
-            md_bg_color=COLOR_080616
+            md_bg_color=COLOR_080616,
         )
 
-        scroll = ScrollView()
-        content = MDBoxLayout(
+        # Top Pill Badge (Header)
+        header = MDBoxLayout(
+            orientation="horizontal",
+            size_hint_y=None,
+            height="36dp",
+            pos_hint={"center_x": 0.5},
+        )
+        status_text = db_engine.get_status_text()
+        header.add_widget(
+            create_pill_badge(
+                status_text,
+                bg_color=[0.388, 0.404, 1.0, 0.25],
+                text_color=COLOR_FFDBFD,
+                height="28dp",
+            )
+        )
+        root.add_widget(header)
+
+        # Centered Brand Container (Logo, App Title, Subtitle & Pagination Dots)
+        center_box = MDBoxLayout(
             orientation="vertical",
             spacing="16dp",
-            size_hint_y=None,
-            padding=["0dp", "4dp", "0dp", "12dp"]
+            size_hint_y=1.0,
+            pos_hint={"center_x": 0.5},
         )
-        content.bind(minimum_height=content.setter("height"))
 
-        # Vibrant 3-stop Linear Gradient Hero Banner (#6367FF -> #8494FF -> #2F2FE4)
-        hero_card = GradientCard(
+        # Spacer top
+        center_box.add_widget(MDBoxLayout(size_hint_y=1.0))
+
+        # Squircle Logo Card with Material Design Forum/Chat Icon
+        logo_card = GradientCard(
             color1=COLOR_6367FF,
-            color2=COLOR_8494FF,
-            color3=COLOR_2F2FE4,
-            orientation="horizontal",
-            padding="20dp",
-            spacing="12dp",
-            size_hint_y=None,
-            height="210dp",
-            radius=[18, 18, 18, 18],
-            elevation=0
+            color2=COLOR_2F2FE4,
+            size_hint=(None, None),
+            size=("110dp", "110dp"),
+            radius=[28, 28, 28, 28],
+            pos_hint={"center_x": 0.5},
+            elevation=4,
         )
 
-        badge = create_pill_badge(
-            "⚡ BHARATCONNECT • MOBILE VIBRANT EDITION",
-            bg_color=[1, 1, 1, 0.3],
-            text_color=COLOR_FFDBFD,
-            height="26dp"
-        )
-        hero_card.add_widget(badge)
-
-        hero_card.add_widget(MDLabel(
-            text="WhatsApp-Style Messaging & Contact Sync",
-            font_style="Headline",
-            role="small",
-            bold=True,
-            theme_text_color="Custom",
-            text_color=COLOR_TEXT_MAIN
-        ))
-
-        hero_card.add_widget(MDLabel(
-            text="Sub-50ms delivery, phone contact matching, mobile responsive bottom navigation, status stories, and vibrant gradient theme.",
-            font_style="Body",
-            role="small",
-            theme_text_color="Custom",
-            text_color=[1, 1, 1, 0.95]
-        ))
-
-        content.add_widget(hero_card)
-
-        # Features Section Heading
-        feat_heading = MDLabel(
-            text="❄️ Core Mobile Architecture & Features",
-            font_style="Title",
-            role="medium",
-            bold=True,
+        icon_w = MDIcon(
+            icon="forum",
+            font_size="56sp",
+            pos_hint={"center_x": 0.5, "center_y": 0.5},
             theme_text_color="Custom",
             text_color=COLOR_TEXT_MAIN,
-            size_hint_y=None,
-            height="32dp"
         )
-        content.add_widget(feat_heading)
+        logo_card.add_widget(icon_w)
+        center_box.add_widget(logo_card)
 
-        grid = GridLayout(cols=1, spacing="12dp", size_hint_y=None)
-        grid.bind(minimum_height=grid.setter("height"))
-
-        features = [
-            ("💬 Vibrant Message Bubbles", "Electric Indigo #6367FF -> #8494FF gradient bubbles with status ticks & reactions.", COLOR_6367FF, COLOR_8494FF),
-            ("📇 Phone Contact Sync", "Match phone numbers from contacts with registered BharatConnect users.", COLOR_8494FF, COLOR_C9BEFF),
-            ("🔑 Flexible Sign In & Auth", "Sign in via Email, Mobile (+91), or Username, or register with DOB.", COLOR_C9BEFF, COLOR_FFDBFD),
-            ("📱 Mobile Responsive Navigation", "WhatsApp-style bottom bar navigation optimized for Android phones.", COLOR_FFDBFD, COLOR_6367FF)
-        ]
-
-        for feat_title, feat_desc, col1, col2 in features:
-            card = GradientCard(
-                color1=COLOR_6367FF,
-                color2=COLOR_2F2FE4,
-                orientation="horizontal",
-                padding="16dp",
-                spacing="6dp",
+        # App Title & Tagline
+        center_box.add_widget(
+            MDLabel(
+                text="BharatConnect",
+                font_style="Headline",
+                role="medium",
+                bold=True,
+                halign="center",
+                theme_text_color="Custom",
+                text_color=COLOR_TEXT_MAIN,
                 size_hint_y=None,
-                height="115dp",
-                radius=[16, 16, 16, 16],
-                elevation=0
+                height="40dp",
             )
+        )
 
-            card.add_widget(MDLabel(
-                text=feat_title,
+        center_box.add_widget(
+            MDLabel(
+                text="Connect. Share. Grow.\nA community for everyone.",
                 font_style="Title",
                 role="small",
                 bold=True,
+                halign="center",
                 theme_text_color="Custom",
-                text_color=COLOR_TEXT_MAIN
-            ))
-
-            card.add_widget(MDLabel(
-                text=feat_desc,
-                font_style="Body",
-                role="small",
-                theme_text_color="Custom",
-                text_color=COLOR_TEXT_MUTED
-            ))
-
-            grid.add_widget(card)
-
-        content.add_widget(grid)
-        scroll.add_widget(content)
-        root.add_widget(scroll)
-
-        # Mobile Action Bar
-        action_box = MDBoxLayout(orientation="horizontal", spacing="12dp", size_hint_y=None, height="48dp")
-
-        btn_auth = MDButton(
-            style="filled",
-            size_hint_x=0.6,
-            on_release=self.go_auth
+                text_color=COLOR_TEXT_MUTED,
+                size_hint_y=None,
+                height="44dp",
+            )
         )
-        btn_auth.add_widget(MDButtonText(text="Get Started / Sign In 🚀"))
 
-        btn_dash = MDButton(
-            style="outlined",
-            size_hint_x=0.4,
-            on_release=self.go_dashboard
+        # 3 Pagination Dots
+        dots = MDBoxLayout(
+            orientation="horizontal",
+            spacing="8dp",
+            size_hint=(None, None),
+            size=("60dp", "10dp"),
+            pos_hint={"center_x": 0.5},
         )
-        btn_dash.add_widget(MDButtonText(text="Demo Dashboard"))
+        dots.add_widget(MDCard(size_hint=(None, None), size=("10dp", "10dp"), radius=[5], theme_bg_color="Custom", md_bg_color=COLOR_6367FF, elevation=0))
+        dots.add_widget(MDCard(size_hint=(None, None), size=("10dp", "10dp"), radius=[5], theme_bg_color="Custom", md_bg_color=COLOR_8494FF, elevation=0))
+        dots.add_widget(MDCard(size_hint=(None, None), size=("10dp", "10dp"), radius=[5], theme_bg_color="Custom", md_bg_color=COLOR_C9BEFF, elevation=0))
+        center_box.add_widget(dots)
 
-        action_box.add_widget(btn_auth)
-        action_box.add_widget(btn_dash)
+        # Spacer bottom
+        center_box.add_widget(MDBoxLayout(size_hint_y=1.0))
+        root.add_widget(center_box)
 
-        root.add_widget(action_box)
+        # Bottom Sleek Action Buttons
+        bottom = MDBoxLayout(
+            orientation="vertical",
+            spacing="12dp",
+            size_hint_y=None,
+            height="115dp",
+            pos_hint={"center_x": 0.5},
+        )
+
+        btn_get_started = create_primary_button("Get Started", on_release=self.go_login, size_hint_x=1.0, height="48dp")
+        bottom.add_widget(btn_get_started)
+
+        btn_demo = create_outlined_button("Continue as Demo", on_release=self.go_demo, size_hint_x=1.0, height="48dp")
+        bottom.add_widget(btn_demo)
+
+        root.add_widget(bottom)
         self.add_widget(root)
 
-    def go_auth(self, *args):
-        self.manager.current = "auth"
+    def go_login(self, *args):
+        self.manager.current = "login"
 
-    def go_dashboard(self, *args):
+    def go_demo(self, *args):
+        if hasattr(self.manager, "dashboard_screen"):
+            self.manager.dashboard_screen.reload_user_session()
         self.manager.current = "dashboard"
