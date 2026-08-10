@@ -37,8 +37,6 @@ CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL", "")
 DATA_DIR = os.path.join(str(BASE_DIR), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 DEFAULT_SQLITE_PATH = os.path.join(DATA_DIR, "app.db").replace("\\", "/")
-
-# Reads DATABASE_URL from .env or environment; defaults to local SQLite if unset
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DEFAULT_SQLITE_PATH}")
 
 # JWT Authentication Config
