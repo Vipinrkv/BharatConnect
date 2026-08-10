@@ -23,6 +23,10 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
 SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "")
 
+# Firebase Cloud Messaging Credentials (loaded from .env or environment variables)
+FCM_PROJECT_ID = os.environ.get("FCM_PROJECT_ID", "bharatconnect-fcm")
+FCM_SENDER_ID = os.environ.get("FCM_SENDER_ID", "247753000307")
+
 # Cloudinary Storage Credentials (loaded from .env or environment variables)
 CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
 CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")

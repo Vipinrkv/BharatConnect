@@ -11,6 +11,9 @@ window.BHARATCONNECT_CONFIG = {
     // Universal Standalone FastAPI REST & WebSocket Endpoints
     API_BASE_URL: 'http://localhost:8000/api/v1',
     WS_BASE_URL: 'ws://localhost:8000/ws',
+    // Firebase Cloud Messaging
+    FCM_PROJECT_ID: 'bharatconnect-fcm',
+    FCM_SENDER_ID: '247753000307',
     // Supabase Endpoints (Loaded dynamically or set via backend)
     SUPABASE_URL: 'https://ykbfynoofjvibnyfkifi.supabase.co',
     SUPABASE_PUBLISHABLE_KEY: '',
