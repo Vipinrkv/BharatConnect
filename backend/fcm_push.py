@@ -3,6 +3,7 @@ BharatConnect Firebase Push Notification Engine (backend/fcm_push.py)
 Handles dispatching FCM push notifications using Firebase Admin SDK.
 """
 
+import json
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -16,13 +17,25 @@ except ImportError:
 
 
 def init_firebase_admin() -> bool:
-    """Initializes Firebase Admin SDK using service account JSON."""
+    """Initializes Firebase Admin SDK using service account JSON (from ENV string or file)."""
     if not FIREBASE_ADMIN_AVAILABLE:
         return False
 
     if firebase_admin._apps:
         return True
 
+    # 1. Check environment variable containing full JSON string
+    env_json_str = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+    if env_json_str:
+        try:
+            cert_dict = json.loads(env_json_str)
+            cred = credentials.Certificate(cert_dict)
+            firebase_admin.initialize_app(cred)
+            return True
+        except Exception as e:
+            print(f"Error initializing Firebase Admin from env JSON string: {e}")
+
+    # 2. Check local file paths
     base_dir = Path(__file__).resolve().parent
     key_paths = [
         base_dir / "firebase_service_account.json",

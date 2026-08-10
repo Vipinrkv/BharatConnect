@@ -11,6 +11,7 @@ from datetime import datetime
 
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+import sqlalchemy
 from sqlalchemy.orm import Session
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -241,12 +242,19 @@ def seed_initial_data():
 # API Health Endpoint
 @app.get("/")
 @app.get("/api/v1/health")
-def health_check():
+def health_check(db: Session = Depends(get_db)):
+    db_status = "healthy"
+    try:
+        db.execute(sqlalchemy.text("SELECT 1"))
+    except Exception:
+        db_status = "degraded"
+
     return {
         "status": "online",
         "service": "BharatConnect Universal API Server",
         "timestamp": datetime.utcnow().isoformat(),
-        "database": "connected",
+        "database": db_status,
+        "environment": "production" if os.environ.get("RENDER") else "development",
     }
 
 

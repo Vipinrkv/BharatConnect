@@ -8,9 +8,9 @@
 window.BHARATCONNECT_CONFIG = {
     APP_NAME: 'BharatConnect',
     APP_VERSION: '2.0.0-Opt1',
-    // Universal Standalone FastAPI REST & WebSocket Endpoints
-    API_BASE_URL: 'http://localhost:8000/api/v1',
-    WS_BASE_URL: 'ws://localhost:8000/ws',
+    // Universal Standalone FastAPI REST & WebSocket Endpoints (Production Default)
+    API_BASE_URL: 'https://bharatconnect-api.onrender.com/api/v1',
+    WS_BASE_URL: 'wss://bharatconnect-api.onrender.com/ws',
     // Firebase Cloud Messaging
     FCM_PROJECT_ID: 'bharatconnect-fcm',
     FCM_SENDER_ID: '247753000307',
