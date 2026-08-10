@@ -3,23 +3,31 @@ BharatConnect Universal Database Abstraction Layer (backend/database.py)
 Supports SQLite, PostgreSQL, MySQL, MariaDB, and any SQL database.
 """
 
+import os
 from datetime import datetime
 from sqlalchemy import create_engine, Column, String, Integer, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
-from backend.config import DATABASE_URL
+from backend.config import DATABASE_URL, DEFAULT_SQLITE_PATH
 
-# Setup SQLAlchemy Engine with SQLite thread handling if SQLite
-connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
-engine = create_engine(DATABASE_URL, connect_args=connect_args, echo=False)
 
+def create_db_engine(db_url: str):
+    connect_args = {"check_same_thread": False} if "sqlite" in db_url else {}
+    return create_engine(db_url, connect_args=connect_args, echo=False)
+
+
+# Primary Engine
+active_db_url = DATABASE_URL
+engine = create_db_engine(active_db_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
 def get_db():
     """Dependency helper for FastAPI endpoints."""
+    global SessionLocal
     db = SessionLocal()
     try:
         yield db
@@ -121,5 +129,13 @@ class MarketplaceModel(Base):
 
 
 def init_db():
-    """Initializes database tables."""
-    Base.metadata.create_all(bind=engine)
+    """Initializes database tables with automatic fallback to SQLite on connection errors."""
+    global engine, SessionLocal
+    try:
+        Base.metadata.create_all(bind=engine)
+    except (OperationalError, Exception) as e:
+        print(f"Warning: Primary database connection failed ({e}). Falling back to local SQLite database.")
+        sqlite_url = f"sqlite:///{DEFAULT_SQLITE_PATH}"
+        engine = create_db_engine(sqlite_url)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        Base.metadata.create_all(bind=engine)
