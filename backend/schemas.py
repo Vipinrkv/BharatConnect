@@ -12,9 +12,11 @@ class LoginRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    full_name: str
+    full_name: Optional[str] = None
+    display_name: Optional[str] = None
     username: str
     email: str
+    phone: Optional[str] = None
     password: str
 
 

@@ -143,47 +143,66 @@ def health_check(db: Session = Depends(get_db)):
 # Authentication Endpoints
 @app.post("/api/v1/auth/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    id_clean = payload.identifier.strip().lower()
     user = (
         db.query(UserModel)
-        .filter((UserModel.username == payload.identifier) | (UserModel.email == payload.identifier))
+        .filter(
+            (sqlalchemy.func.lower(UserModel.username) == id_clean)
+            | (sqlalchemy.func.lower(UserModel.email) == id_clean)
+            | (UserModel.phone == payload.identifier.strip())
+        )
         .first()
     )
     if not user or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username, email, or password")
 
     token = create_access_token({"sub": user.id, "username": user.username})
     user_dict = {
         "id": user.id,
         "username": user.username,
-        "display_name": user.display_name,
+        "display_name": user.display_name or user.username,
         "email": user.email,
-        "bio": user.bio,
-        "avatar_initials": user.avatar_initials,
-        "avatar_color": user.avatar_color,
+        "phone": user.phone or "",
+        "bio": user.bio or "Hey there! I am using BharatConnect 🚀",
+        "avatar_initials": user.avatar_initials or "BC",
+        "avatar_color": user.avatar_color or "#6367FF",
     }
     return {"access_token": token, "token_type": "bearer", "user": user_dict}
 
 
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    uname_clean = payload.username.strip().lower()
+    email_clean = payload.email.strip().lower()
+
     existing = (
         db.query(UserModel)
-        .filter((UserModel.username == payload.username) | (UserModel.email == payload.email))
+        .filter(
+            (sqlalchemy.func.lower(UserModel.username) == uname_clean)
+            | (sqlalchemy.func.lower(UserModel.email) == email_clean)
+        )
         .first()
     )
     if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username or email already exists")
+        if existing.username.lower() == uname_clean:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Username '@{payload.username}' is already registered! Please choose a different username.")
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Email '{payload.email}' is already registered! Please log in instead.")
 
+    display_name = payload.display_name or payload.full_name or payload.username
     new_id = f"u-{uuid.uuid4().hex[:8]}"
-    initials = "".join([part[0].upper() for part in payload.full_name.split()[:2]]) or "US"
+    initials = "".join([part[0].upper() for part in display_name.split()[:2]]) or "BC"
+    
     user = UserModel(
         id=new_id,
-        username=payload.username,
-        display_name=payload.full_name,
-        email=payload.email,
+        username=payload.username.strip(),
+        display_name=display_name.strip(),
+        email=email_clean,
+        phone=payload.phone.strip() if payload.phone else None,
         password_hash=hash_password(payload.password),
         avatar_initials=initials,
         avatar_color="#6367FF",
+        bio="Hey there! I am using BharatConnect 🚀",
     )
     db.add(user)
     db.commit()
@@ -195,11 +214,30 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         "username": user.username,
         "display_name": user.display_name,
         "email": user.email,
+        "phone": user.phone or "",
         "bio": user.bio,
         "avatar_initials": user.avatar_initials,
         "avatar_color": user.avatar_color,
     }
     return {"access_token": token, "token_type": "bearer", "user": user_dict}
+
+
+@app.get("/api/v1/auth/users")
+def list_users(db: Session = Depends(get_db)):
+    users = db.query(UserModel).all()
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "display_name": u.display_name or u.username,
+            "email": u.email,
+            "phone": u.phone or "",
+            "bio": u.bio or "",
+            "avatar_initials": u.avatar_initials or "BC",
+            "avatar_color": u.avatar_color or "#6367FF",
+        }
+        for u in users
+    ]
 
 
 # Feed Posts Endpoints

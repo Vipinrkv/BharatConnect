@@ -276,9 +276,11 @@ class LocalDB {
     async registerUser(userData) {
         const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
 
+        const displayName = (window.securityEngine && window.securityEngine.sanitizeHTML) ? window.securityEngine.sanitizeHTML(userData.fullName || userData.username) : (userData.fullName || userData.username);
         const registerPayload = {
+            full_name: displayName,
+            display_name: displayName,
             username: String(userData.username || '').toLowerCase().trim(),
-            display_name: (window.securityEngine && window.securityEngine.sanitizeHTML) ? window.securityEngine.sanitizeHTML(userData.fullName || userData.username) : (userData.fullName || userData.username),
             email: String(userData.email || '').toLowerCase().trim(),
             phone: String(userData.phone || '').trim(),
             password: userData.password

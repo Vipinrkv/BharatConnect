@@ -17,14 +17,23 @@ from backend.database import get_db, UserModel
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
+import hmac
+
+SALT = (JWT_SECRET_KEY.encode("utf-8")[:16]) if len(JWT_SECRET_KEY) >= 16 else b"bharatconnect_sec"
+
 def hash_password(password: str) -> str:
-    """Computes SHA-256 hash for passwords."""
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+    """Computes PBKDF2 HMAC SHA-256 hash (100,000 iterations) for security."""
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), SALT, 100000)
+    return key.hex()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifies plain text password against SHA-256 hash."""
-    return hash_password(plain_password) == hashed_password
+    """Verifies plain text password using constant-time comparison against PBKDF2 and SHA-256 fallback."""
+    computed_pbkdf2 = hash_password(plain_password)
+    if hmac.compare_digest(computed_pbkdf2, hashed_password):
+        return True
+    computed_sha256 = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
+    return hmac.compare_digest(computed_sha256, hashed_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
