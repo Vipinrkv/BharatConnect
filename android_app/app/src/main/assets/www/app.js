@@ -288,24 +288,27 @@ function markAllNotificationsRead() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const session = window.localDB.getSession();
+    const session = window.localDB ? window.localDB.getSession() : null;
     if (session && session.isLoggedIn && session.user) {
-        // Auto-login active session offline first
+        // Auto-login active session
         const data = window.localDB.get();
         data.currentUser = session.user;
         window.localDB.save(data);
         showScreen('screen-home');
     } else {
-        // Auto transition from Splash screen after 2 seconds if no session
-        setTimeout(() => {
-            const splash = document.getElementById('screen-splash');
-            if (splash && splash.classList.contains('active')) {
-                showScreen('screen-login');
-            }
-        }, 2000);
+        showScreen('screen-splash');
     }
-    renderAll();
+    if (window.renderAll) renderAll();
 });
+
+function handleGetStarted() {
+    const session = window.localDB ? window.localDB.getSession() : null;
+    if (session && session.isLoggedIn && session.user) {
+        showScreen('screen-home');
+    } else {
+        showScreen('screen-login');
+    }
+}
 
 function handleAvatarSelect(event) {
     const file = event.target.files && event.target.files[0];
@@ -355,10 +358,12 @@ function showScreen(screenId, isBackNavigation) {
 
     // Toggle bottom nav visibility
     const bottomNav = document.getElementById('bottom-nav');
-    if (target && target.classList.contains('no-nav')) {
-        bottomNav.style.display = 'none';
-    } else {
-        bottomNav.style.display = 'flex';
+    if (bottomNav) {
+        if (target && (target.classList.contains('no-nav') || screenId === 'screen-splash' || screenId === 'screen-login' || screenId === 'screen-register' || screenId === 'screen-forgot')) {
+            bottomNav.style.display = 'none';
+        } else {
+            bottomNav.style.display = 'flex';
+        }
     }
 
     // Update bottom nav active state

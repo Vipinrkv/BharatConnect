@@ -581,33 +581,43 @@ class LocalDB {
     async addPost(post) {
         const data = this.get();
         data.posts.unshift(post);
-        data.currentUser.postsCount += 1;
-        
+        if (data.currentUser) {
+            data.currentUser.postsCount = (data.currentUser.postsCount || 0) + 1;
+        }
         this.save(data);
 
-        const encryptedCaption = await window.securityEngine.encryptE2EE(post.caption);
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
 
-        this.syncToCloud('save_post', {
-            id: post.id,
-            author_id: post.username,
-            author_name: post.author,
-            user_avatar: post.avatar,
-            content: encryptedCaption,
-            image_title: post.image || '',
-            likes_count: post.likes,
-            comments_count: post.commentsCount
-        });
+        try {
+            await fetch(`${apiBaseUrl}/posts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: post.caption,
+                    image_title: post.image || null
+                })
+            });
+        } catch (err) {
+            console.warn('[addPost] Server sync skipped:', err);
+        }
 
         return data;
     }
 
-    toggleLike(postId) {
+    async toggleLike(postId) {
         const data = this.get();
         const post = data.posts.find(p => p.id === postId);
         if (post) {
             post.liked = !post.liked;
             post.likes += post.liked ? 1 : -1;
             this.save(data);
+
+            const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
+            try {
+                await fetch(`${apiBaseUrl}/posts/${postId}/like`, { method: 'POST' });
+            } catch (e) {
+                console.warn('[toggleLike] Server like sync skipped:', e);
+            }
         }
         return data;
     }

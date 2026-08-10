@@ -666,6 +666,11 @@ body {
     z-index: 200;
 }
 
+#screen-splash.active ~ #bottom-nav,
+.screen.no-nav.active ~ #bottom-nav {
+    display: none !important;
+}
+
 .nav-item {
     display: flex;
     flex-direction: column;
