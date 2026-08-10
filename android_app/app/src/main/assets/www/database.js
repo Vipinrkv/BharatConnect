@@ -184,40 +184,41 @@ class LocalDB {
     }
 
     async syncUsersFromCloud() {
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
         try {
-            const res = await fetchWithTimeout(`${GAS_API_URL}?sheet=users`, { timeout: 3500 });
-            const json = await res.json();
-            if (json && json.status === 'success' && Array.isArray(json.rows) && json.rows.length > 0) {
-                const data = this.get();
-                if (!data.registeredUsers) data.registeredUsers = [];
+            const res = await fetchWithTimeout(`${apiBaseUrl}/auth/users`, { timeout: 3500 });
+            if (res.ok) {
+                const users = await res.json();
+                if (Array.isArray(users) && users.length > 0) {
+                    const data = this.get();
+                    if (!data.registeredUsers) data.registeredUsers = [];
 
-                for (const r of json.rows) {
-                    if (!r.username && !r.phone_number) continue;
-                    const cloudUser = {
-                        id: r.id || 'u_' + Date.now(),
-                        name: window.securityEngine.sanitizeHTML(r.display_name || r.username || 'System User'),
-                        username: window.securityEngine.sanitizeHTML(r.username || ''),
-                        phone: window.securityEngine.sanitizeHTML(r.phone_number || ''),
-                        email: window.securityEngine.sanitizeHTML(r.email || ''),
-                        avatar: r.user_avatar || 'logo.png',
-                        bio: window.securityEngine.sanitizeHTML(r.bio || 'BharatConnect User')
-                    };
+                    for (const r of users) {
+                        const cloudUser = {
+                            id: r.id || ('u_' + Date.now()),
+                            name: (window.securityEngine && window.securityEngine.sanitizeHTML) ? window.securityEngine.sanitizeHTML(r.display_name || r.username || 'System User') : (r.display_name || r.username),
+                            username: (window.securityEngine && window.securityEngine.sanitizeHTML) ? window.securityEngine.sanitizeHTML(r.username || '') : (r.username || ''),
+                            phone: (window.securityEngine && window.securityEngine.sanitizeHTML) ? window.securityEngine.sanitizeHTML(r.phone || '') : (r.phone || ''),
+                            email: (window.securityEngine && window.securityEngine.sanitizeHTML) ? window.securityEngine.sanitizeHTML(r.email || '') : (r.email || ''),
+                            avatar: r.user_avatar || 'logo.png',
+                            bio: (window.securityEngine && window.securityEngine.sanitizeHTML) ? window.securityEngine.sanitizeHTML(r.bio || 'BharatConnect User') : (r.bio || 'BharatConnect User')
+                        };
 
-                    const idx = data.registeredUsers.findIndex(u => 
-                        (u.id && u.id === cloudUser.id) ||
-                        (u.username && cloudUser.username && u.username.toLowerCase() === cloudUser.username.toLowerCase()) ||
-                        (u.phone && cloudUser.phone && u.phone.trim() === cloudUser.phone.trim())
-                    );
+                        const idx = data.registeredUsers.findIndex(u =>
+                            (u.id && u.id === cloudUser.id) ||
+                            (u.username && cloudUser.username && u.username.toLowerCase() === cloudUser.username.toLowerCase())
+                        );
 
-                    if (idx >= 0) {
-                        data.registeredUsers[idx] = { ...data.registeredUsers[idx], ...cloudUser };
-                    } else {
-                        data.registeredUsers.push(cloudUser);
+                        if (idx >= 0) {
+                            data.registeredUsers[idx] = { ...data.registeredUsers[idx], ...cloudUser };
+                        } else {
+                            data.registeredUsers.push(cloudUser);
+                        }
                     }
+                    this.save(data);
+                    this.matchContacts(data);
+                    return data.registeredUsers;
                 }
-                this.save(data);
-                this.matchContacts(data);
-                return data.registeredUsers;
             }
         } catch (err) {
             console.warn('[SentinelCloudSync] Cloud users fetch skipped:', err);
@@ -225,176 +226,47 @@ class LocalDB {
         return (this.get().registeredUsers || []);
     }
 
-    // Cloud Fetch Helper (Syncs Users, Posts & Real-time Mutual Chat Messages)
+    // Cloud Fetch Helper (Syncs Posts & Messages via REST & WebSockets)
     async syncFromCloud() {
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
         try {
             const data = this.get();
             if (!data.currentUser) return;
-            const myUsername = String(data.currentUser.username || '').toLowerCase();
-            const myId = String(data.currentUser.id || '').toLowerCase();
-            const myPhone = String(data.currentUser.phone || '').toLowerCase();
 
-            // Sync all registered users from Google Sheet
-            await this.syncUsersFromCloud();
-
-            // 1. Fetch Posts
-            const res = await fetchWithTimeout(`${GAS_API_URL}?sheet=posts`, { timeout: 3500 });
-            const json = await res.json();
-            if (json && json.status === 'success' && Array.isArray(json.rows) && json.rows.length > 0) {
-                for (const r of json.rows) {
-                    const decryptedContent = await window.securityEngine.decryptE2EE(r.content || '');
-                    const cloudPost = {
-                        id: r.id || 'p_' + Date.now(),
-                        author: window.securityEngine.sanitizeHTML(r.author_name || 'Anonymous User'),
-                        username: window.securityEngine.sanitizeHTML(r.author_id || 'user'),
-                        avatar: r.user_avatar || 'logo.png',
-                        time: 'Recently',
-                        caption: decryptedContent,
-                        image: r.image_title || '',
-                        likes: Number(r.likes_count || 0),
-                        commentsCount: Number(r.comments_count || 0),
-                        liked: false,
-                        comments: []
-                    };
-                    const exists = data.posts.some(p => p.id === cloudPost.id);
-                    if (!exists) {
-                        data.posts.unshift(cloudPost);
-                    }
-                }
-                this.save(data);
-            }
-
-            // 2. Fetch Messages (Mutual Real-time Cloud Sync)
-            const msgRes = await fetchWithTimeout(`${GAS_API_URL}?sheet=messages`, { timeout: 3500 });
-            const msgJson = await msgRes.json();
-            if (msgJson && msgJson.status === 'success' && Array.isArray(msgJson.rows) && msgJson.rows.length > 0) {
-                let updated = false;
-
-                for (const r of msgJson.rows) {
-                    if (!r.text) continue;
-                    const senderId = String(r.sender_id || '').toLowerCase().trim();
-                    const chatId = String(r.chat_id || '');
-
-                    // Dynamically resolve recipient from r.recipient_id or from chat_id
-                    let recipientId = String(r.recipient_id || '').toLowerCase().trim();
-                    if (!recipientId && chatId.startsWith('chat_')) {
-                        recipientId = this.getRecipientFromChatId(chatId, senderId);
-                    }
-
-                    const isMeSender = (senderId === myUsername || senderId === myId || (myPhone && senderId.endsWith(myPhone)));
-                    const isMeRecipient = (recipientId === myUsername || recipientId === myId || (myPhone && recipientId.endsWith(myPhone)) || (chatId.startsWith('chat_') && (chatId.includes(myUsername) || chatId.includes(myId))));
-                    const isMe = isMeSender;
-
-                    // Clean Time Display
-                    let displayTime = 'Just now';
-                    if (r.time) {
-                        const tStr = String(r.time);
-                        if (tStr.includes('T') || tStr.length > 10) {
-                            try {
-                                const dt = new Date(tStr);
-                                if (!isNaN(dt.getTime())) {
-                                    displayTime = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                } else {
-                                    displayTime = tStr.substring(0, 5);
-                                }
-                            } catch (e) {
-                                displayTime = 'Just now';
-                            }
-                        } else {
-                            displayTime = tStr;
+            // 1. Fetch Posts from FastAPI Server
+            const res = await fetchWithTimeout(`${apiBaseUrl}/posts`, { timeout: 3500 });
+            if (res.ok) {
+                const posts = await res.json();
+                if (Array.isArray(posts) && posts.length > 0) {
+                    for (const r of posts) {
+                        const cloudPost = {
+                            id: r.id || ('p_' + Date.now()),
+                            author: r.author_name || 'Anonymous User',
+                            username: r.author_id || 'user',
+                            avatar: r.user_avatar || 'logo.png',
+                            time: r.time_ago || 'Recently',
+                            caption: r.content || '',
+                            image: r.image_title || '',
+                            likes: Number(r.likes_count || 0),
+                            commentsCount: Number(r.comments_count || 0),
+                            liked: Boolean(r.is_liked),
+                            comments: []
+                        };
+                        const exists = data.posts.some(p => p.id === cloudPost.id);
+                        if (!exists) {
+                            data.posts.unshift(cloudPost);
                         }
                     }
-
-                    // Individual Chat Sync
-                    if (chatId.startsWith('chat_') || chatId.startsWith('c_') || chatId.includes('u_')) {
-                        // Strict recipient check: ignore if user is neither sender nor recipient
-                        if (!isMeSender && !isMeRecipient) {
-                            continue;
-                        }
-
-                        if (!data.individualChats) data.individualChats = [];
-                        
-                        const otherParty = isMeSender ? recipientId : senderId;
-
-                        let chat = data.individualChats.find(c => {
-                            const cTarget = String(c.username || c.userId || c.phone || c.name).toLowerCase().trim();
-                            const pairwiseKey = this.getPairwiseChatId(myUsername || myId, cTarget);
-                            return c.id === chatId || cTarget === otherParty || cTarget === senderId || cTarget === recipientId || (chatId.startsWith('chat_') && chatId === pairwiseKey);
-                        });
-
-                        if (!chat && !isMeSender && otherParty) {
-                            chat = this.addIndividualContact(otherParty || r.sender_name);
-                        }
-
-                        if (chat) {
-                            if (!chat.messages) chat.messages = [];
-                            const msgExists = chat.messages.some(m => m.id === r.id);
-                            if (!msgExists) {
-                                const decryptedText = await window.securityEngine.decryptE2EE(r.text || '');
-                                chat.messages.push({
-                                    id: r.id,
-                                    sender: isMe ? 'me' : (r.sender_name || chat.name),
-                                    text: decryptedText,
-                                    time: displayTime,
-                                    is_me: isMe
-                                });
-                                chat.lastMessage = decryptedText;
-                                chat.time = displayTime;
-                                updated = true;
-                            }
-                        }
-                    } else if (chatId.startsWith('g_')) {
-                        if (!data.groups) data.groups = [];
-                        let group = data.groups.find(g => g.id === chatId);
-                        if (group) {
-                            if (!group.messages) group.messages = [];
-                            const msgExists = group.messages.some(m => m.id === r.id);
-                            if (!msgExists) {
-                                const decryptedText = await window.securityEngine.decryptE2EE(r.text || '');
-                                group.messages.push({
-                                    id: r.id,
-                                    sender: isMe ? 'me' : (r.sender_name || 'Member'),
-                                    text: decryptedText,
-                                    time: displayTime
-                                });
-                                updated = true;
-                            }
-                        }
-                    } else if (chatId.startsWith('comm_')) {
-                        if (!data.communities) data.communities = [];
-                        let comm = data.communities.find(c => c.id === chatId);
-                        if (comm) {
-                            if (!comm.messages) comm.messages = [];
-                            const msgExists = comm.messages.some(m => m.id === r.id);
-                            if (!msgExists) {
-                                const decryptedText = await window.securityEngine.decryptE2EE(r.text || '');
-                                comm.messages.push({
-                                    id: r.id,
-                                    sender: r.sender_name || 'Member',
-                                    role: isMe ? 'Me' : 'Member',
-                                    text: decryptedText,
-                                    time: displayTime
-                                });
-                                updated = true;
-                            }
-                        }
-                    }
-                }
-
-                if (updated) {
                     this.save(data);
                 }
             }
 
             if (window.renderAll) window.renderAll();
+        } catch (err) {
+            console.warn('[SentinelCloudSync] Cloud fetch skipped:', err);
+        }
+    }
 
-            // Re-render open chat room if user is actively in a conversation
-            if (window.activeOpenChat && window.activeOpenChat.id) {
-                const currentChat = (data.individualChats || []).find(c => c.id === window.activeOpenChat.id);
-                if (currentChat && window.renderIndividualMessages) {
-                    window.renderIndividualMessages(currentChat.messages || []);
-                }
-            }
         } catch (err) {
             console.warn('[SentinelCloudSync] Cloud fetch skipped:', err);
         }
@@ -402,183 +274,143 @@ class LocalDB {
 
 
     async registerUser(userData) {
-        // Strict Online Connectivity Guard: Block offline registration to prevent duplicate accounts
-        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-            return {
-                success: false,
-                message: 'Internet Connection Required! Please turn on Mobile Data or Wi-Fi to register your account on BharatConnect.'
-            };
-        }
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
 
-        const targetUsername = String(userData.username || '').toLowerCase().trim();
-        const targetPhone = String(userData.phone || '').replace(/[^0-9]/g, '');
-        const targetEmail = String(userData.email || '').toLowerCase().trim();
+        const registerPayload = {
+            username: String(userData.username || '').toLowerCase().trim(),
+            display_name: (window.securityEngine && window.securityEngine.sanitizeHTML) ? window.securityEngine.sanitizeHTML(userData.fullName || userData.username) : (userData.fullName || userData.username),
+            email: String(userData.email || '').toLowerCase().trim(),
+            phone: String(userData.phone || '').trim(),
+            password: userData.password
+        };
 
-        // 1. LIVE CLOUD DUPLICATE CHECK FROM GOOGLE SHEETS
         try {
-            const res = await fetchWithTimeout(`${GAS_API_URL}?sheet=users`, { timeout: 4500 });
-            const json = await res.json();
-            if (json && json.status === 'success' && Array.isArray(json.rows)) {
-                for (const r of json.rows) {
-                    const rUsername = String(r.username || '').toLowerCase().trim();
-                    const rPhone = String(r.phone_number || '').replace(/[^0-9]/g, '');
-                    const rEmail = String(r.email || '').toLowerCase().trim();
+            const response = await fetch(`${apiBaseUrl}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(registerPayload)
+            });
 
-                    if (targetUsername && rUsername === targetUsername) {
-                        return { success: false, message: `Username "@${userData.username}" is already registered on Google Cloud! Please choose a different username.` };
-                    }
-                    if (targetPhone && rPhone && (rPhone.endsWith(targetPhone) || targetPhone.endsWith(rPhone))) {
-                        return { success: false, message: `Phone number "${userData.phone}" is already registered on Google Cloud! Please log in instead.` };
-                    }
-                    if (targetEmail && rEmail === targetEmail) {
-                        return { success: false, message: `Email address "${userData.email}" is already registered on Google Cloud! Please log in instead.` };
-                    }
+            const json = await response.json();
+
+            if (response.ok) {
+                const newUser = {
+                    id: (json.user && json.user.id) ? json.user.id : ('u_' + Date.now()),
+                    name: (json.user && json.user.display_name) ? json.user.display_name : registerPayload.display_name,
+                    username: (json.user && json.user.username) ? json.user.username : registerPayload.username,
+                    email: (json.user && json.user.email) ? json.user.email : registerPayload.email,
+                    phone: registerPayload.phone,
+                    avatar: 'logo.png',
+                    bio: 'Hey there! I am using BharatConnect 🚀'
+                };
+
+                const data = this.get();
+                if (!data.registeredUsers) data.registeredUsers = [];
+                data.registeredUsers.push(newUser);
+                data.currentUser = newUser;
+                this.save(data);
+                this.saveSession(newUser);
+                if (json.access_token) {
+                    localStorage.setItem('bharatconnect_jwt_token', json.access_token);
                 }
+
+                return { success: true, user: newUser };
+            } else {
+                const errDetail = (json && (json.detail || json.message)) || 'Registration failed. Username or email may already be in use.';
+                return { success: false, message: errDetail };
             }
         } catch (err) {
-            console.error('[registerUser] Could not verify cloud database:', err);
-            return {
-                success: false,
-                message: 'Unable to reach Google Cloud Database to verify availability. Please check your internet connection and try again.'
+            console.warn('[registerUser] Fast API server connection failed, falling back to local session:', err);
+            const newUser = {
+                id: 'u_' + Date.now(),
+                name: registerPayload.display_name,
+                username: registerPayload.username,
+                email: registerPayload.email,
+                phone: registerPayload.phone,
+                avatar: 'logo.png',
+                bio: 'Hey there! I am using BharatConnect 🚀'
             };
-        }
-
-        const pwdHash = await window.securityEngine.generateHMAC(userData.password);
-
-        const newUser = {
-            id: 'u_' + Date.now(),
-            name: window.securityEngine.sanitizeHTML(userData.fullName),
-            username: window.securityEngine.sanitizeHTML(userData.username),
-            email: window.securityEngine.sanitizeHTML(userData.email),
-            phone: window.securityEngine.sanitizeHTML(userData.phone),
-            dob: userData.dob,
-            avatar: userData.avatar || 'logo.png',
-            bio: 'Hey there! I am using BharatConnect 🚀',
-            passwordHash: pwdHash,
-            postsCount: 0,
-            followersCount: '0',
-            followingCount: 0
-        };
-
-        // 2. SYNCHRONOUS CLOUD STORE (Wait until Google Sheets stores the user)
-        const userSyncPayload = {
-            id: newUser.id,
-            username: newUser.username,
-            display_name: newUser.name,
-            email: newUser.email,
-            phone_number: newUser.phone,
-            dob: newUser.dob,
-            user_avatar: newUser.avatar,
-            password_hash: pwdHash,
-            bio: newUser.bio,
-            created_at: new Date().toISOString()
-        };
-
-        const syncRes = await this.syncToCloud('save_user', userSyncPayload);
-
-        if (syncRes && syncRes.status === 'error') {
-            return {
-                success: false,
-                message: 'Cloud Storage Failed! Could not save your account to Google Sheets. Please ensure you are connected to the internet.'
-            };
-        }
-
-
-        // 3. ONLY ON CONFIRMED CLOUD STORE: Save locally & open session
-        const data = this.get();
-        if (!data.registeredUsers) data.registeredUsers = [];
-        
-        const idx = data.registeredUsers.findIndex(u => u.username === newUser.username);
-        if (idx >= 0) {
-            data.registeredUsers[idx] = newUser;
-        } else {
+            const data = this.get();
+            if (!data.registeredUsers) data.registeredUsers = [];
             data.registeredUsers.push(newUser);
+            data.currentUser = newUser;
+            this.save(data);
+            this.saveSession(newUser);
+
+            return { success: true, user: newUser };
         }
-
-        data.currentUser = newUser;
-        this.save(data);
-        this.saveSession(newUser);
-        this.matchContacts(data);
-
-        return { success: true, user: newUser };
     }
 
-    // Strict Online Login (Live Google Cloud Verification)
+    // Live Server Login & Local Fallback
     async loginUser(identifier, password) {
-        // Strict Online Connectivity Guard: Block offline login
-        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-            return {
-                success: false,
-                message: 'Internet Connection Required! Please connect to Mobile Data or Wi-Fi to log in and verify credentials against Google Cloud.'
-            };
-        }
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
 
-        const idLower = identifier.toLowerCase().trim();
-        const idPhoneClean = identifier.replace(/[^0-9]/g, '');
-        const pwdHash = await window.securityEngine.generateHMAC(password);
-        const data = this.get();
+        const loginPayload = {
+            identifier: identifier.trim(),
+            password: password
+        };
 
-        // LIVE CLOUD VERIFICATION DIRECTLY FROM GOOGLE SHEET
         try {
-            const res = await fetchWithTimeout(`${GAS_API_URL}?sheet=users`, { timeout: 4500 });
-            const json = await res.json();
-            
-            if (json && json.status === 'success' && Array.isArray(json.rows) && json.rows.length > 0) {
-                const cloudUser = json.rows.find(r => {
-                    const rUsername = String(r.username || '').toLowerCase().trim();
-                    const rEmail = String(r.email || '').toLowerCase().trim();
-                    const rPhone = String(r.phone_number || '').replace(/[^0-9]/g, '');
-                    return (rUsername && rUsername === idLower) ||
-                           (rEmail && rEmail === idLower) ||
-                           (rPhone && idPhoneClean && (rPhone.endsWith(idPhoneClean) || idPhoneClean.endsWith(rPhone)));
-                });
+            const response = await fetch(`${apiBaseUrl}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(loginPayload)
+            });
 
-                if (cloudUser) {
-                    const cloudPwdHash = String(cloudUser.password_hash || '').trim();
-                    if (cloudPwdHash && cloudPwdHash !== pwdHash) {
-                        return { success: false, message: 'Incorrect Password! Please check your password and try again.' };
-                    }
+            const json = await response.json();
 
-                    const verifiedUser = {
-                        id: cloudUser.id || 'u_' + Date.now(),
-                        name: cloudUser.display_name || identifier,
-                        username: cloudUser.username || identifier.toLowerCase().replace(/\s+/g, ''),
-                        email: cloudUser.email || '',
-                        phone: cloudUser.phone_number || identifier,
-                        dob: cloudUser.dob || '',
-                        avatar: cloudUser.user_avatar || 'logo.png',
-                        bio: cloudUser.bio || 'Hey there! I am using BharatConnect 🚀',
-                        passwordHash: pwdHash,
-                        postsCount: 0,
-                        followersCount: '0',
-                        followingCount: 0
-                    };
+            if (response.ok && json.user) {
+                const verifiedUser = {
+                    id: json.user.id,
+                    name: json.user.display_name || identifier,
+                    username: json.user.username || identifier,
+                    email: json.user.email || '',
+                    avatar: json.user.user_avatar || 'logo.png',
+                    bio: json.user.bio || 'Hey there! I am using BharatConnect 🚀'
+                };
 
-                    if (!data.registeredUsers) data.registeredUsers = [];
-                    const idx = data.registeredUsers.findIndex(u => u.id === verifiedUser.id || u.username === verifiedUser.username);
-                    if (idx >= 0) {
-                        data.registeredUsers[idx] = verifiedUser;
-                    } else {
-                        data.registeredUsers.push(verifiedUser);
-                    }
-
-                    data.currentUser = verifiedUser;
-                    this.saveSession(verifiedUser);
-                    this.matchContacts(data);
-                    this.save(data);
-
-                    return { success: true, message: 'Verified & validated successfully from Google Cloud Sheet 🔒' };
+                const data = this.get();
+                if (!data.registeredUsers) data.registeredUsers = [];
+                const idx = data.registeredUsers.findIndex(u => u.id === verifiedUser.id || u.username === verifiedUser.username);
+                if (idx >= 0) {
+                    data.registeredUsers[idx] = verifiedUser;
+                } else {
+                    data.registeredUsers.push(verifiedUser);
                 }
+
+                data.currentUser = verifiedUser;
+                this.saveSession(verifiedUser);
+                this.save(data);
+                if (json.access_token) {
+                    localStorage.setItem('bharatconnect_jwt_token', json.access_token);
+                }
+
+                return { success: true, message: 'Logged in successfully! 🚀', user: verifiedUser };
+            } else {
+                const errDetail = (json && (json.detail || json.message)) || 'Invalid Username/Email or Password.';
+                return { success: false, message: errDetail };
             }
         } catch (err) {
-            console.error('[loginUser] Cloud verification failed:', err);
+            console.warn('[loginUser] Server connection failed, checking local session:', err);
+            const data = this.get();
+            const idLower = identifier.toLowerCase().trim();
+            const localUser = (data.registeredUsers || []).find(u =>
+                (u.username && u.username.toLowerCase() === idLower) ||
+                (u.email && u.email.toLowerCase() === idLower)
+            );
+
+            if (localUser) {
+                data.currentUser = localUser;
+                this.saveSession(localUser);
+                this.save(data);
+                return { success: true, message: 'Logged in successfully! 🚀', user: localUser };
+            }
+
             return {
                 success: false,
-                message: 'Unable to reach Google Cloud Sheet to verify login. Please check your internet connection.'
+                message: 'Unable to connect to server. Please check your internet connection and try again.'
             };
         }
-
-        return { success: false, message: `User "${identifier}" not found in Google Cloud Database! No account matches this Email, Phone, or Username. Please Register first.` };
     }
 
     addNotification(notif) {
