@@ -18,6 +18,16 @@ class RegisterRequest(BaseModel):
     email: str
     phone: Optional[str] = None
     password: str
+    user_avatar: Optional[str] = None
+
+
+class ProfileUpdateRequest(BaseModel):
+    display_name: Optional[str] = None
+    username: Optional[str] = None
+    bio: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    user_avatar: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -32,6 +42,7 @@ class UserResponse(BaseModel):
     display_name: str
     email: str
     bio: Optional[str] = ""
+    user_avatar: Optional[str] = None
     avatar_initials: Optional[str] = "AM"
     avatar_color: Optional[str] = "#6367FF"
     followers_count: Optional[str] = "1.2K"
@@ -41,6 +52,7 @@ class UserResponse(BaseModel):
 class PostCreateRequest(BaseModel):
     content: str
     image_title: Optional[str] = None
+    image_data: Optional[str] = None
 
 
 class PostResponse(BaseModel):

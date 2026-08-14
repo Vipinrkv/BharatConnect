@@ -584,35 +584,48 @@ function renderPosts(posts) {
                 <div style="font-size:40px; margin-bottom:12px;">📝</div>
                 <div style="font-weight:700; font-size:17px; margin-bottom:6px;">No Posts Yet</div>
                 <div style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Be the first to post something in the community feed!</div>
-                <button class="btn-primary" style="width:auto; padding:10px 24px;" onclick="createNewPostPrompt()">Create First Post</button>
+                <button class="btn-primary" style="width:auto; padding:10px 24px;" onclick="openCreatePostScreen()">Create First Post</button>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = posts.map(p => `
+    container.innerHTML = posts.map(p => {
+        const userAvatar = (p.avatar && p.avatar !== 'logo.png') ? p.avatar : 'logo.png';
+        let mediaHtml = '';
+        if (p.image) {
+            const isImageUrl = p.image.startsWith('data:image/') || p.image.startsWith('http://') || p.image.startsWith('https://') || p.image.startsWith('blob:') || p.image.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+            if (isImageUrl) {
+                mediaHtml = `<img src="${p.image}" class="post-media" onerror="this.style.display='none'">`;
+            } else {
+                mediaHtml = `<div style="background:var(--surface-dark); border:1px solid var(--border-color); border-radius:12px; padding:14px; margin:10px 0; text-align:center; font-weight:600; color:var(--accent-lavender);">🖼️ ${p.image}</div>`;
+            }
+        }
+
+        return `
         <div class="post-card">
             <div class="post-header">
-                <img src="${p.avatar}" class="post-avatar">
+                <img src="${userAvatar}" class="post-avatar" onerror="this.src='logo.png'">
                 <div class="post-user-info">
-                    <div class="post-user-name">${p.author}</div>
-                    <div class="post-time">${p.time}</div>
+                    <div class="post-user-name">${p.author || 'User'}</div>
+                    <div class="post-time">${p.time || 'Just now'}</div>
                 </div>
                 <div style="color:var(--text-muted);">•••</div>
             </div>
-            <div class="post-caption">${p.caption}</div>
-            ${p.image ? `<img src="${p.image}" class="post-media">` : ''}
+            <div class="post-caption">${p.caption || ''}</div>
+            ${mediaHtml}
             <div class="post-actions">
                 <button class="action-btn ${p.liked ? 'active' : ''}" onclick="toggleLike('${p.id}')">
-                    ${p.liked ? '❤️' : '🤍'} <span>${p.likes}</span>
+                    ${p.liked ? '❤️' : '🤍'} <span>${p.likes || 0}</span>
                 </button>
                 <button class="action-btn" onclick="promptComment('${p.id}')">
-                    💬 <span>${p.commentsCount}</span>
+                    💬 <span>${p.commentsCount || 0}</span>
                 </button>
                 <button class="action-btn">🔗 Share</button>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function toggleLike(postId) {
@@ -667,12 +680,59 @@ function createNewPostPrompt() {
     });
 }
 
+let currentPostMediaBase64 = null;
+
+function triggerProfilePhotoUpload() {
+    const input = document.getElementById('profile-direct-avatar-input');
+    if (input) input.click();
+}
+
+function handleDirectProfilePhotoUpload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const dataUrl = e.target.result;
+            window.localDB.updateProfile({ avatar: dataUrl });
+            window.selectedAvatarBase64 = dataUrl;
+            renderAll();
+            showCustomAlert('Profile photo updated successfully! 📸', 'Profile Photo');
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function handleCreatePostMediaSelect(event) {
+    const file = event.target.files && event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            currentPostMediaBase64 = e.target.result;
+            const container = document.getElementById('create-post-media-preview-container');
+            const preview = document.getElementById('create-post-media-preview');
+            if (preview) preview.src = currentPostMediaBase64;
+            if (container) container.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeCreatePostMedia() {
+    currentPostMediaBase64 = null;
+    const container = document.getElementById('create-post-media-preview-container');
+    const preview = document.getElementById('create-post-media-preview');
+    if (preview) preview.src = '';
+    if (container) container.style.display = 'none';
+    const input = document.getElementById('create-post-file-input');
+    if (input) input.value = '';
+}
+
 /* Open Create Post Screen */
 function openCreatePostScreen() {
     const data = window.localDB.get();
     const user = data.currentUser || {};
     const avatarEl = document.getElementById('create-post-avatar');
-    if (avatarEl) avatarEl.src = user.avatar || 'logo.png';
+    if (avatarEl) avatarEl.src = (user.avatar && user.avatar !== 'logo.png') ? user.avatar : 'logo.png';
     const authorEl = document.getElementById('create-post-author');
     if (authorEl) authorEl.innerText = user.name || 'User';
     const usernameEl = document.getElementById('create-post-username');
@@ -682,6 +742,7 @@ function openCreatePostScreen() {
     if (captionInput) captionInput.value = '';
     const imageTitleInput = document.getElementById('create-post-imagetitle');
     if (imageTitleInput) imageTitleInput.value = '';
+    removeCreatePostMedia();
 
     showScreen('screen-create-post');
 }
@@ -691,28 +752,30 @@ function handleCreatePostSubmit() {
     const caption = (document.getElementById('create-post-caption').value || '').trim();
     const imageTitle = (document.getElementById('create-post-imagetitle').value || '').trim();
 
-    if (!caption) {
-        showCustomAlert('Please write a caption for your post.', 'Create Post');
+    if (!caption && !currentPostMediaBase64) {
+        showCustomAlert('Please write a caption or attach a photo for your post.', 'Create Post');
         return;
     }
 
     const data = window.localDB.get();
     const currentUser = data.currentUser || {};
+    const finalMedia = currentPostMediaBase64 || imageTitle || '';
 
     window.localDB.addPost({
         id: 'p_' + Date.now(),
         author: currentUser.name || 'User',
         username: currentUser.username || 'user',
-        avatar: currentUser.avatar || 'logo.png',
+        avatar: (currentUser.avatar && currentUser.avatar !== 'logo.png') ? currentUser.avatar : 'logo.png',
         time: 'Just now',
         caption: caption,
-        image: imageTitle,
+        image: finalMedia,
         likes: 0,
         commentsCount: 0,
         liked: false,
         comments: []
     });
 
+    removeCreatePostMedia();
     showScreen('screen-home');
     renderAll();
 }
@@ -723,7 +786,7 @@ function openEditProfileScreen() {
     const user = data.currentUser || {};
 
     const preview = document.getElementById('edit-profile-avatar-preview');
-    if (preview) preview.src = user.avatar || 'logo.png';
+    if (preview) preview.src = (user.avatar && user.avatar !== 'logo.png') ? user.avatar : 'logo.png';
 
     const nameInput = document.getElementById('edit-name');
     if (nameInput) nameInput.value = user.name || '';

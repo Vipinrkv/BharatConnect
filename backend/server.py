@@ -31,6 +31,7 @@ from backend.database import (
 from backend.schemas import (
     LoginRequest,
     RegisterRequest,
+    ProfileUpdateRequest,
     TokenResponse,
     UserResponse,
     PostCreateRequest,
@@ -43,6 +44,7 @@ from backend.schemas import (
     ContactMatchRequest,
 )
 from backend.auth import hash_password, verify_password, create_access_token, get_current_user
+from utils.cloudinary_storage import upload_media
 
 
 from contextlib import asynccontextmanager
@@ -164,6 +166,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         "email": user.email,
         "phone": user.phone or "",
         "bio": user.bio or "Hey there! I am using BharatConnect 🚀",
+        "user_avatar": getattr(user, 'user_avatar', None) or 'logo.png',
         "avatar_initials": user.avatar_initials or "BC",
         "avatar_color": user.avatar_color or "#6367FF",
     }
@@ -174,25 +177,40 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     uname_clean = payload.username.strip().lower()
     email_clean = payload.email.strip().lower()
+    phone_clean = payload.phone.strip() if payload.phone and payload.phone.strip() else None
+
+    filters = [
+        sqlalchemy.func.lower(UserModel.username) == uname_clean,
+        sqlalchemy.func.lower(UserModel.email) == email_clean,
+    ]
+    if phone_clean:
+        filters.append(UserModel.phone == phone_clean)
 
     existing = (
         db.query(UserModel)
-        .filter(
-            (sqlalchemy.func.lower(UserModel.username) == uname_clean)
-            | (sqlalchemy.func.lower(UserModel.email) == email_clean)
-        )
+        .filter(sqlalchemy.or_(*filters))
         .first()
     )
     if existing:
-        if existing.username.lower() == uname_clean:
+        if existing.username and existing.username.lower() == uname_clean:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Username '@{payload.username}' is already registered! Please choose a different username.")
-        else:
+        elif existing.email and existing.email.lower() == email_clean:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Email '{payload.email}' is already registered! Please log in instead.")
+        elif phone_clean and existing.phone and existing.phone.strip() == phone_clean:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Phone number '{payload.phone}' is already registered! Please log in instead.")
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="An account with these details is already registered! Please log in instead.")
 
     display_name = payload.display_name or payload.full_name or payload.username
     new_id = f"u-{uuid.uuid4().hex[:8]}"
     initials = "".join([part[0].upper() for part in display_name.split()[:2]]) or "BC"
     
+    avatar_val = payload.user_avatar or 'logo.png'
+    if avatar_val and avatar_val.startswith('data:image/'):
+        c_res = upload_media(avatar_val, folder="bharatconnect_avatars")
+        if c_res.get('success') and c_res.get('url'):
+            avatar_val = c_res.get('url')
+
     user = UserModel(
         id=new_id,
         username=payload.username.strip(),
@@ -200,6 +218,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         email=email_clean,
         phone=payload.phone.strip() if payload.phone else None,
         password_hash=hash_password(payload.password),
+        user_avatar=avatar_val,
         avatar_initials=initials,
         avatar_color="#6367FF",
         bio="Hey there! I am using BharatConnect 🚀",
@@ -216,10 +235,51 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         "email": user.email,
         "phone": user.phone or "",
         "bio": user.bio,
+        "user_avatar": user.user_avatar or 'logo.png',
         "avatar_initials": user.avatar_initials,
         "avatar_color": user.avatar_color,
     }
     return {"access_token": token, "token_type": "bearer", "user": user_dict}
+
+
+@app.put("/api/v1/auth/profile/{user_id}")
+def update_profile(user_id: str, payload: ProfileUpdateRequest, db: Session = Depends(get_db)):
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        # Fallback query by username
+        user = db.query(UserModel).filter(UserModel.username == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if payload.display_name:
+        user.display_name = payload.display_name.strip()
+    if payload.bio is not None:
+        user.bio = payload.bio.strip()
+    if payload.email:
+        user.email = payload.email.strip().lower()
+    if payload.phone is not None:
+        user.phone = payload.phone.strip()
+    if payload.user_avatar is not None:
+        new_avatar = payload.user_avatar
+        if new_avatar and new_avatar.startswith('data:image/'):
+            c_res = upload_media(new_avatar, folder="bharatconnect_avatars")
+            if c_res.get('success') and c_res.get('url'):
+                new_avatar = c_res.get('url')
+        user.user_avatar = new_avatar
+
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "username": user.username,
+        "display_name": user.display_name,
+        "email": user.email,
+        "phone": user.phone or "",
+        "bio": user.bio,
+        "user_avatar": user.user_avatar or 'logo.png',
+        "avatar_initials": user.avatar_initials,
+        "avatar_color": user.avatar_color,
+    }
 
 
 @app.get("/api/v1/auth/users")
@@ -233,6 +293,7 @@ def list_users(db: Session = Depends(get_db)):
             "email": u.email,
             "phone": u.phone or "",
             "bio": u.bio or "",
+            "user_avatar": getattr(u, 'user_avatar', None) or 'logo.png',
             "avatar_initials": u.avatar_initials or "BC",
             "avatar_color": u.avatar_color or "#6367FF",
         }
@@ -267,14 +328,20 @@ def get_posts(db: Session = Depends(get_db)):
 @app.post("/api/v1/posts", response_model=PostResponse)
 def create_post(payload: PostCreateRequest, db: Session = Depends(get_db)):
     new_id = f"post-{uuid.uuid4().hex[:8]}"
+    img_val = payload.image_data or payload.image_title or "Community Update"
+    if img_val and img_val.startswith('data:image/'):
+        c_res = upload_media(img_val, folder="bharatconnect_posts")
+        if c_res.get('success') and c_res.get('url'):
+            img_val = c_res.get('url')
+
     post = PostModel(
         id=new_id,
-        author_id="u-alex",
-        author_name="Alex Morgan",
-        user_avatar="AM",
+        author_id="u-user",
+        author_name="Member",
+        user_avatar="logo.png",
         avatar_color="#6367FF",
         content=payload.content,
-        image_title=payload.image_title or "Community Update",
+        image_title=img_val,
         likes_count=0,
         comments_count=0,
         time_ago="Just now",

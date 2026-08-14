@@ -267,11 +267,6 @@ class LocalDB {
         }
     }
 
-        } catch (err) {
-            console.warn('[SentinelCloudSync] Cloud fetch skipped:', err);
-        }
-    }
-
 
     async registerUser(userData) {
         const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
@@ -283,7 +278,8 @@ class LocalDB {
             username: String(userData.username || '').toLowerCase().trim(),
             email: String(userData.email || '').toLowerCase().trim(),
             phone: String(userData.phone || '').trim(),
-            password: userData.password
+            password: userData.password,
+            user_avatar: userData.avatar || 'logo.png'
         };
 
         try {
@@ -302,7 +298,7 @@ class LocalDB {
                     username: (json.user && json.user.username) ? json.user.username : registerPayload.username,
                     email: (json.user && json.user.email) ? json.user.email : registerPayload.email,
                     phone: registerPayload.phone,
-                    avatar: 'logo.png',
+                    avatar: (json.user && json.user.user_avatar && json.user.user_avatar !== 'logo.png') ? json.user.user_avatar : (userData.avatar || 'logo.png'),
                     bio: 'Hey there! I am using BharatConnect 🚀'
                 };
 
@@ -322,28 +318,15 @@ class LocalDB {
                 return { success: false, message: errDetail };
             }
         } catch (err) {
-            console.warn('[registerUser] Fast API server connection failed, falling back to local session:', err);
-            const newUser = {
-                id: 'u_' + Date.now(),
-                name: registerPayload.display_name,
-                username: registerPayload.username,
-                email: registerPayload.email,
-                phone: registerPayload.phone,
-                avatar: 'logo.png',
-                bio: 'Hey there! I am using BharatConnect 🚀'
+            console.warn('[registerUser] Server connection failed:', err);
+            return {
+                success: false,
+                message: 'Internet connection required. Unable to connect to server to create your account. Please check your network and try again.'
             };
-            const data = this.get();
-            if (!data.registeredUsers) data.registeredUsers = [];
-            data.registeredUsers.push(newUser);
-            data.currentUser = newUser;
-            this.save(data);
-            this.saveSession(newUser);
-
-            return { success: true, user: newUser };
         }
     }
 
-    // Live Server Login & Local Fallback
+    // Live Online Server Login (Requires active internet/cloud connection)
     async loginUser(identifier, password) {
         const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
 
@@ -362,20 +345,24 @@ class LocalDB {
             const json = await response.json();
 
             if (response.ok && json.user) {
+                const data = this.get();
+                if (!data.registeredUsers) data.registeredUsers = [];
+
+                const existingLocal = data.registeredUsers.find(u => (u.id && u.id === json.user.id) || (u.username && u.username.toLowerCase() === json.user.username.toLowerCase()));
+
                 const verifiedUser = {
                     id: json.user.id,
                     name: json.user.display_name || identifier,
                     username: json.user.username || identifier,
                     email: json.user.email || '',
-                    avatar: json.user.user_avatar || 'logo.png',
+                    phone: json.user.phone || (existingLocal ? existingLocal.phone : ''),
+                    avatar: (json.user.user_avatar && json.user.user_avatar !== 'logo.png') ? json.user.user_avatar : (existingLocal && existingLocal.avatar ? existingLocal.avatar : 'logo.png'),
                     bio: json.user.bio || 'Hey there! I am using BharatConnect 🚀'
                 };
 
-                const data = this.get();
-                if (!data.registeredUsers) data.registeredUsers = [];
                 const idx = data.registeredUsers.findIndex(u => u.id === verifiedUser.id || u.username === verifiedUser.username);
                 if (idx >= 0) {
-                    data.registeredUsers[idx] = verifiedUser;
+                    data.registeredUsers[idx] = { ...data.registeredUsers[idx], ...verifiedUser };
                 } else {
                     data.registeredUsers.push(verifiedUser);
                 }
@@ -393,24 +380,10 @@ class LocalDB {
                 return { success: false, message: errDetail };
             }
         } catch (err) {
-            console.warn('[loginUser] Server connection failed, checking local session:', err);
-            const data = this.get();
-            const idLower = identifier.toLowerCase().trim();
-            const localUser = (data.registeredUsers || []).find(u =>
-                (u.username && u.username.toLowerCase() === idLower) ||
-                (u.email && u.email.toLowerCase() === idLower)
-            );
-
-            if (localUser) {
-                data.currentUser = localUser;
-                this.saveSession(localUser);
-                this.save(data);
-                return { success: true, message: 'Logged in successfully! 🚀', user: localUser };
-            }
-
+            console.warn('[loginUser] Server connection failed:', err);
             return {
                 success: false,
-                message: 'Unable to connect to server. Please check your internet connection and try again.'
+                message: 'Internet connection required. Unable to connect to server to verify credentials. Please check your network and try again.'
             };
         }
     }
@@ -742,27 +715,39 @@ class LocalDB {
         return data;
     }
 
-    updateProfile(updatedProfile) {
+    async updateProfile(updatedProfile) {
         const data = this.get();
         data.currentUser = { ...data.currentUser, ...updatedProfile };
+        
+        // Update registeredUsers array for current user
+        if (data.registeredUsers) {
+            const idx = data.registeredUsers.findIndex(u => u.id === data.currentUser.id || u.username === data.currentUser.username);
+            if (idx >= 0) {
+                data.registeredUsers[idx] = { ...data.registeredUsers[idx], ...data.currentUser };
+            }
+        }
+
         this.save(data);
         this.saveSession(data.currentUser);
 
-        this.syncToCloud('save_row', {
-            sheet: 'users',
-            data: {
-                id: data.currentUser.id,
-                username: data.currentUser.username,
-                display_name: data.currentUser.name,
-                email: data.currentUser.email || '',
-                phone_number: data.currentUser.phone || '',
-                dob: data.currentUser.dob || '',
-                user_avatar: data.currentUser.avatar || '',
-                password_hash: data.currentUser.passwordHash || '',
-                bio: data.currentUser.bio,
-                created_at: new Date().toISOString()
-            }
-        });
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
+
+        try {
+            await fetch(`${apiBaseUrl}/auth/profile/${encodeURIComponent(data.currentUser.id || data.currentUser.username)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    display_name: data.currentUser.name,
+                    username: data.currentUser.username,
+                    bio: data.currentUser.bio,
+                    email: data.currentUser.email,
+                    phone: data.currentUser.phone,
+                    user_avatar: data.currentUser.avatar
+                })
+            });
+        } catch (e) {
+            console.warn('[updateProfile] Live server profile update skipped:', e);
+        }
 
         return data;
     }

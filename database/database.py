@@ -673,11 +673,11 @@ class SQLiteDatabaseEngine:
             cursor.execute("SELECT * FROM users ORDER BY display_name ASC")
             return [dict(row) for row in cursor.fetchall()]
 
-    def register_user(self, full_name, email, phone, username, dob, password):
+    def register_user(self, full_name, email, phone="", username="", dob="", password=""):
         clean_name = full_name.strip() or "New Member"
         clean_email = email.strip().lower()
         clean_username = (username.strip().lower() or clean_email.split("@")[0]).replace(" ", "_")
-        clean_phone = phone.strip() or "+91 98765 00000"
+        clean_phone = (phone or "").strip() or "+91 98765 00000"
         clean_password = (password or "").strip()
 
         if not clean_email or "@" not in clean_email:
@@ -690,6 +690,25 @@ class SQLiteDatabaseEngine:
 
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # Explicit duplicate check for username, email, and phone number
+            cursor.execute(
+                """
+                SELECT username, email, phone FROM users
+                WHERE LOWER(username)=? OR LOWER(email)=? OR (phone IS NOT NULL AND phone!='' AND phone=?)
+                """,
+                (clean_username, clean_email, clean_phone),
+            )
+            dup = cursor.fetchone()
+            if dup:
+                if dup["username"] and dup["username"].lower() == clean_username:
+                    raise ValueError(f"Username '@{username}' is already registered!")
+                elif dup["email"] and dup["email"].lower() == clean_email:
+                    raise ValueError(f"Email '{email}' is already registered!")
+                elif dup["phone"] and dup["phone"].strip() == clean_phone:
+                    raise ValueError(f"Phone number '{phone}' is already registered!")
+                else:
+                    raise ValueError("An account with these details is already registered.")
+
             try:
                 cursor.execute(
                     """
@@ -715,7 +734,7 @@ class SQLiteDatabaseEngine:
                     ),
                 )
             except sqlite3.IntegrityError as exc:
-                raise ValueError("That email or username is already registered.") from exc
+                raise ValueError("That email, username, or phone number is already registered.") from exc
 
             cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('current_user_id', ?)", (user_id,))
             conn.commit()

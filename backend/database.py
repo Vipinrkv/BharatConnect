@@ -50,6 +50,7 @@ class UserModel(Base):
     last_seen = Column(String(50), default="Just now")
     avatar_initials = Column(String(10), default="AM")
     avatar_color = Column(String(20), default="#6367FF")
+    user_avatar = Column(Text, nullable=True)
     posts_count = Column(Integer, default=0)
     followers_count = Column(String(20), default="1.2K")
     following_count = Column(Integer, default=320)

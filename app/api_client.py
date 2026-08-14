@@ -25,7 +25,7 @@ class BharatConnectAPIClient:
             return False
 
     def login(self, identifier, password):
-        """Authenticates user against backend API, falling back to local DB."""
+        """Authenticates user against backend API (Online only)."""
         payload = json.dumps({"identifier": identifier, "password": password}).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         try:
@@ -35,9 +35,43 @@ class BharatConnectAPIClient:
                 self.auth_token = data.get("access_token")
                 self.current_user = data.get("user")
                 return True, self.current_user
+        except urllib.error.HTTPError as e:
+            try:
+                err_data = json.loads(e.read().decode())
+                detail = err_data.get("detail", "Invalid username/email or password.")
+            except Exception:
+                detail = "Invalid username/email or password."
+            return False, detail
         except Exception:
-            # Fallback to local DB Engine
-            return db_engine.authenticate_user(identifier, password)
+            return False, "Internet connection required to log in. Unable to connect to server."
+
+    def register(self, full_name, username, email, password, phone="", dob=""):
+        """Registers a new user on backend API server."""
+        payload = json.dumps({
+            "full_name": full_name,
+            "display_name": full_name or username,
+            "username": username,
+            "email": email,
+            "phone": phone,
+            "password": password
+        }).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        try:
+            req = urllib.request.Request(f"{self.base_url}/auth/register", data=payload, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
+                data = json.loads(resp.read().decode())
+                self.auth_token = data.get("access_token")
+                self.current_user = data.get("user")
+                return True, self.current_user
+        except urllib.error.HTTPError as e:
+            try:
+                err_data = json.loads(e.read().decode())
+                detail = err_data.get("detail", "Registration failed.")
+            except Exception:
+                detail = "Registration failed."
+            return False, detail
+        except Exception as e:
+            return False, str(e)
 
     def get_posts(self):
         """Fetches feed posts from backend API or local DB fallback."""

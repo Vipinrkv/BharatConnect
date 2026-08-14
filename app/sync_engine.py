@@ -100,29 +100,34 @@ class HybridSyncEngine:
 
 
     def authenticate_user(self, identifier, password):
-        # 1. Try Online Backend Auth
-        if self.check_connection():
-            success, res = self.api_client.login(identifier, password)
-            if success:
-                # Update local DB current user
+        # Online-only Auth (Meta apps / WhatsApp style)
+        if not self.check_connection():
+            return False, "Internet connection required to log in. Please check your connection and try again."
+        success, res = self.api_client.login(identifier, password)
+        if success and isinstance(res, dict) and "id" in res:
+            with self.local_db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('current_user_id', ?)", (res["id"],))
+                conn.commit()
+        return success, res
+
+    def register_user(self, full_name, email, username, password, phone="", dob=""):
+        # Online-only Registration (Meta apps / WhatsApp style)
+        if not self.check_connection():
+            raise ValueError("Internet connection required to create an account. Please check your connection and try again.")
+        success, res = self.api_client.register(full_name, username, email, password, phone=phone, dob=dob)
+        if success:
+            user_data = res if isinstance(res, dict) else (res.get("user") if isinstance(res, dict) else res)
+            if user_data and "id" in user_data:
                 with self.local_db.get_connection() as conn:
                     cursor = conn.cursor()
-                    cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('current_user_id', ?)", (res["id"],))
+                    cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('current_user_id', ?)", (user_data["id"],))
                     conn.commit()
-                return True, res
-
-        # 2. Fallback to Local SQLite DB Auth
-        return self.local_db.authenticate_user(identifier, password)
-
-    def register_user(self, full_name, email, username, password):
-        if self.check_connection():
-            try:
-                success, res = self.api_client.register(full_name, username, email, password)
-                if success:
-                    return res
-            except Exception:
-                pass
-        return self.local_db.register_user(full_name, email, username, password)
+            return user_data
+        elif isinstance(res, str):
+            raise ValueError(res)
+        else:
+            raise ValueError("Registration failed. Please check your details and try again.")
 
     def reset_password(self, email):
         return self.local_db.reset_password(email)
