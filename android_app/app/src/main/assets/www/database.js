@@ -381,15 +381,19 @@ class LocalDB {
                 }
 
                 return { success: true, message: 'Logged in successfully! 🚀', user: verifiedUser };
+            } else if (response.status === 401 || response.status === 400) {
+                const errDetail = (json && (json.detail || json.message)) || 'Invalid Username/Email/Phone or Password.';
+                return { success: false, isInvalidCredentials: true, message: errDetail };
             } else {
-                const errDetail = (json && (json.detail || json.message)) || 'Invalid Username/Email or Password.';
-                return { success: false, message: errDetail };
+                const errDetail = (json && (json.detail || json.message)) || 'Server response error. Please try again.';
+                return { success: false, isServerError: true, message: errDetail };
             }
         } catch (err) {
             console.warn('[loginUser] Server connection failed:', err);
             return {
                 success: false,
-                message: 'Internet connection required. Unable to connect to server to verify credentials. Please check your network and try again.'
+                isNetworkError: true,
+                message: 'Unable to connect to server. Please check your internet connection and try again.'
             };
         }
     }

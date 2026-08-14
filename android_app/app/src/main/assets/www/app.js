@@ -437,7 +437,15 @@ async function handleLogin() {
             showScreen('screen-home');
             showCustomAlert('Login successful! Welcome back 🎉', 'Success');
         } else {
-            showCustomAlert((res && res.message) ? res.message : 'Login failed. Please check your credentials.', 'Login Error');
+            let title = 'Login Error';
+            if (res && res.isInvalidCredentials) {
+                title = 'Invalid Credentials';
+            } else if (res && res.isNetworkError) {
+                title = 'Network Connection Failed';
+            } else if (res && res.isServerError) {
+                title = 'Server Error';
+            }
+            showCustomAlert((res && res.message) ? res.message : 'Login failed. Please check your credentials.', title);
         }
     } catch (err) {
         console.error('[handleLogin] Error during login:', err);

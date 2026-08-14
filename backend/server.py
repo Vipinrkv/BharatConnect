@@ -142,6 +142,20 @@ def health_check(db: Session = Depends(get_db)):
     }
 
 
+def normalize_phone_number(phone: str) -> str:
+    """
+    Normalizes phone numbers to standard digits format (e.g. 10 digits).
+    Strips non-digits, country code '+91' / '91' (if 12 digits), and leading zeros ('0').
+    Example: '08261867326', '+91 8261867326', '8261 867 326' -> '8261867326'
+    """
+    if not phone:
+        return ""
+    digits = "".join([ch for ch in str(phone) if ch.isdigit()])
+    if len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+    return digits.lstrip("0")
+
+
 # Authentication Endpoints
 @app.post("/api/v1/auth/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
