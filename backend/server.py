@@ -423,14 +423,15 @@ def get_chat_messages(chat_id: str, db: Session = Depends(get_db)):
 @app.post("/api/v1/chats/{chat_id}/messages", response_model=MessageResponse)
 def send_message(chat_id: str, payload: MessageCreateRequest, db: Session = Depends(get_db)):
     msg_id = f"m-{uuid.uuid4().hex[:8]}"
-    now_str = datetime.now().strftime("%I:%M %p").lstrip("0")
+    now_str = payload.time or datetime.now().strftime("%I:%M %p").lstrip("0")
     message = MessageModel(
         id=msg_id,
         chat_id=chat_id,
-        sender_id="u-alex",
-        sender_name="Alex Morgan",
+        sender_id=payload.sender_id or "u-user",
+        sender_name=payload.sender_name or "Member",
+        recipient_id=payload.recipient_id,
         text=payload.text,
-        is_me=True,
+        is_me=False,
         time=now_str,
     )
     db.add(message)

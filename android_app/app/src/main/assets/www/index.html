@@ -178,7 +178,7 @@
             <div class="chat-messages" id="indiv-messages"></div>
             <div class="chat-input-bar">
                 <button class="icon-btn">+</button>
-                <input type="text" id="indiv-input" class="chat-input" placeholder="Type a message...">
+                <input type="text" id="indiv-input" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendChatMessage('individual')">
                 <button class="fab" style="width:36px; height:36px; font-size:16px;" onclick="sendChatMessage('individual')">➤</button>
             </div>
         </div>

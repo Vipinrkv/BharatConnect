@@ -81,7 +81,11 @@ class ChatResponse(BaseModel):
 
 
 class MessageCreateRequest(BaseModel):
+    sender_id: Optional[str] = "u-user"
+    sender_name: Optional[str] = "Member"
+    recipient_id: Optional[str] = None
     text: str
+    time: Optional[str] = None
 
 
 class MessageResponse(BaseModel):
@@ -89,8 +93,9 @@ class MessageResponse(BaseModel):
     chat_id: str
     sender_id: str
     sender_name: str
+    recipient_id: Optional[str] = None
     text: str
-    is_me: bool
+    is_me: bool = False
     time: str
 
 

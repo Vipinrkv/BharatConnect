@@ -167,10 +167,10 @@ class LocalDB {
     }
 
     getPairwiseChatId(user1, user2) {
-        const u1 = String(user1 || '').toLowerCase().trim();
-        const u2 = String(user2 || '').toLowerCase().trim();
-        if (!u1 || !u2) return '';
-        const pair = [u1, u2].sort().join('_');
+        const norm1 = String(user1 || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '') || String(user1 || '').toLowerCase().trim();
+        const norm2 = String(user2 || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '') || String(user2 || '').toLowerCase().trim();
+        if (!norm1 || !norm2) return '';
+        const pair = [norm1, norm2].sort().join('_');
         return 'chat_' + pair;
     }
 
@@ -473,27 +473,35 @@ class LocalDB {
     addIndividualContact(identifier) {
         const data = this.get();
         const target = identifier.toLowerCase().trim();
-        const regUser = (data.registeredUsers || []).find(u => 
-            (u.phone && u.phone.trim() === target) ||
-            (u.username && u.username.toLowerCase() === target) ||
-            (u.name && u.name.toLowerCase() === target) ||
-            (u.id === identifier)
-        );
+        const normTarget = identifier.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+
+        const regUser = (data.registeredUsers || []).find(u => {
+            const uphone = String(u.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+            return (uphone && normTarget && (uphone.endsWith(normTarget) || normTarget.endsWith(uphone))) ||
+                   (u.username && u.username.toLowerCase() === target) ||
+                   (u.name && u.name.toLowerCase() === target) ||
+                   (u.id === identifier);
+        });
 
         const newContactName = regUser ? regUser.name : window.securityEngine.sanitizeHTML(identifier);
         const newContactAvatar = regUser ? regUser.avatar : 'logo.png';
         const newContactPhone = regUser ? regUser.phone : identifier;
-        const newContactId = regUser ? regUser.id : 'u_' + Date.now();
+        const newContactId = regUser ? regUser.id : ('u_' + (normTarget || Date.now()));
+
+        const myUserKey = (data.currentUser.phone || data.currentUser.username || data.currentUser.id || 'me');
+        const sharedChatId = this.getPairwiseChatId(myUserKey, newContactPhone || newContactId);
 
         if (!data.individualChats) data.individualChats = [];
         
-        let existingChat = data.individualChats.find(c => c.userId === newContactId || c.phone === newContactPhone);
+        let existingChat = data.individualChats.find(c => c.id === sharedChatId || c.userId === newContactId || c.phone === newContactPhone);
         if (existingChat) {
+            existingChat.id = sharedChatId || existingChat.id;
+            this.save(data);
             return existingChat;
         }
 
         const newChat = {
-            id: 'c_' + Date.now(),
+            id: sharedChatId || ('c_' + Date.now()),
             userId: newContactId,
             name: newContactName,
             phone: newContactPhone,
@@ -682,23 +690,80 @@ class LocalDB {
 
             this.save(data);
 
-            const encryptedText = await window.securityEngine.encryptE2EE(text);
-            const myId = data.currentUser.username || data.currentUser.id;
-            const targetId = chat.username || chat.userId || chat.phone || chat.name;
-            const sharedChatId = this.getPairwiseChatId(myId, targetId);
+            // Synchronize message to live REST Server
+            const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
+            const mySenderId = data.currentUser.phone || data.currentUser.username || data.currentUser.id;
+            const mySenderName = data.currentUser.name || 'Member';
 
-            this.syncToCloud('save_message', {
-                id: msgObj.id,
-                chat_id: sharedChatId || chatId,
-                sender_id: myId,
-                sender_name: data.currentUser.name,
-                recipient_id: targetId,
-                text: encryptedText,
-                time: time,
-                is_me: true
-            });
+            try {
+                await fetch(`${apiBaseUrl}/chats/${chat.id}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sender_id: mySenderId,
+                        sender_name: mySenderName,
+                        recipient_id: chat.phone || chat.userId,
+                        text: text,
+                        time: time
+                    })
+                });
+            } catch (err) {
+                console.warn('[sendIndividualMessage] Server sync error:', err);
+            }
         }
         return data;
+    }
+
+    async syncChatMessagesFromCloud(chatId) {
+        if (!chatId) return;
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
+        try {
+            const res = await fetch(`${apiBaseUrl}/chats/${chatId}/messages`);
+            if (!res.ok) return;
+            const serverMsgs = await res.json();
+            if (!Array.isArray(serverMsgs)) return;
+
+            const data = this.get();
+            if (!data.individualChats) data.individualChats = [];
+            let chat = data.individualChats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            if (!chat.messages) chat.messages = [];
+
+            const myPhone = String(data.currentUser.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+            const myId = String(data.currentUser.id || '').toLowerCase();
+            const myUsername = String(data.currentUser.username || '').toLowerCase();
+
+            let hasNew = false;
+            for (const sm of serverMsgs) {
+                const smSender = String(sm.sender_id || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '') || String(sm.sender_id || '').toLowerCase();
+                
+                const isSentByMe = (smSender === 'me' || sm.is_me === true || smSender === myId || smSender === myUsername || (myPhone && smSender && (myPhone.endsWith(smSender) || smSender.endsWith(myPhone))));
+
+                const exists = chat.messages.some(m => m.id === sm.id || (m.text === sm.text && m.time === sm.time));
+                if (!exists) {
+                    chat.messages.push({
+                        id: sm.id,
+                        sender: isSentByMe ? 'me' : (sm.sender_name || 'Contact'),
+                        text: sm.text,
+                        time: sm.time || 'Just now',
+                        is_me: isSentByMe
+                    });
+                    chat.lastMessage = sm.text;
+                    chat.time = sm.time || 'Just now';
+                    hasNew = true;
+                }
+            }
+
+            if (hasNew) {
+                this.save(data);
+                if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && window.activeOpenChat.id === chatId) {
+                    window.renderIndividualMessages(chat.messages);
+                }
+            }
+        } catch (e) {
+            console.warn('[syncChatMessagesFromCloud] error:', e);
+        }
     }
 
     async sendGroupMessage(groupId, text) {

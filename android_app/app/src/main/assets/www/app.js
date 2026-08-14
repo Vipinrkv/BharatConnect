@@ -1388,17 +1388,32 @@ function renderCommunityChatList(communities) {
 
 /* Open Chat Room Windows & Send Messages */
 
+let chatSyncInterval = null;
+
 function openIndividualChatRoom(chatId) {
     activeOpenChat = { type: 'individual', id: chatId };
     const data = window.localDB.get();
     const chat = (data.individualChats || []).find(c => c.id === chatId);
     if (!chat) return;
 
-    document.querySelector('#screen-chat-indiv .chat-avatar').src = chat.avatar || 'logo.png';
+    document.querySelector('#screen-chat-indiv .chat-avatar').src = (chat.avatar && chat.avatar !== 'logo.png') ? chat.avatar : 'logo.png';
     document.querySelector('#screen-chat-indiv div[style*="font-weight:600"]').innerText = chat.name;
     
     renderIndividualMessages(chat.messages || []);
     showScreen('screen-chat-indiv');
+
+    // Immediate sync & 3-second live polling loop for real-time messages
+    if (window.localDB && window.localDB.syncChatMessagesFromCloud) {
+        window.localDB.syncChatMessagesFromCloud(chatId);
+        if (chatSyncInterval) clearInterval(chatSyncInterval);
+        chatSyncInterval = setInterval(() => {
+            if (activeOpenChat && activeOpenChat.id === chatId) {
+                window.localDB.syncChatMessagesFromCloud(chatId);
+            } else {
+                clearInterval(chatSyncInterval);
+            }
+        }, 3000);
+    }
 }
 
 function renderIndividualMessages(messages) {

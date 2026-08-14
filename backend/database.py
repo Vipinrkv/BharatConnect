@@ -98,6 +98,7 @@ class MessageModel(Base):
     chat_id = Column(String(50), nullable=False)
     sender_id = Column(String(50), nullable=False)
     sender_name = Column(String(100), nullable=False)
+    recipient_id = Column(String(50), nullable=True)
     text = Column(Text, nullable=False)
     time = Column(String(20), default="10:30 AM")
     is_me = Column(Boolean, default=False)
