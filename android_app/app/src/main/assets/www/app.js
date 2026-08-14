@@ -632,12 +632,12 @@ function renderPosts(posts) {
             ${mediaHtml}
             <div class="post-actions">
                 <button class="action-btn ${p.liked ? 'active' : ''}" onclick="toggleLike('${p.id}')">
-                    ${p.liked ? '❤️' : '🤍'} <span>${p.likes || 0}</span>
+                    ${p.liked ? '<i class="fa-solid fa-heart" style="color:#FF4757;"></i>' : '<i class="fa-regular fa-heart"></i>'} <span>${p.likes || 0}</span>
                 </button>
                 <button class="action-btn" onclick="promptComment('${p.id}')">
-                    💬 <span>${p.commentsCount || 0}</span>
+                    <i class="fa-regular fa-comment"></i> <span>${p.commentsCount || 0}</span>
                 </button>
-                <button class="action-btn">🔗 Share</button>
+                <button class="action-btn"><i class="fa-regular fa-paper-plane"></i> <span>Share</span></button>
             </div>
         </div>
         `;
@@ -1085,10 +1085,10 @@ function renderModalContactList() {
                     <img src="${c.avatar || 'logo.png'}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-indigo);" onerror="this.src='logo.png'">
                     <div>
                         <div style="font-weight:600; font-size:14px; color:var(--text-main);">${c.name}</div>
-                        <div style="font-size:11px; color:#4CAF50; font-weight:700;">✓ BharatConnect Member</div>
+                        <div style="font-size:11px; color:#4CAF50; font-weight:700;"><i class="fa-solid fa-circle-check" style="margin-right:4px;"></i> BharatConnect Member</div>
                     </div>
                 </div>
-                <button class="btn-primary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;" onclick="event.stopPropagation(); selectModalContact('${c.id}')">Chat</button>
+                <button class="btn-primary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;" onclick="event.stopPropagation(); selectModalContact('${c.id}')"><i class="fa-solid fa-comment-dots" style="margin-right:4px;"></i> Chat</button>
             </div>
         `).join('');
     }
@@ -1105,7 +1105,7 @@ function renderModalContactList() {
                         <div style="font-size:11px; color:var(--text-muted);">${c.phone}</div>
                     </div>
                 </div>
-                <button class="btn-secondary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;" onclick="event.stopPropagation(); sendSmsInvite('${c.phone}')">Invite</button>
+                <button class="btn-secondary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;" onclick="event.stopPropagation(); sendSmsInvite('${c.phone}')"><i class="fa-solid fa-user-plus" style="margin-right:4px;"></i> Invite</button>
             </div>
         `).join('');
     }
@@ -1170,7 +1170,7 @@ function updateChatSelectionUI() {
 function handleSelectedPin() {
     selectedChatIds.forEach(id => window.localDB.togglePinChat(id));
     clearChatSelection();
-    showCustomAlert('Chat pin status updated! 📌', 'Pin Chat');
+    showCustomAlert('Chat pin status updated!', 'Pin Chat');
 }
 
 function handleSelectedDelete() {
@@ -1183,50 +1183,39 @@ function handleSelectedDelete() {
 function handleSelectedMute() {
     selectedChatIds.forEach(id => window.localDB.toggleMuteChat(id));
     clearChatSelection();
-    showCustomAlert('Chat mute status updated! 🔕', 'Mute Chat');
+    showCustomAlert('Chat mute status updated!', 'Mute Chat');
 }
 
 function handleSelectedViewProfile() {
-    const chatId = Array.from(selectedChatIds)[0];
-    if (chatId) {
+    if (selectedChatIds.size === 1) {
+        const chatId = Array.from(selectedChatIds)[0];
+        clearChatSelection();
         openChatProfileModal(chatId);
+    } else {
+        showCustomAlert('Please select only 1 chat to view profile', 'View Profile');
     }
 }
 
 function openChatProfileModal(chatId) {
+    window.currentViewProfileChatId = chatId;
     const data = window.localDB.get();
-    let chat = (data.individualChats || []).find(c => c.id === chatId || c.userId === chatId);
-    let regUser = null;
-
-    if (chat) {
-        regUser = (data.registeredUsers || []).find(u => u.id === chat.userId || u.username === chat.username || u.phone === chat.phone);
-    } else {
-        regUser = (data.registeredUsers || []).find(u => u.id === chatId || u.username === chatId || u.phone === chatId);
-    }
+    const chat = (data.individualChats || []).find(c => c.id === chatId);
+    if (!chat) return;
 
     const modal = document.getElementById('modal-view-contact-profile');
-    if (!modal) return;
-
     const avatarEl = document.getElementById('contact-profile-avatar');
     const nameEl = document.getElementById('contact-profile-name');
     const handleEl = document.getElementById('contact-profile-handle');
     const phoneEl = document.getElementById('contact-profile-phone');
     const bioEl = document.getElementById('contact-profile-bio');
 
-    const name = chat ? chat.name : (regUser ? regUser.name : 'User');
-    const handle = regUser ? ('@' + regUser.username) : (chat ? chat.phone : '');
-    const phone = regUser ? (regUser.phone || '') : (chat ? chat.phone : '');
-    const bio = regUser ? (regUser.bio || 'Hey there! I am using BharatConnect 🚀') : 'Hey there! I am using BharatConnect 🚀';
-    const avatar = regUser ? (regUser.avatar || 'logo.png') : (chat ? chat.avatar : 'logo.png');
+    if (avatarEl) avatarEl.src = (chat.avatar && chat.avatar !== 'logo.png') ? chat.avatar : 'logo.png';
+    if (nameEl) nameEl.innerText = chat.name || 'User';
+    if (handleEl) handleEl.innerText = `@${chat.username || chat.name.toLowerCase().replace(/\s+/g, '')}`;
+    if (phoneEl) phoneEl.innerText = chat.phone ? `+91 ${chat.phone}` : 'BharatConnect Contact';
+    if (bioEl) bioEl.innerText = chat.bio || 'Hey there! I am using BharatConnect 🚀';
 
-    if (avatarEl) avatarEl.src = (avatar && avatar !== 'logo.png') ? avatar : 'logo.png';
-    if (nameEl) nameEl.innerText = name;
-    if (handleEl) handleEl.innerText = handle;
-    if (phoneEl) phoneEl.innerText = phone ? `📱 ${phone}` : '';
-    if (bioEl) bioEl.innerText = bio;
-
-    window.currentViewProfileChatId = chatId;
-    modal.style.display = 'flex';
+    if (modal) modal.style.display = 'flex';
 }
 
 function closeContactProfileModal() {
@@ -1288,7 +1277,7 @@ function renderIndividualChatList(chats) {
     if (chats.length === 0) {
         container.innerHTML = `
             <div style="text-align:center; padding:30px 16px; color:var(--text-muted);">
-                <div style="font-size:32px; margin-bottom:8px;">👤</div>
+                <div style="font-size:32px; margin-bottom:8px;"><i class="fa-solid fa-user-group" style="color:var(--accent-lavender);"></i></div>
                 <div style="font-weight:600; color:white;">No Individual Chats</div>
                 <div style="font-size:12px; margin-top:4px;">Tap + in bottom right to open contacts and start chat!</div>
             </div>
@@ -1310,17 +1299,17 @@ function renderIndividualChatList(chats) {
             <div style="display:flex; align-items:center; gap:12px; width:100%;">
                 <div style="position:relative;" onclick="event.stopPropagation(); openChatProfileModal('${c.id}')">
                     <img src="${avatarSrc}" style="width:46px; height:46px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-indigo);" onerror="this.src='logo.png'">
-                    ${c.isPinned ? '<div style="position:absolute; top:-2px; right:-2px; background:var(--primary-indigo); border-radius:50%; width:18px; height:18px; display:flex; justify-content:center; align-items:center; font-size:10px; border:1px solid white;">📌</div>' : ''}
+                    ${c.isPinned ? '<div style="position:absolute; top:-2px; right:-2px; background:var(--primary-indigo); border-radius:50%; width:18px; height:18px; display:flex; justify-content:center; align-items:center; font-size:10px; border:1px solid white;"><i class="fa-solid fa-thumbtack"></i></div>' : ''}
                 </div>
                 <div style="flex:1;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-weight:700; font-size:15px; color:white;">${c.name} ${c.isMuted ? '🔕' : ''}</div>
+                        <div style="font-weight:700; font-size:15px; color:white;">${c.name} ${c.isMuted ? '<i class="fa-solid fa-bell-slash" style="font-size:11px; color:var(--text-muted); margin-left:4px;"></i>' : ''}</div>
                         <div style="font-size:11px; color:var(--accent-lavender);">${c.time || 'Just now'}</div>
                     </div>
                     <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.lastMessage || 'Encrypted Chat'}</div>
                 </div>
                 <button class="icon-btn" onclick="toggleChatSelection('${c.id}', event)" style="margin:0; font-size:14px; background:none; border:none; padding:4px;">
-                    ${isSelected ? '☑️' : '•••'}
+                    ${isSelected ? '<i class="fa-solid fa-circle-check" style="color:var(--primary-indigo); font-size:16px;"></i>' : '<i class="fa-solid fa-ellipsis-vertical" style="color:var(--text-muted); font-size:14px;"></i>'}
                 </button>
             </div>
         </div>
