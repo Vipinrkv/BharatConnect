@@ -146,15 +146,22 @@ def health_check(db: Session = Depends(get_db)):
 @app.post("/api/v1/auth/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     id_clean = payload.identifier.strip().lower()
-    user = (
-        db.query(UserModel)
-        .filter(
-            (sqlalchemy.func.lower(UserModel.username) == id_clean)
-            | (sqlalchemy.func.lower(UserModel.email) == id_clean)
-            | (UserModel.phone == payload.identifier.strip())
-        )
-        .first()
-    )
+    norm_phone = normalize_phone_number(payload.identifier)
+
+    login_filters = [
+        sqlalchemy.func.lower(UserModel.username) == id_clean,
+        sqlalchemy.func.lower(UserModel.email) == id_clean,
+        UserModel.phone == id_clean,
+    ]
+    if norm_phone:
+        login_filters.extend([
+            UserModel.phone == norm_phone,
+            UserModel.phone == '0' + norm_phone,
+            UserModel.phone == '+91' + norm_phone,
+            UserModel.phone == '91' + norm_phone,
+        ])
+
+    user = db.query(UserModel).filter(sqlalchemy.or_(*login_filters)).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username, email, or password")
 
@@ -177,14 +184,21 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     uname_clean = payload.username.strip().lower()
     email_clean = payload.email.strip().lower()
-    phone_clean = payload.phone.strip() if payload.phone and payload.phone.strip() else None
+    raw_phone = payload.phone.strip() if payload.phone and payload.phone.strip() else ""
+    norm_phone = normalize_phone_number(raw_phone)
 
     filters = [
         sqlalchemy.func.lower(UserModel.username) == uname_clean,
         sqlalchemy.func.lower(UserModel.email) == email_clean,
     ]
-    if phone_clean:
-        filters.append(UserModel.phone == phone_clean)
+    if norm_phone:
+        filters.extend([
+            UserModel.phone == norm_phone,
+            UserModel.phone == raw_phone,
+            UserModel.phone == '0' + norm_phone,
+            UserModel.phone == '+91' + norm_phone,
+            UserModel.phone == '91' + norm_phone,
+        ])
 
     existing = (
         db.query(UserModel)
@@ -196,7 +210,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Username '@{payload.username}' is already registered! Please choose a different username.")
         elif existing.email and existing.email.lower() == email_clean:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Email '{payload.email}' is already registered! Please log in instead.")
-        elif phone_clean and existing.phone and existing.phone.strip() == phone_clean:
+        elif norm_phone and existing.phone and (normalize_phone_number(existing.phone) == norm_phone):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Phone number '{payload.phone}' is already registered! Please log in instead.")
         else:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="An account with these details is already registered! Please log in instead.")
@@ -216,7 +230,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         username=payload.username.strip(),
         display_name=display_name.strip(),
         email=email_clean,
-        phone=payload.phone.strip() if payload.phone else None,
+        phone=norm_phone or raw_phone or None,
         password_hash=hash_password(payload.password),
         user_avatar=avatar_val,
         avatar_initials=initials,

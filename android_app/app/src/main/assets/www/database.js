@@ -272,12 +272,14 @@ class LocalDB {
         const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
 
         const displayName = (window.securityEngine && window.securityEngine.sanitizeHTML) ? window.securityEngine.sanitizeHTML(userData.fullName || userData.username) : (userData.fullName || userData.username);
+        const rawPhone = String(userData.phone || '').trim();
+        const normPhone = rawPhone.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
         const registerPayload = {
             full_name: displayName,
             display_name: displayName,
             username: String(userData.username || '').toLowerCase().trim(),
             email: String(userData.email || '').toLowerCase().trim(),
-            phone: String(userData.phone || '').trim(),
+            phone: normPhone || rawPhone,
             password: userData.password,
             user_avatar: userData.avatar || 'logo.png'
         };
