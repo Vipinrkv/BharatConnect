@@ -4,6 +4,7 @@ Can run on any cloud provider or server (AWS, GCP, Azure, DigitalOcean, VPS, Loc
 """
 
 import os
+import re
 import sys
 import uuid
 from typing import List, Dict
@@ -435,6 +436,12 @@ def get_chat_messages(chat_id: str, db: Session = Depends(get_db)):
                         MessageModel.recipient_id.like(f"%{p1}%"),
                     )
                 )
+
+    digits = re.sub(r"\D", "", chat_id)
+    if len(digits) >= 7:
+        filters.append(MessageModel.sender_id.like(f"%{digits}%"))
+        filters.append(MessageModel.recipient_id.like(f"%{digits}%"))
+
     messages = db.query(MessageModel).filter(sqlalchemy.or_(*filters)).order_by(MessageModel.created_at.asc()).all()
     return messages
 

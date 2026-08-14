@@ -167,10 +167,20 @@ class LocalDB {
     }
 
     getPairwiseChatId(user1, user2) {
-        const norm1 = String(user1 || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '') || String(user1 || '').toLowerCase().trim();
-        const norm2 = String(user2 || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '') || String(user2 || '').toLowerCase().trim();
-        if (!norm1 || !norm2) return '';
-        const pair = [norm1, norm2].sort().join('_');
+        const extractKey = (u) => {
+            if (!u) return '';
+            if (typeof u === 'object') {
+                u = u.phone || u.username || u.id || '';
+            }
+            const digits = String(u).replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+            if (digits.length >= 7) return digits;
+            return String(u).toLowerCase().trim();
+        };
+
+        const k1 = extractKey(user1);
+        const k2 = extractKey(user2);
+        if (!k1 || !k2) return '';
+        const pair = [k1, k2].sort().join('_');
         return 'chat_' + pair;
     }
 
@@ -448,22 +458,39 @@ class LocalDB {
 
     matchContacts(data) {
         if (!data.individualChats) data.individualChats = [];
-        const currentUserId = data.currentUser.id;
+        const currentUser = data.currentUser || {};
+        const myPhone = String(currentUser.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+        const myId = String(currentUser.id || '').toLowerCase();
         
         (data.registeredUsers || []).forEach(regUser => {
-            if (regUser.id !== currentUserId) {
-                const exists = data.individualChats.some(chat => chat.userId === regUser.id || chat.phone === regUser.phone);
-                if (!exists) {
+            const uphone = String(regUser.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+            const uid = String(regUser.id || '').toLowerCase();
+
+            const isMe = (uid === myId || (uphone && myPhone && uphone === myPhone));
+            if (!isMe) {
+                const sharedChatId = this.getPairwiseChatId(currentUser, regUser);
+                let existingChat = data.individualChats.find(chat => 
+                    chat.id === sharedChatId || 
+                    (chat.phone && regUser.phone && String(chat.phone).replace(/\D/g, '').endsWith(uphone)) || 
+                    chat.userId === regUser.id
+                );
+                if (!existingChat) {
                     data.individualChats.push({
-                        id: 'c_' + regUser.id,
+                        id: sharedChatId || ('c_' + regUser.id),
                         userId: regUser.id,
-                        name: regUser.name,
+                        name: regUser.name || regUser.username,
                         phone: regUser.phone || '',
+                        username: regUser.username || '',
                         avatar: regUser.avatar || 'logo.png',
                         lastMessage: 'Tap to start end-to-end encrypted chat 🔒',
                         time: 'Just now',
                         messages: []
                     });
+                } else {
+                    if (sharedChatId) existingChat.id = sharedChatId;
+                    existingChat.userId = regUser.id;
+                    existingChat.username = regUser.username || existingChat.username;
+                    if (regUser.phone) existingChat.phone = regUser.phone;
                 }
             }
         });
@@ -671,8 +698,19 @@ class LocalDB {
     async sendIndividualMessage(chatId, text, imageUrl = null) {
         const data = this.get();
         if (!data.individualChats) data.individualChats = [];
-        let chat = data.individualChats.find(c => c.id === chatId || c.userId === chatId);
         
+        const myUserKey = data.currentUser.phone || data.currentUser.username || data.currentUser.id;
+        
+        let chat = data.individualChats.find(c => {
+            if (c.id === chatId) return true;
+            const computedId = this.getPairwiseChatId(myUserKey, c.phone || c.userId || c.id);
+            return computedId === chatId;
+        });
+
+        if (!chat) {
+            chat = this.addIndividualContact(chatId);
+        }
+
         if (chat) {
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const cleanText = window.securityEngine.sanitizeHTML(text);
@@ -695,6 +733,7 @@ class LocalDB {
             const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
             const mySenderId = data.currentUser.phone || data.currentUser.username || data.currentUser.id;
             const mySenderName = data.currentUser.name || 'Member';
+            const recipientId = chat.phone || chat.userId || this.getRecipientFromChatId(chat.id, mySenderId);
 
             try {
                 await fetch(`${apiBaseUrl}/chats/${chat.id}/messages`, {
@@ -703,7 +742,7 @@ class LocalDB {
                     body: JSON.stringify({
                         sender_id: mySenderId,
                         sender_name: mySenderName,
-                        recipient_id: chat.phone || chat.userId,
+                        recipient_id: recipientId,
                         text: text,
                         image_url: imageUrl,
                         time: time
@@ -727,7 +766,13 @@ class LocalDB {
 
             const data = this.get();
             if (!data.individualChats) data.individualChats = [];
-            let chat = data.individualChats.find(c => c.id === chatId);
+            
+            const myUserKey = data.currentUser.phone || data.currentUser.username || data.currentUser.id;
+            let chat = data.individualChats.find(c => c.id === chatId || this.getPairwiseChatId(myUserKey, c.phone || c.userId) === chatId);
+            
+            if (!chat) {
+                chat = this.addIndividualContact(chatId);
+            }
             if (!chat) return;
 
             if (!chat.messages) chat.messages = [];
