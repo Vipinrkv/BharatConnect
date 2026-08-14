@@ -506,7 +506,15 @@ async function handleRegister() {
             showScreen('screen-home');
             showCustomAlert('Account created successfully! Welcome to BharatConnect 🚀', 'Welcome to BharatConnect');
         } else {
-            showCustomAlert((res && res.message) ? res.message : 'Registration failed. Username, Phone or Email may already exist.', 'Already Registered');
+            let title = 'Registration Error';
+            if (res && res.isAlreadyRegistered) {
+                title = 'Already Registered';
+            } else if (res && res.isNetworkError) {
+                title = 'Network Connection Failed';
+            } else if (res && res.isServerError) {
+                title = 'Server Error';
+            }
+            showCustomAlert((res && res.message) ? res.message : 'Registration failed. Username, Phone or Email may already exist.', title);
         }
     } catch (err) {
         console.error('[handleRegister] Error during registration:', err);

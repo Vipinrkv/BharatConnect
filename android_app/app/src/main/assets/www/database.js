@@ -313,15 +313,19 @@ class LocalDB {
                 }
 
                 return { success: true, user: newUser };
+            } else if (response.status === 400) {
+                const errDetail = (json && (json.detail || json.message)) || 'Account already registered with these details.';
+                return { success: false, isAlreadyRegistered: true, message: errDetail };
             } else {
-                const errDetail = (json && (json.detail || json.message)) || 'Registration failed. Username or email may already be in use.';
-                return { success: false, message: errDetail };
+                const errDetail = (json && (json.detail || json.message)) || 'Server response error. Please try again.';
+                return { success: false, isServerError: true, message: errDetail };
             }
         } catch (err) {
             console.warn('[registerUser] Server connection failed:', err);
             return {
                 success: false,
-                message: 'Internet connection required. Unable to connect to server to create your account. Please check your network and try again.'
+                isNetworkError: true,
+                message: 'Unable to connect to server. Please check your internet connection and try again.'
             };
         }
     }
