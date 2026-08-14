@@ -85,6 +85,7 @@ class MessageCreateRequest(BaseModel):
     sender_name: Optional[str] = "Member"
     recipient_id: Optional[str] = None
     text: str
+    image_url: Optional[str] = None
     time: Optional[str] = None
 
 
@@ -95,6 +96,7 @@ class MessageResponse(BaseModel):
     sender_name: str
     recipient_id: Optional[str] = None
     text: str
+    image_url: Optional[str] = None
     is_me: bool = False
     time: str
 

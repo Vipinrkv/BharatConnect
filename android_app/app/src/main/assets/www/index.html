@@ -176,8 +176,16 @@
                 <button class="icon-btn">📹</button>
             </div>
             <div class="chat-messages" id="indiv-messages"></div>
+            <!-- Chat Media Attachment Preview Bar -->
+            <div id="indiv-media-preview-container" style="display:none; padding:8px 16px; background:var(--surface-dark); border-top:1px solid var(--border-color); align-items:center; gap:10px;">
+                <img id="indiv-media-preview-img" src="" style="width:50px; height:50px; border-radius:8px; object-fit:cover; border:1px solid var(--primary-indigo);">
+                <span style="font-size:12px; color:var(--accent-lavender); flex:1;">Photo attached</span>
+                <button class="icon-btn" onclick="clearIndivMediaAttachment()" style="margin:0;">✕</button>
+            </div>
+
             <div class="chat-input-bar">
-                <button class="icon-btn">+</button>
+                <label for="indiv-photo-input" class="icon-btn" style="cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Attach Photo">📷</label>
+                <input type="file" id="indiv-photo-input" accept="image/*" style="display:none;" onchange="handleIndivPhotoSelect(event)">
                 <input type="text" id="indiv-input" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendChatMessage('individual')">
                 <button class="fab" style="width:36px; height:36px; font-size:16px;" onclick="sendChatMessage('individual')">➤</button>
             </div>

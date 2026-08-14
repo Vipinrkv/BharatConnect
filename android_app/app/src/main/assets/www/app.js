@@ -1388,7 +1388,29 @@ function renderCommunityChatList(communities) {
 
 /* Open Chat Room Windows & Send Messages */
 
-let chatSyncInterval = null;
+let selectedIndivPhotoData = null;
+
+function handleIndivPhotoSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        selectedIndivPhotoData = evt.target.result;
+        const container = document.getElementById('indiv-media-preview-container');
+        const img = document.getElementById('indiv-media-preview-img');
+        if (img) img.src = selectedIndivPhotoData;
+        if (container) container.style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearIndivMediaAttachment() {
+    selectedIndivPhotoData = null;
+    const container = document.getElementById('indiv-media-preview-container');
+    const input = document.getElementById('indiv-photo-input');
+    if (container) container.style.display = 'none';
+    if (input) input.value = '';
+}
 
 function openIndividualChatRoom(chatId) {
     activeOpenChat = { type: 'individual', id: chatId };
@@ -1402,7 +1424,7 @@ function openIndividualChatRoom(chatId) {
     renderIndividualMessages(chat.messages || []);
     showScreen('screen-chat-indiv');
 
-    // Immediate sync & 3-second live polling loop for real-time messages
+    // Sub-second 1000ms instant live polling loop for instant WhatsApp/Telegram message delivery!
     if (window.localDB && window.localDB.syncChatMessagesFromCloud) {
         window.localDB.syncChatMessagesFromCloud(chatId);
         if (chatSyncInterval) clearInterval(chatSyncInterval);
@@ -1412,7 +1434,7 @@ function openIndividualChatRoom(chatId) {
             } else {
                 clearInterval(chatSyncInterval);
             }
-        }, 3000);
+        }, 1000);
     }
 }
 
@@ -1423,14 +1445,14 @@ function renderIndividualMessages(messages) {
     const data = window.localDB.get();
     const myUsername = String(data.currentUser.username || '').toLowerCase().trim();
     const myId = String(data.currentUser.id || '').toLowerCase().trim();
-    const myPhone = String(data.currentUser.phone || '').replace(/[^0-9]/g, '');
+    const myPhone = String(data.currentUser.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
 
     if (!messages || messages.length === 0) {
         indivContainer.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:13px; margin:auto;">No messages yet. Type a message below to start chatting!</div>`;
     } else {
         indivContainer.innerHTML = messages.map(m => {
             const mSender = String(m.sender || '').toLowerCase().trim();
-            const isSentByMe = (mSender === 'me' || m.is_me === true || mSender === myUsername || mSender === myId || (myPhone && mSender.endsWith(myPhone)));
+            const isSentByMe = (mSender === 'me' || m.is_me === true || mSender === myUsername || mSender === myId || (myPhone && mSender && (myPhone.endsWith(mSender) || mSender.endsWith(myPhone))));
 
             let timeDisplay = m.time || 'Just now';
             if (timeDisplay.includes('T') || timeDisplay.length > 10) {
@@ -1442,10 +1464,16 @@ function renderIndividualMessages(messages) {
                 } catch(e) {}
             }
 
+            const imgHtml = (m.image_url || m.image) ? `<img src="${m.image_url || m.image}" style="max-width:220px; max-height:220px; border-radius:12px; margin-bottom:6px; display:block; object-fit:cover; border:1px solid var(--border-color);" onerror="this.style.display='none'">` : '';
+
             return `
                 <div class="message-bubble ${isSentByMe ? 'sent' : 'received'}">
-                    <div>${m.text}</div>
-                    <div class="message-time">${timeDisplay}</div>
+                    ${imgHtml}
+                    <div>${m.text || ''}</div>
+                    <div class="message-time">
+                        ${timeDisplay}
+                        ${isSentByMe ? '<span style="color:#4EFEAA; font-size:12px; margin-left:4px; font-weight:bold;">✓✓</span>' : ''}
+                    </div>
                 </div>
             `;
         }).join('');
@@ -1520,12 +1548,15 @@ function renderCommunityMessages(messages) {
 async function sendChatMessage(chatType) {
     const inputId = `${chatType === 'individual' ? 'indiv' : chatType}-input`;
     const input = document.getElementById(inputId);
-    if (!input || !input.value.trim()) return;
+    const text = input ? input.value.trim() : '';
 
-    const text = input.value.trim();
+    if (!text && !selectedIndivPhotoData) return;
 
     if (chatType === 'individual' && activeOpenChat.id) {
-        const data = await window.localDB.sendIndividualMessage(activeOpenChat.id, text);
+        const photoToSend = selectedIndivPhotoData;
+        clearIndivMediaAttachment();
+
+        const data = await window.localDB.sendIndividualMessage(activeOpenChat.id, text, photoToSend);
         const chat = (data.individualChats || []).find(c => c.id === activeOpenChat.id);
         if (chat) renderIndividualMessages(chat.messages || []);
     } else if (chatType === 'group' && activeOpenChat.id) {
@@ -1538,7 +1569,7 @@ async function sendChatMessage(chatType) {
         if (comm) renderCommunityMessages(comm.messages || []);
     }
 
-    input.value = '';
+    if (input) input.value = '';
 }
 
 function switchMarketTab(tabType) {

@@ -417,13 +417,39 @@ def get_chats(db: Session = Depends(get_db)):
 
 @app.get("/api/v1/chats/{chat_id}/messages", response_model=List[MessageResponse])
 def get_chat_messages(chat_id: str, db: Session = Depends(get_db)):
-    return db.query(MessageModel).filter(MessageModel.chat_id == chat_id).order_by(MessageModel.created_at.asc()).all()
+    filters = [MessageModel.chat_id == chat_id]
+    if chat_id.startswith("chat_"):
+        parts = chat_id.replace("chat_", "").split("_")
+        if len(parts) == 2:
+            p1, p2 = parts[0], parts[1]
+            if p1 and p2:
+                filters.append(
+                    sqlalchemy.and_(
+                        MessageModel.sender_id.like(f"%{p1}%"),
+                        MessageModel.recipient_id.like(f"%{p2}%"),
+                    )
+                )
+                filters.append(
+                    sqlalchemy.and_(
+                        MessageModel.sender_id.like(f"%{p2}%"),
+                        MessageModel.recipient_id.like(f"%{p1}%"),
+                    )
+                )
+    messages = db.query(MessageModel).filter(sqlalchemy.or_(*filters)).order_by(MessageModel.created_at.asc()).all()
+    return messages
 
 
 @app.post("/api/v1/chats/{chat_id}/messages", response_model=MessageResponse)
 def send_message(chat_id: str, payload: MessageCreateRequest, db: Session = Depends(get_db)):
     msg_id = f"m-{uuid.uuid4().hex[:8]}"
     now_str = payload.time or datetime.now().strftime("%I:%M %p").lstrip("0")
+
+    img_url = payload.image_url
+    if img_url and img_url.startswith("data:image/"):
+        c_res = upload_media(img_url, folder="bharatconnect_chat_media")
+        if c_res.get("success") and c_res.get("url"):
+            img_url = c_res.get("url")
+
     message = MessageModel(
         id=msg_id,
         chat_id=chat_id,
@@ -431,6 +457,7 @@ def send_message(chat_id: str, payload: MessageCreateRequest, db: Session = Depe
         sender_name=payload.sender_name or "Member",
         recipient_id=payload.recipient_id,
         text=payload.text,
+        image_url=img_url,
         is_me=False,
         time=now_str,
     )

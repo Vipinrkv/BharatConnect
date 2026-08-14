@@ -668,7 +668,7 @@ class LocalDB {
         return data;
     }
 
-    async sendIndividualMessage(chatId, text) {
+    async sendIndividualMessage(chatId, text, imageUrl = null) {
         const data = this.get();
         if (!data.individualChats) data.individualChats = [];
         let chat = data.individualChats.find(c => c.id === chatId || c.userId === chatId);
@@ -680,12 +680,13 @@ class LocalDB {
                 id: 'm_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                 sender: 'me',
                 text: cleanText,
+                image_url: imageUrl,
                 time: time,
                 is_me: true
             };
             if (!chat.messages) chat.messages = [];
             chat.messages.push(msgObj);
-            chat.lastMessage = cleanText;
+            chat.lastMessage = cleanText || '📷 Photo';
             chat.time = time;
 
             this.save(data);
@@ -704,6 +705,7 @@ class LocalDB {
                         sender_name: mySenderName,
                         recipient_id: chat.phone || chat.userId,
                         text: text,
+                        image_url: imageUrl,
                         time: time
                     })
                 });
@@ -746,10 +748,11 @@ class LocalDB {
                         id: sm.id,
                         sender: isSentByMe ? 'me' : (sm.sender_name || 'Contact'),
                         text: sm.text,
+                        image_url: sm.image_url || null,
                         time: sm.time || 'Just now',
                         is_me: isSentByMe
                     });
-                    chat.lastMessage = sm.text;
+                    chat.lastMessage = sm.text || '📷 Photo';
                     chat.time = sm.time || 'Just now';
                     hasNew = true;
                 }

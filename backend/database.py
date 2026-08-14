@@ -100,6 +100,7 @@ class MessageModel(Base):
     sender_name = Column(String(100), nullable=False)
     recipient_id = Column(String(50), nullable=True)
     text = Column(Text, nullable=False)
+    image_url = Column(Text, nullable=True)
     time = Column(String(20), default="10:30 AM")
     is_me = Column(Boolean, default=False)
     avatar_color = Column(String(20), default="#6367FF")
