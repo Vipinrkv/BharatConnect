@@ -508,6 +508,49 @@ class LocalDB {
         return newChat;
     }
 
+    togglePinChat(chatId) {
+        const data = this.get();
+        let found = false;
+        ['individualChats', 'groups', 'communities'].forEach(key => {
+            if (data[key]) {
+                const item = data[key].find(c => c.id === chatId);
+                if (item) {
+                    item.isPinned = !item.isPinned;
+                    found = true;
+                }
+            }
+        });
+        if (found) this.save(data);
+        return data;
+    }
+
+    deleteChat(chatId) {
+        const data = this.get();
+        ['individualChats', 'groups', 'communities'].forEach(key => {
+            if (data[key]) {
+                data[key] = data[key].filter(c => c.id !== chatId);
+            }
+        });
+        this.save(data);
+        return data;
+    }
+
+    toggleMuteChat(chatId) {
+        const data = this.get();
+        let isMuted = false;
+        ['individualChats', 'groups', 'communities'].forEach(key => {
+            if (data[key]) {
+                const item = data[key].find(c => c.id === chatId);
+                if (item) {
+                    item.isMuted = !item.isMuted;
+                    isMuted = item.isMuted;
+                }
+            }
+        });
+        this.save(data);
+        return isMuted;
+    }
+
     createGroup(groupName, description) {
         const data = this.get();
         const cleanName = window.securityEngine.sanitizeHTML(groupName);

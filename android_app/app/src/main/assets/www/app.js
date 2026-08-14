@@ -968,6 +968,16 @@ function getDeviceContactsList() {
     return [];
 }
 
+function sendSmsInvite(phone) {
+    const cleanPhone = String(phone || '').replace(/[^0-9+]/g, '');
+    const inviteMsg = encodeURIComponent("Hey! Join me on BharatConnect - the fast & secure social messaging app for India. Download now!");
+    if (window.AndroidBridge && window.AndroidBridge.sendSMS) {
+        window.AndroidBridge.sendSMS(cleanPhone, decodeURIComponent(inviteMsg));
+    } else {
+        window.open('sms:' + cleanPhone + '?body=' + inviteMsg, '_system');
+    }
+}
+
 function renderModalContactList() {
     const q = (document.getElementById('contact-modal-search') ? document.getElementById('contact-modal-search').value : '').toLowerCase().trim();
     const data = window.localDB.get();
@@ -976,41 +986,59 @@ function renderModalContactList() {
 
     const currentUserId = (data.currentUser.id || '').toLowerCase();
     const currentUsername = (data.currentUser.username || '').toLowerCase();
-    const currentPhone = (data.currentUser.phone || '').toLowerCase().replace(/[^0-9]/g, '');
+    const currentPhone = (data.currentUser.phone || '').replace(/\D/g, '');
 
     const deviceContacts = getDeviceContactsList();
     const registeredUsers = data.registeredUsers || [];
-    const matchedContacts = [];
+    
+    const registeredList = [];
+    const unregisteredList = [];
 
-    // 1. Cross-reference Device Contacts
+    // Process device contacts first
     deviceContacts.forEach(dc => {
         if (!dc.phone) return;
-        const cleanDcPhone = String(dc.phone).replace(/[^0-9]/g, '');
+        const cleanDcPhone = String(dc.phone).replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
         if (!cleanDcPhone) return;
 
         if (currentPhone && (cleanDcPhone.endsWith(currentPhone) || currentPhone.endsWith(cleanDcPhone))) return;
 
+        // Check if registered on server/system
         const matchedSystemUser = registeredUsers.find(u => {
-            const uphone = String(u.phone || '').replace(/[^0-9]/g, '');
+            const uphone = String(u.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
             return uphone && (uphone.endsWith(cleanDcPhone) || cleanDcPhone.endsWith(uphone));
         });
 
-        const alreadyAdded = matchedContacts.some(m => m.cleanPhone === cleanDcPhone);
-        if (!alreadyAdded) {
-            matchedContacts.push({
-                id: matchedSystemUser ? matchedSystemUser.id : cleanDcPhone,
-                name: dc.name || (matchedSystemUser ? matchedSystemUser.name : 'Contact (' + dc.phone + ')'),
-                phone: dc.rawPhone || dc.phone,
-                cleanPhone: cleanDcPhone,
-                avatar: matchedSystemUser ? (matchedSystemUser.avatar || 'logo.png') : 'logo.png',
-                isRegistered: !!matchedSystemUser
-            });
+        if (matchedSystemUser) {
+            const alreadyInReg = registeredList.some(r => r.cleanPhone === cleanDcPhone || r.id === matchedSystemUser.id);
+            if (!alreadyInReg) {
+                registeredList.push({
+                    id: matchedSystemUser.id,
+                    name: dc.name || matchedSystemUser.name || 'Contact (' + dc.phone + ')',
+                    phone: dc.rawPhone || dc.phone,
+                    cleanPhone: cleanDcPhone,
+                    avatar: matchedSystemUser.avatar || 'logo.png',
+                    isRegistered: true,
+                    username: matchedSystemUser.username
+                });
+            }
+        } else {
+            const alreadyInUnreg = unregisteredList.some(u => u.cleanPhone === cleanDcPhone);
+            if (!alreadyInUnreg) {
+                unregisteredList.push({
+                    id: cleanDcPhone,
+                    name: dc.name || ('Contact (' + dc.phone + ')'),
+                    phone: dc.rawPhone || dc.phone,
+                    cleanPhone: cleanDcPhone,
+                    avatar: 'logo.png',
+                    isRegistered: false
+                });
+            }
         }
     });
 
-    // 2. Add all other System Registered Users
+    // Add remaining registered users not in device contacts
     registeredUsers.forEach(u => {
-        const uphone = String(u.phone || '').replace(/[^0-9]/g, '');
+        const uphone = String(u.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
         const uid = String(u.id || '').toLowerCase();
         const uname = String(u.username || '').toLowerCase();
 
@@ -1018,25 +1046,26 @@ function renderModalContactList() {
             return;
         }
 
-        const alreadyAdded = matchedContacts.some(m => m.id === u.id || (m.cleanPhone && uphone && (m.cleanPhone.endsWith(uphone) || uphone.endsWith(m.cleanPhone))));
+        const alreadyAdded = registeredList.some(r => r.id === u.id || (r.cleanPhone && uphone && (r.cleanPhone.endsWith(uphone) || uphone.endsWith(r.cleanPhone))));
         if (!alreadyAdded) {
-            matchedContacts.push({
+            registeredList.push({
                 id: u.id,
-                name: u.name,
+                name: u.name || '@' + u.username,
                 phone: u.phone || '@' + u.username,
                 cleanPhone: uphone,
                 avatar: u.avatar || 'logo.png',
-                isRegistered: true
+                isRegistered: true,
+                username: u.username
             });
         }
     });
 
-    const filtered = matchedContacts.filter(c => {
-        if (!q) return true;
-        return (c.name && c.name.toLowerCase().includes(q)) || (c.phone && c.phone.toLowerCase().includes(q));
-    });
+    // Filter by search query
+    const filterFn = c => !q || (c.name && c.name.toLowerCase().includes(q)) || (c.phone && c.phone.toLowerCase().includes(q));
+    const filteredReg = registeredList.filter(filterFn);
+    const filteredUnreg = unregisteredList.filter(filterFn);
 
-    if (filtered.length === 0) {
+    if (filteredReg.length === 0 && filteredUnreg.length === 0) {
         container.innerHTML = `
             <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">
                 No matching contacts found.<br>Type a phone number below to start chat directly!
@@ -1045,18 +1074,43 @@ function renderModalContactList() {
         return;
     }
 
-    container.innerHTML = filtered.map(c => `
-        <div class="profile-link-card" style="padding:10px 14px;" onclick="selectModalContact('${c.id || c.cleanPhone || c.phone}')">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <img src="${c.avatar}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-indigo);">
-                <div>
-                    <div style="font-weight:600; font-size:14px; color:var(--text-main);">${c.name}</div>
-                    <div style="font-size:11px; color:var(--accent-lavender);">${c.phone} • ${c.isRegistered ? '<span style="color:#4CAF50; font-weight:700;">✓ System Registered</span>' : '<span style="color:#B388FF;">📱 Device Contact</span>'}</div>
+    let html = '';
+
+    // 1. REGISTERED CONTACTS (AT THE TOP)
+    if (filteredReg.length > 0) {
+        html += `<div style="font-size:11px; font-weight:700; color:var(--primary-indigo); text-transform:uppercase; margin:6px 0; padding:0 4px;">Contacts on BharatConnect</div>`;
+        html += filteredReg.map(c => `
+            <div class="profile-link-card" style="padding:10px 14px; cursor:pointer;" onclick="selectModalContact('${c.id}')">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img src="${c.avatar || 'logo.png'}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-indigo);" onerror="this.src='logo.png'">
+                    <div>
+                        <div style="font-weight:600; font-size:14px; color:var(--text-main);">${c.name}</div>
+                        <div style="font-size:11px; color:#4CAF50; font-weight:700;">✓ BharatConnect Member</div>
+                    </div>
                 </div>
+                <button class="btn-primary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;" onclick="event.stopPropagation(); selectModalContact('${c.id}')">Chat</button>
             </div>
-            <button class="btn-primary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;">Chat</button>
-        </div>
-    `).join('');
+        `).join('');
+    }
+
+    // 2. UNREGISTERED CONTACTS (BELOW - INVITE ONLY)
+    if (filteredUnreg.length > 0) {
+        html += `<div style="font-size:11px; font-weight:700; color:var(--accent-lavender); text-transform:uppercase; margin:14px 0 6px; padding:0 4px;">Invite to BharatConnect</div>`;
+        html += filteredUnreg.map(c => `
+            <div class="profile-link-card" style="padding:10px 14px; opacity:0.85; cursor:pointer;" onclick="sendSmsInvite('${c.phone}')">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img src="logo.png" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid var(--border-color);" onerror="this.src='logo.png'">
+                    <div>
+                        <div style="font-weight:600; font-size:14px; color:var(--text-main);">${c.name}</div>
+                        <div style="font-size:11px; color:var(--text-muted);">${c.phone}</div>
+                    </div>
+                </div>
+                <button class="btn-secondary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;" onclick="event.stopPropagation(); sendSmsInvite('${c.phone}')">Invite</button>
+            </div>
+        `).join('');
+    }
+
+    container.innerHTML = html;
 }
 
 function selectModalContact(userKey) {
@@ -1079,6 +1133,121 @@ function submitModalDirectContact() {
     openIndividualChatRoom(newChat.id);
 }
 
+// WhatsApp Style Selection & Action Toolbar Functions
+let selectedChatIds = new Set();
+
+function toggleChatSelection(chatId, e) {
+    if (e) e.stopPropagation();
+    if (selectedChatIds.has(chatId)) {
+        selectedChatIds.delete(chatId);
+    } else {
+        selectedChatIds.add(chatId);
+    }
+    updateChatSelectionUI();
+}
+
+function clearChatSelection() {
+    selectedChatIds.clear();
+    updateChatSelectionUI();
+}
+
+function updateChatSelectionUI() {
+    const normalHeader = document.getElementById('chat-header-normal');
+    const selectHeader = document.getElementById('chat-header-selection');
+    const countEl = document.getElementById('selected-chat-count');
+
+    if (selectedChatIds.size > 0) {
+        if (normalHeader) normalHeader.style.display = 'none';
+        if (selectHeader) selectHeader.style.display = 'flex';
+        if (countEl) countEl.innerText = selectedChatIds.size;
+    } else {
+        if (normalHeader) normalHeader.style.display = 'flex';
+        if (selectHeader) selectHeader.style.display = 'none';
+    }
+    renderAll();
+}
+
+function handleSelectedPin() {
+    selectedChatIds.forEach(id => window.localDB.togglePinChat(id));
+    clearChatSelection();
+    showCustomAlert('Chat pin status updated! 📌', 'Pin Chat');
+}
+
+function handleSelectedDelete() {
+    showCustomAlert('Are you sure you want to delete the selected chat(s)?', 'Delete Chat', function() {
+        selectedChatIds.forEach(id => window.localDB.deleteChat(id));
+        clearChatSelection();
+    });
+}
+
+function handleSelectedMute() {
+    selectedChatIds.forEach(id => window.localDB.toggleMuteChat(id));
+    clearChatSelection();
+    showCustomAlert('Chat mute status updated! 🔕', 'Mute Chat');
+}
+
+function handleSelectedViewProfile() {
+    const chatId = Array.from(selectedChatIds)[0];
+    if (chatId) {
+        openChatProfileModal(chatId);
+    }
+}
+
+function openChatProfileModal(chatId) {
+    const data = window.localDB.get();
+    let chat = (data.individualChats || []).find(c => c.id === chatId || c.userId === chatId);
+    let regUser = null;
+
+    if (chat) {
+        regUser = (data.registeredUsers || []).find(u => u.id === chat.userId || u.username === chat.username || u.phone === chat.phone);
+    } else {
+        regUser = (data.registeredUsers || []).find(u => u.id === chatId || u.username === chatId || u.phone === chatId);
+    }
+
+    const modal = document.getElementById('modal-view-contact-profile');
+    if (!modal) return;
+
+    const avatarEl = document.getElementById('contact-profile-avatar');
+    const nameEl = document.getElementById('contact-profile-name');
+    const handleEl = document.getElementById('contact-profile-handle');
+    const phoneEl = document.getElementById('contact-profile-phone');
+    const bioEl = document.getElementById('contact-profile-bio');
+
+    const name = chat ? chat.name : (regUser ? regUser.name : 'User');
+    const handle = regUser ? ('@' + regUser.username) : (chat ? chat.phone : '');
+    const phone = regUser ? (regUser.phone || '') : (chat ? chat.phone : '');
+    const bio = regUser ? (regUser.bio || 'Hey there! I am using BharatConnect 🚀') : 'Hey there! I am using BharatConnect 🚀';
+    const avatar = regUser ? (regUser.avatar || 'logo.png') : (chat ? chat.avatar : 'logo.png');
+
+    if (avatarEl) avatarEl.src = (avatar && avatar !== 'logo.png') ? avatar : 'logo.png';
+    if (nameEl) nameEl.innerText = name;
+    if (handleEl) handleEl.innerText = handle;
+    if (phoneEl) phoneEl.innerText = phone ? `📱 ${phone}` : '';
+    if (bioEl) bioEl.innerText = bio;
+
+    window.currentViewProfileChatId = chatId;
+    modal.style.display = 'flex';
+}
+
+function closeContactProfileModal() {
+    const modal = document.getElementById('modal-view-contact-profile');
+    if (modal) modal.style.display = 'none';
+}
+
+function messageContactFromProfile() {
+    closeContactProfileModal();
+    if (window.currentViewProfileChatId) {
+        openIndividualChatRoom(window.currentViewProfileChatId);
+    }
+}
+
+function handleChatCardClick(chatId, e) {
+    if (selectedChatIds.size > 0) {
+        toggleChatSelection(chatId, e);
+    } else {
+        openIndividualChatRoom(chatId);
+    }
+}
 
 function filterChatList() {
     const q = document.getElementById('chat-search-input').value.toLowerCase().trim();
@@ -1127,18 +1296,36 @@ function renderIndividualChatList(chats) {
         return;
     }
 
-    container.innerHTML = chats.map(c => `
-        <div class="profile-link-card" onclick="openIndividualChatRoom('${c.id}')">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <img src="${c.avatar || 'logo.png'}" style="width:44px; height:44px; border-radius:50%; object-fit:cover;">
-                <div>
-                    <div style="font-weight:600;">${c.name}</div>
-                    <div style="font-size:12px; color:var(--text-muted);">${c.lastMessage}</div>
+    // Sort Pinned chats to the top
+    const sortedChats = [...chats].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
+
+    container.innerHTML = sortedChats.map(c => {
+        const isSelected = selectedChatIds.has(c.id);
+        const avatarSrc = (c.avatar && c.avatar !== 'logo.png') ? c.avatar : 'logo.png';
+
+        return `
+        <div class="profile-link-card ${isSelected ? 'selected-chat-card' : ''}" 
+             style="padding:12px 14px; position:relative; ${isSelected ? 'border:2px solid var(--primary-indigo); background:rgba(99,103,255,0.18);' : ''}"
+             onclick="handleChatCardClick('${c.id}', event)">
+            <div style="display:flex; align-items:center; gap:12px; width:100%;">
+                <div style="position:relative;" onclick="event.stopPropagation(); openChatProfileModal('${c.id}')">
+                    <img src="${avatarSrc}" style="width:46px; height:46px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-indigo);" onerror="this.src='logo.png'">
+                    ${c.isPinned ? '<div style="position:absolute; top:-2px; right:-2px; background:var(--primary-indigo); border-radius:50%; width:18px; height:18px; display:flex; justify-content:center; align-items:center; font-size:10px; border:1px solid white;">📌</div>' : ''}
                 </div>
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-weight:700; font-size:15px; color:white;">${c.name} ${c.isMuted ? '🔕' : ''}</div>
+                        <div style="font-size:11px; color:var(--accent-lavender);">${c.time || 'Just now'}</div>
+                    </div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.lastMessage || 'Encrypted Chat'}</div>
+                </div>
+                <button class="icon-btn" onclick="toggleChatSelection('${c.id}', event)" style="margin:0; font-size:14px; background:none; border:none; padding:4px;">
+                    ${isSelected ? '☑️' : '•••'}
+                </button>
             </div>
-            <div style="font-size:11px; color:var(--accent-lavender);">${c.time}</div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function renderGroupChatList(groups) {
