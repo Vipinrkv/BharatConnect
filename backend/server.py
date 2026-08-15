@@ -464,8 +464,25 @@ def get_chat_messages(chat_id: str, db: Session = Depends(get_db)):
     return messages
 
 
+@app.get("/api/v1/chats/user/{user_key}/messages", response_model=List[MessageResponse])
+def get_user_all_messages(user_key: str, db: Session = Depends(get_db)):
+    clean_key = user_key.lower().strip()
+    digits = re.sub(r"\D", "", clean_key)
+    filters = [
+        MessageModel.sender_id.ilike(f"%{clean_key}%"),
+        MessageModel.recipient_id.ilike(f"%{clean_key}%"),
+        MessageModel.chat_id.ilike(f"%{clean_key}%"),
+    ]
+    if len(digits) >= 7:
+        filters.append(MessageModel.sender_id.like(f"%{digits}%"))
+        filters.append(MessageModel.recipient_id.like(f"%{digits}%"))
+        filters.append(MessageModel.chat_id.like(f"%{digits}%"))
+    messages = db.query(MessageModel).filter(sqlalchemy.or_(*filters)).order_by(MessageModel.created_at.asc()).all()
+    return messages
+
+
 @app.post("/api/v1/chats/{chat_id}/messages", response_model=MessageResponse)
-def send_message(chat_id: str, payload: MessageCreateRequest, db: Session = Depends(get_db)):
+async def send_message(chat_id: str, payload: MessageCreateRequest, db: Session = Depends(get_db)):
     msg_id = f"m-{uuid.uuid4().hex[:8]}"
     now_str = payload.time or datetime.now().strftime("%I:%M %p").lstrip("0")
 
@@ -489,6 +506,26 @@ def send_message(chat_id: str, payload: MessageCreateRequest, db: Session = Depe
     db.add(message)
     db.commit()
     db.refresh(message)
+
+    # Broadcast real-time message event to all active WebSocket stream connections
+    event_payload = {
+        "event": "message.new",
+        "chat_id": chat_id,
+        "data": {
+            "id": message.id,
+            "chat_id": chat_id,
+            "sender_id": message.sender_id,
+            "sender_name": message.sender_name,
+            "recipient_id": message.recipient_id,
+            "text": message.text,
+            "image_url": message.image_url,
+            "time": message.time,
+            "created_at": message.created_at.isoformat() if message.created_at else None,
+        }
+    }
+    await ws_manager.broadcast_global(event_payload)
+    await ws_manager.broadcast(chat_id, event_payload)
+
     return message
 
 
@@ -557,8 +594,9 @@ async def websocket_chat(websocket: WebSocket, chat_id: str):
                         "timestamp": datetime.utcnow().isoformat()
                     })
 
-            # Broadcast message to all connected clients in the chat thread
+            # Broadcast message to all connected clients in the chat thread and global stream
             await ws_manager.broadcast(chat_id, data)
+            await ws_manager.broadcast_global(data)
     except WebSocketDisconnect:
         ws_manager.disconnect(chat_id, websocket)
 
@@ -576,7 +614,7 @@ async def websocket_stream(websocket: WebSocket, token: str = None):
                 await websocket.send_json({"event": "pong", "timestamp": datetime.utcnow().isoformat()})
                 continue
 
-            # Broadcast live feed events (posts, likes, user updates)
+            # Broadcast live feed events & message events globally
             await ws_manager.broadcast_global(data)
     except WebSocketDisconnect:
         ws_manager.disconnect_global(websocket)

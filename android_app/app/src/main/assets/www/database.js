@@ -275,9 +275,89 @@ class LocalDB {
             }
 
             if (window.renderAll) window.renderAll();
+            await this.syncAllUserChatsFromCloud();
         } catch (err) {
             console.warn('[SentinelCloudSync] Cloud fetch skipped:', err);
         }
+    }
+
+    async syncAllUserChatsFromCloud() {
+        const data = this.get();
+        if (!data.currentUser) return;
+
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
+        const userKey = data.currentUser.phone || data.currentUser.username || data.currentUser.id;
+        if (!userKey) return;
+
+        try {
+            const res = await fetchWithTimeout(`${apiBaseUrl}/chats/user/${encodeURIComponent(userKey)}/messages`, { timeout: 3500 });
+            if (!res.ok) return;
+            const messages = await res.json();
+            if (!Array.isArray(messages) || messages.length === 0) return;
+
+            let updated = false;
+            for (const sm of messages) {
+                if (this.ingestServerMessage(sm)) {
+                    updated = true;
+                }
+            }
+            if (updated && typeof window.renderIndividualChats === 'function') {
+                window.renderIndividualChats();
+            }
+        } catch (e) {
+            console.warn('[syncAllUserChatsFromCloud] error:', e);
+        }
+    }
+
+    ingestServerMessage(sm) {
+        if (!sm) return false;
+        const data = this.get();
+        if (!data.currentUser) return false;
+        if (!data.individualChats) data.individualChats = [];
+
+        const myUserKey = data.currentUser.phone || data.currentUser.username || data.currentUser.id || 'me';
+        const myPhone = String(data.currentUser.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+        const myId = String(data.currentUser.id || '').toLowerCase();
+        const myUsername = String(data.currentUser.username || '').toLowerCase();
+
+        const smSender = String(sm.sender_id || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '') || String(sm.sender_id || '').toLowerCase();
+        const isSentByMe = (smSender === 'me' || sm.is_me === true || smSender === myId || smSender === myUsername || (myPhone && smSender && (myPhone.endsWith(smSender) || smSender.endsWith(myPhone))));
+
+        const contactKey = isSentByMe ? (sm.recipient_id || sm.chat_id) : (sm.sender_id || sm.chat_id);
+        
+        let chat = data.individualChats.find(c =>
+            (sm.chat_id && c.id === sm.chat_id) ||
+            (contactKey && c.userId === contactKey) ||
+            (contactKey && c.phone === contactKey) ||
+            (contactKey && this.getPairwiseChatId(myUserKey, c.phone || c.userId || c.id) === sm.chat_id)
+        );
+
+        if (!chat && contactKey) {
+            chat = this.addIndividualContact(contactKey);
+        }
+        if (!chat) return false;
+
+        if (!chat.messages) chat.messages = [];
+        const exists = chat.messages.some(m => m.id === sm.id || (m.text === sm.text && m.time === sm.time));
+        if (!exists) {
+            chat.messages.push({
+                id: sm.id || ('sm_' + Date.now()),
+                sender: isSentByMe ? 'me' : (sm.sender_name || chat.name || 'Contact'),
+                text: sm.text || '',
+                image_url: sm.image_url || null,
+                time: sm.time || 'Just now',
+                is_me: isSentByMe
+            });
+            chat.lastMessage = sm.text || (sm.image_url ? '📷 Photo' : 'Message');
+            chat.time = sm.time || 'Just now';
+            this.save(data);
+
+            if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && (window.activeOpenChat.id === chat.id || window.activeOpenChat.id === sm.chat_id)) {
+                window.renderIndividualMessages(chat.messages);
+            }
+            return true;
+        }
+        return false;
     }
 
 

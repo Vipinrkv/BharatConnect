@@ -370,11 +370,16 @@ function showScreen(screenId, isBackNavigation) {
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     if (screenId === 'screen-home') document.querySelectorAll('.nav-item')[0].classList.add('active');
     if (screenId.includes('chat')) document.querySelectorAll('.nav-item')[1].classList.add('active');
+    if (screenId === 'screen-nearby') document.querySelectorAll('.nav-item')[2].classList.add('active');
     if (screenId === 'screen-marketplace') document.querySelectorAll('.nav-item')[3].classList.add('active');
     if (screenId === 'screen-profile') document.querySelectorAll('.nav-item')[4].classList.add('active');
 
     if (screenId === 'screen-notifications') {
         renderNotifications();
+    }
+
+    if (screenId === 'screen-nearby') {
+        renderNearbyUsers();
     }
 
     // Refresh contents
@@ -1683,6 +1688,126 @@ function editProfilePrompt() {
                 });
                 renderAll();
                 showCustomAlert('Profile updated successfully!', 'Edit Profile');
+            }
+        }
+    });
+}
+
+/* ==========================================
+ * NEARBY DISCOVERY CONTROLLER
+ * ========================================== */
+
+let currentNearbyRadius = 1;
+
+function switchNearbyRadius(radius) {
+    currentNearbyRadius = radius;
+    document.querySelectorAll('#screen-nearby .tab-btn').forEach(btn => btn.classList.remove('active'));
+    const tabEl = document.getElementById(`nearby-tab-${radius}km`);
+    if (tabEl) tabEl.classList.add('active');
+    renderNearbyUsers();
+}
+
+function renderNearbyUsers() {
+    const container = document.getElementById('nearby-users-container');
+    if (!container) return;
+
+    const data = window.localDB.get();
+    const currentUser = data.currentUser || {};
+    const regUsers = data.registeredUsers || [];
+
+    // Filter users (exclude self)
+    const nearbyList = regUsers.filter(u => 
+        u.id !== currentUser.id && 
+        u.username !== currentUser.username &&
+        u.phone !== currentUser.phone
+    );
+
+    const searchInput = document.getElementById('nearby-search-input');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    const filtered = nearbyList.filter(u => {
+        if (!query) return true;
+        const name = String(u.name || '').toLowerCase();
+        const username = String(u.username || '').toLowerCase();
+        const phone = String(u.phone || '').toLowerCase();
+        return name.includes(query) || username.includes(query) || phone.includes(query);
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px 20px; color:var(--text-muted);">
+                <div style="font-size:36px; margin-bottom:8px;">📍</div>
+                <div style="font-weight:600; color:white;">No nearby users found within ${currentNearbyRadius} km</div>
+                <div style="font-size:12px; margin-top:4px;">Try expanding your search radius to 5 km or 10 km!</div>
+            </div>
+        `;
+        return;
+    }
+
+    // Generate distances proportional to index for demo
+    container.innerHTML = filtered.map((user, idx) => {
+        const baseDist = (0.2 + (idx * 0.45) % currentNearbyRadius).toFixed(1);
+        const distText = `${baseDist} km away`;
+        const avatarSrc = (user.avatar && user.avatar !== 'logo.png') ? user.avatar : 'logo.png';
+        const contactTarget = user.phone || user.username || user.id;
+
+        return `
+            <div class="profile-link-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--surface-dark); border:1px solid var(--border-color); border-radius:14px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="position:relative;">
+                        <img src="${avatarSrc}" style="width:48px; height:48px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-indigo);" onerror="this.src='logo.png'">
+                        <div style="position:absolute; bottom:2px; right:2px; width:10px; height:10px; border-radius:50%; background:#4EFEAA; border:2px solid var(--surface-dark);"></div>
+                    </div>
+                    <div>
+                        <div style="font-weight:700; color:white; font-size:14px;">${user.name || user.username}</div>
+                        <div style="font-size:12px; color:var(--accent-lavender); font-weight:600;">@${user.username || 'user'} • <span style="color:#4EFEAA;">📍 ${distText}</span></div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${user.bio || 'Active on BharatConnect'}</div>
+                    </div>
+                </div>
+                <button class="btn-primary" style="padding:6px 14px; font-size:12px; width:auto; border-radius:20px; font-weight:600;" onclick="startChatFromNearby('${contactTarget}')">💬 Message</button>
+            </div>
+        `;
+    }).join('');
+}
+
+function filterNearbyUsers() {
+    renderNearbyUsers();
+}
+
+function startChatFromNearby(contactTarget) {
+    if (!window.localDB) return;
+    const chat = window.localDB.addIndividualContact(contactTarget);
+    if (chat && chat.id) {
+        openIndividualChatRoom(chat.id);
+    }
+}
+
+/* ==========================================
+ * REALTIME WEBSOCKET MESSAGE LISTENER
+ * ========================================== */
+
+if (window.connectionManager) {
+    window.connectionManager.on('message.new', function(eventFrame) {
+        if (!eventFrame || !eventFrame.data) return;
+        const msg = eventFrame.data;
+        if (window.localDB && window.localDB.ingestServerMessage) {
+            const ingested = window.localDB.ingestServerMessage(msg);
+            if (ingested) {
+                if (typeof renderIndividualChats === 'function') {
+                    renderIndividualChats();
+                }
+                const data = window.localDB.get();
+                const myId = String(data.currentUser.id || '').toLowerCase();
+                const myUsername = String(data.currentUser.username || '').toLowerCase();
+                const smSender = String(msg.sender_id || '').toLowerCase();
+                if (smSender !== myId && smSender !== myUsername) {
+                    showInAppToast({
+                        title: `💬 New message from ${msg.sender_name || 'Contact'}`,
+                        message: msg.text || '📷 Photo',
+                        avatar: 'logo.png',
+                        chatId: msg.chat_id
+                    });
+                }
             }
         }
     });

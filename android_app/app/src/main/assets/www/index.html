@@ -105,7 +105,7 @@
         </div>
 
         <!-- 5. HOME SCREEN (POSTS FEED) -->
-        <div id="screen-home" class="screen">
+        <div id="screen-home" class="screen" style="position:relative;">
             <div class="app-header">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <img src="logo.png" style="width:32px; height:32px; border-radius:8px; object-fit:cover;">
@@ -120,6 +120,40 @@
             <div class="stories-section" id="stories-container"></div>
             
             <div id="posts-container"></div>
+
+            <!-- Floating Action Create Post Button (+ Bottom Right) -->
+            <button class="fab-floating" id="home-fab-create-post" onclick="openCreatePostScreen()" title="Create Post"><i class="fa-solid fa-plus"></i></button>
+        </div>
+
+        <!-- 5.5 NEARBY DISCOVERY SCREEN -->
+        <div id="screen-nearby" class="screen" style="position:relative;">
+            <div class="app-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg, var(--primary-indigo), #FF5E93); display:flex; align-items:center; justify-content:center; color:white; font-size:16px; box-shadow:0 4px 12px rgba(99,103,255,0.4);">📍</div>
+                    <div>
+                        <h1 style="font-size:18px; margin:0; font-weight:700;">Nearby Discovery</h1>
+                        <div style="font-size:11px; color:#4EFEAA; font-weight:600;">● Radar Active • Local Grid</div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="renderNearbyUsers()" title="Refresh Radar"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
+            </div>
+
+            <!-- Radius selector tabs -->
+            <div class="market-tabs" style="padding:10px 16px 4px;">
+                <div class="tab-btn active" id="nearby-tab-1km" onclick="switchNearbyRadius(1)">1 km</div>
+                <div class="tab-btn" id="nearby-tab-5km" onclick="switchNearbyRadius(5)">5 km</div>
+                <div class="tab-btn" id="nearby-tab-10km" onclick="switchNearbyRadius(10)">10 km</div>
+            </div>
+
+            <!-- Search input -->
+            <div style="padding:8px 16px;">
+                <input type="text" id="nearby-search-input" class="form-input" placeholder="Search nearby contacts or locations..." oninput="filterNearbyUsers()" style="padding:10px 16px; font-size:13px;">
+            </div>
+
+            <!-- Nearby List Container -->
+            <div id="nearby-users-container" style="padding:0 16px 20px; display:flex; flex-direction:column; gap:10px;"></div>
         </div>
 
         <!-- 6. CHAT LIST (3 SUB-TABS: INDIVIDUAL, GROUP, COMMUNITY) -->
@@ -451,8 +485,9 @@
                 <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
                 <span>Chats</span>
             </div>
-            <div class="nav-item" id="nav-item-add-post" onclick="openCreatePostScreen()" style="cursor:pointer; touch-action:manipulation;">
-                <div class="fab" style="width:40px; height:40px; pointer-events:none;">+</div>
+            <div class="nav-item" id="nav-item-nearby" onclick="showScreen('screen-nearby')" style="cursor:pointer; touch-action:manipulation;">
+                <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                <span>Nearby</span>
             </div>
             <div class="nav-item" onclick="showScreen('screen-marketplace')">
                 <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
