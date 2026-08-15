@@ -368,13 +368,19 @@ class ChatThreadView(MDBoxLayout):
 
     def on_parent(self, widget, parent):
         if parent is not None:
+            db_engine.register_chat_listener(self.chat_id, self.on_instant_message)
             self.start_live_polling()
         else:
+            db_engine.unregister_chat_listener(self.chat_id, self.on_instant_message)
             self.stop_live_polling()
+
+    def on_instant_message(self, data=None):
+        Clock.schedule_once(lambda dt: self.build_ui(), 0)
 
     def start_live_polling(self):
         if not self._poll_event:
-            self._poll_event = Clock.schedule_interval(self.check_live_updates, 1.5)
+            self._poll_event = Clock.schedule_interval(self.check_live_updates, 0.4)
+
 
     def stop_live_polling(self):
         if self._poll_event:

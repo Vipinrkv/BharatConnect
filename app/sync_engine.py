@@ -21,11 +21,88 @@ class HybridSyncEngine:
         self.api_client = BharatConnectAPIClient(base_url=base_url)
         self._is_online = False
         self._sync_thread = None
+        self._ws_thread = None
         self._running = True
+        self._chat_listeners = {}
 
         # Initialize pending_sync column in local DB tables if missing
         self._ensure_sync_tables()
         self.start_background_sync()
+        self.start_websocket_listener()
+
+    def register_chat_listener(self, chat_id, callback):
+        if chat_id not in self._chat_listeners:
+            self._chat_listeners[chat_id] = []
+        if callback not in self._chat_listeners[chat_id]:
+            self._chat_listeners[chat_id].append(callback)
+
+    def unregister_chat_listener(self, chat_id, callback):
+        if chat_id in self._chat_listeners and callback in self._chat_listeners[chat_id]:
+            self._chat_listeners[chat_id].remove(callback)
+
+    def notify_chat_listeners(self, chat_id, data=None):
+        listeners = list(self._chat_listeners.get(chat_id, []))
+        for cb in listeners:
+            try:
+                cb(data)
+            except Exception:
+                pass
+
+    def start_websocket_listener(self):
+        def _ws_runner():
+            import asyncio
+            try:
+                import websockets
+            except ImportError:
+                return
+
+            async def _listen():
+                base_ws = self.api_client.base_url.replace("http://", "ws://").replace("https://", "wss://").replace("/api/v1", "")
+                ws_url = f"{base_ws}/ws/stream"
+                while self._running:
+                    try:
+                        async with websockets.connect(ws_url, ping_interval=20, ping_timeout=10) as ws:
+                            while self._running:
+                                msg_raw = await ws.recv()
+                                try:
+                                    payload = json.loads(msg_raw)
+                                    event = payload.get("event")
+                                    if event == "message.new" and isinstance(payload.get("data"), dict):
+                                        mdata = payload["data"]
+                                        chat_id = mdata.get("chat_id")
+                                        if chat_id:
+                                            cur_user = self.get_current_user()
+                                            cur_user_id = cur_user.get("id") if isinstance(cur_user, dict) else None
+                                            sender_id = mdata.get("sender_id") or "u-remote"
+                                            sender_name = mdata.get("sender_name") or "User"
+                                            text = mdata.get("text") or ""
+                                            time_str = mdata.get("time") or ""
+                                            is_me = 1 if (cur_user_id and sender_id == cur_user_id) else (1 if mdata.get("is_me") else 0)
+                                            msg_id = mdata.get("id") or f"m-{time.time()}"
+                                            with self.local_db.get_connection() as conn:
+                                                cursor = conn.cursor()
+                                                cursor.execute(
+                                                    """
+                                                    INSERT OR REPLACE INTO messages (
+                                                        id, chat_id, sender_id, sender_name, text, time, is_me, avatar_color
+                                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                                    """,
+                                                    (msg_id, chat_id, sender_id, sender_name, text, time_str, is_me, "#8494FF")
+                                                )
+                                                conn.commit()
+                                            self.notify_chat_listeners(chat_id, mdata)
+                                except Exception:
+                                    pass
+                    except Exception:
+                        await asyncio.sleep(3)
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(_listen())
+
+        self._ws_thread = threading.Thread(target=_ws_runner, daemon=True)
+        self._ws_thread.start()
+
 
     def _ensure_sync_tables(self):
         with self.local_db.get_connection() as conn:
