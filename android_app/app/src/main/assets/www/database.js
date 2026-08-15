@@ -124,6 +124,61 @@ class LocalDB {
         }
     }
 
+    getSupabaseConfig() {
+        const cfg = window.BHARATCONNECT_CONFIG || {};
+        return {
+            url: cfg.SUPABASE_URL || 'https://ykbfynoofjvibnyfkifi.supabase.co',
+            key: cfg.SUPABASE_PUBLISHABLE_KEY || ''
+        };
+    }
+
+    async sendToSupabase(table, payload) {
+        const { url, key } = this.getSupabaseConfig();
+        if (!url || !key) return null;
+        try {
+            const res = await fetch(`${url}/rest/v1/${table}`, {
+                method: 'POST',
+                headers: {
+                    'apikey': key,
+                    'Authorization': `Bearer ${key}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                const json = await res.json();
+                console.log(`[SupabaseSync] Successfully synced payload to ${table}:`, json);
+                return json;
+            } else {
+                console.warn(`[SupabaseSync] ${table} sync returned HTTP ${res.status}:`, await res.text());
+            }
+        } catch (e) {
+            console.warn(`[SupabaseSync] Error sending payload to ${table}:`, e);
+        }
+        return null;
+    }
+
+    async fetchFromSupabase(table, queryParams = '') {
+        const { url, key } = this.getSupabaseConfig();
+        if (!url || !key) return [];
+        try {
+            const endpoint = queryParams ? `${url}/rest/v1/${table}?${queryParams}` : `${url}/rest/v1/${table}`;
+            const res = await fetch(endpoint, {
+                headers: {
+                    'apikey': key,
+                    'Authorization': `Bearer ${key}`
+                }
+            });
+            if (res.ok) {
+                return await res.json();
+            }
+        } catch (e) {
+            console.warn(`[SupabaseSync] Error fetching from ${table}:`, e);
+        }
+        return [];
+    }
+
     // Encrypted Cloud Sync (3-Tier Delivery Engine: CORS POST -> no-cors POST -> GET Query Fallback)
     async syncToCloud(action, payload) {
         const postBody = JSON.stringify({ action: action, payload: payload });
@@ -285,10 +340,29 @@ class LocalDB {
         const data = this.get();
         if (!data.currentUser) return;
 
-        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
         const userKey = data.currentUser.phone || data.currentUser.username || data.currentUser.id;
         if (!userKey) return;
 
+        // 1. Direct query to Supabase PostgreSQL Cloud Database
+        try {
+            const supabaseMsgs = await this.fetchFromSupabase('messages', 'order=created_at.asc');
+            if (Array.isArray(supabaseMsgs) && supabaseMsgs.length > 0) {
+                let updated = false;
+                for (const sm of supabaseMsgs) {
+                    if (this.ingestServerMessage(sm)) {
+                        updated = true;
+                    }
+                }
+                if (updated && typeof window.renderIndividualChats === 'function') {
+                    window.renderIndividualChats();
+                }
+            }
+        } catch (err) {
+            console.warn('[syncAllUserChatsFromCloud] Supabase fetch error:', err);
+        }
+
+        // 2. Fallback query to FastAPI Server
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
         try {
             const res = await fetchWithTimeout(`${apiBaseUrl}/chats/user/${encodeURIComponent(userKey)}/messages`, { timeout: 3500 });
             if (!res.ok) return;
@@ -753,6 +827,22 @@ class LocalDB {
         }
         this.save(data);
 
+        // Direct Persistence to Supabase Cloud PostgreSQL Database
+        const supabasePostPayload = {
+            id: post.id || ('p_' + Date.now()),
+            author_id: data.currentUser ? (data.currentUser.username || data.currentUser.id) : 'user',
+            author_name: data.currentUser ? data.currentUser.name : 'Anonymous User',
+            user_avatar: data.currentUser ? data.currentUser.avatar : 'logo.png',
+            avatar_color: '#6367FF',
+            content: post.caption || '',
+            image_title: post.image || null,
+            likes_count: Number(post.likes || 0),
+            comments_count: Number(post.commentsCount || 0),
+            time_ago: post.time || 'Just now',
+            is_liked: Boolean(post.liked)
+        };
+        this.sendToSupabase('posts', supabasePostPayload);
+
         const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
 
         try {
@@ -835,17 +925,33 @@ class LocalDB {
 
             this.save(data);
 
-            // Synchronize message to live REST Server
-            const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
             const mySenderId = data.currentUser.phone || data.currentUser.username || data.currentUser.id;
             const mySenderName = data.currentUser.name || 'Member';
             const recipientId = chat.phone || chat.userId || this.getRecipientFromChatId(chat.id, mySenderId);
+
+            // Direct Persistence to Supabase Cloud PostgreSQL Database
+            const supabasePayload = {
+                id: msgObj.id,
+                chat_id: chat.id,
+                client_message_id: msgObj.id,
+                sender_id: mySenderId,
+                sender_name: mySenderName,
+                recipient_id: recipientId,
+                text: text,
+                image_url: imageUrl || null,
+                time: time
+            };
+            this.sendToSupabase('messages', supabasePayload);
+
+            // Synchronize message to live REST Server
+            const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
 
             try {
                 await fetch(`${apiBaseUrl}/chats/${chat.id}/messages`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        client_message_id: msgObj.id,
                         sender_id: mySenderId,
                         sender_name: mySenderName,
                         recipient_id: recipientId,
@@ -863,6 +969,26 @@ class LocalDB {
 
     async syncChatMessagesFromCloud(chatId) {
         if (!chatId) return;
+
+        // 1. Direct fetch from Supabase Cloud PostgreSQL Database
+        try {
+            const supabaseMsgs = await this.fetchFromSupabase('messages', `chat_id=eq.${encodeURIComponent(chatId)}&order=created_at.asc`);
+            if (Array.isArray(supabaseMsgs) && supabaseMsgs.length > 0) {
+                let updated = false;
+                for (const sm of supabaseMsgs) {
+                    if (this.ingestServerMessage(sm)) {
+                        updated = true;
+                    }
+                }
+                if (updated && typeof window.renderIndividualChats === 'function') {
+                    window.renderIndividualChats();
+                }
+            }
+        } catch (err) {
+            console.warn('[syncChatMessagesFromCloud] Supabase fetch error:', err);
+        }
+
+        // 2. Fallback fetch from FastAPI Server
         const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
         try {
             const res = await fetch(`${apiBaseUrl}/chats/${chatId}/messages`);
