@@ -141,12 +141,18 @@ class BharatConnectAPIClient:
         except Exception:
             return local_db_engine.get_chat_messages(chat_id)
 
-    def send_message(self, chat_id, text, client_message_id=None):
+    def send_message(self, chat_id, text, sender_id=None, sender_name=None, client_message_id=None):
         """Sends a message in a chat thread to backend API server."""
-        payload = json.dumps({
+        payload_dict = {
             "text": text,
             "client_message_id": client_message_id,
-        }).encode("utf-8")
+        }
+        if sender_id:
+            payload_dict["sender_id"] = sender_id
+        if sender_name:
+            payload_dict["sender_name"] = sender_name
+
+        payload = json.dumps(payload_dict).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self.auth_token:
             headers["Authorization"] = f"Bearer {self.auth_token}"
@@ -158,6 +164,7 @@ class BharatConnectAPIClient:
         except Exception as e:
             print(f"[APIClient] send_message error: {e}")
             return None
+
 
     def get_marketplace(self, category="ALL"):
         """Fetches marketplace listings from backend API or local DB fallback."""

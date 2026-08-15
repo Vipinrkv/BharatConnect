@@ -85,7 +85,13 @@ class HybridSyncEngine:
                     elif action == "LIKE_POST":
                         self.api_client.toggle_like(payload["post_id"])
                     elif action == "SEND_MESSAGE":
-                        self.api_client.send_message(payload["chat_id"], payload["text"])
+                        self.api_client.send_message(
+                            payload["chat_id"],
+                            payload["text"],
+                            sender_id=payload.get("sender_id"),
+                            sender_name=payload.get("sender_name")
+                        )
+
                     
                     cursor.execute("DELETE FROM pending_sync WHERE id=?", (row["id"],))
                     conn.commit()
@@ -198,18 +204,52 @@ class HybridSyncEngine:
         return self.local_db.get_or_create_individual_chat(target_user_id)
 
     def get_chat_messages(self, chat_id):
+        if self.check_connection():
+            try:
+                server_msgs = self.api_client.get_chat_messages(chat_id)
+                if server_msgs and isinstance(server_msgs, list):
+                    current_user = self.get_current_user()
+                    cur_user_id = current_user.get("id") if isinstance(current_user, dict) else None
+                    with self.local_db.get_connection() as conn:
+                        cursor = conn.cursor()
+                        for sm in server_msgs:
+                            if not isinstance(sm, dict):
+                                continue
+                            sm_id = sm.get("id")
+                            if not sm_id:
+                                continue
+                            sender_id = sm.get("sender_id") or "u-remote"
+                            sender_name = sm.get("sender_name") or "User"
+                            text = sm.get("text") or ""
+                            time_str = sm.get("time") or ""
+                            is_me = 1 if (cur_user_id and sender_id == cur_user_id) else (1 if sm.get("is_me") else 0)
+                            cursor.execute(
+                                """
+                                INSERT OR REPLACE INTO messages (
+                                    id, chat_id, sender_id, sender_name, text, time, is_me, avatar_color
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                """,
+                                (sm_id, chat_id, sender_id, sender_name, text, time_str, is_me, "#8494FF")
+                            )
+                        conn.commit()
+            except Exception:
+                pass
         return self.local_db.get_chat_messages(chat_id)
 
     def send_chat_message(self, chat_id, text):
         res = self.local_db.send_chat_message(chat_id, text)
+        user = self.get_current_user()
+        sender_id = user.get("id") if isinstance(user, dict) else "u-user"
+        sender_name = user.get("display_name") if isinstance(user, dict) else "Member"
         if self.check_connection():
             try:
-                self.api_client.send_message(chat_id, text)
+                self.api_client.send_message(chat_id, text, sender_id=sender_id, sender_name=sender_name)
             except Exception:
-                self._queue_offline_action("SEND_MESSAGE", {"chat_id": chat_id, "text": text})
+                self._queue_offline_action("SEND_MESSAGE", {"chat_id": chat_id, "text": text, "sender_id": sender_id, "sender_name": sender_name})
         else:
-            self._queue_offline_action("SEND_MESSAGE", {"chat_id": chat_id, "text": text})
+            self._queue_offline_action("SEND_MESSAGE", {"chat_id": chat_id, "text": text, "sender_id": sender_id, "sender_name": sender_name})
         return res
+
 
     def match_registered_phone_contacts(self, phone_list):
         return self.local_db.match_registered_phone_contacts(phone_list)

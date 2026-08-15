@@ -26,9 +26,37 @@ class GroupChatView(MDBoxLayout):
         self.orientation = "vertical"
         self.spacing = "10dp"
         self.chat_id = "c-group"
+        self._last_msg_count = 0
+        self._last_msg_id = ""
+        self._poll_event = None
         self.build_ui()
 
+    def on_parent(self, widget, parent):
+        if parent is not None:
+            self.start_live_polling()
+        else:
+            self.stop_live_polling()
+
+    def start_live_polling(self):
+        if not self._poll_event:
+            self._poll_event = Clock.schedule_interval(self.check_live_updates, 1.5)
+
+    def stop_live_polling(self):
+        if self._poll_event:
+            Clock.unschedule(self._poll_event)
+            self._poll_event = None
+
+    def check_live_updates(self, dt):
+        messages = db_engine.get_chat_messages(self.chat_id)
+        current_count = len(messages) if isinstance(messages, list) else 0
+        latest_id = messages[-1].get("id", "") if (isinstance(messages, list) and messages) else ""
+        if current_count != self._last_msg_count or latest_id != self._last_msg_id:
+            self._last_msg_count = current_count
+            self._last_msg_id = latest_id
+            self.render_messages()
+
     def build_ui(self):
+
         self.clear_widgets()
 
         chats_data = db_engine.get_chats() if hasattr(db_engine, 'get_chats') else getattr(db_engine, 'chats', {})
