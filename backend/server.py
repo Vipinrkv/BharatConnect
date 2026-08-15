@@ -482,7 +482,22 @@ def get_user_all_messages(user_key: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/v1/chats/{chat_id}/messages", response_model=MessageResponse)
-async def send_message(chat_id: str, payload: MessageCreateRequest, db: Session = Depends(get_db)):
+async def send_message(
+    chat_id: str, 
+    payload: MessageCreateRequest, 
+    db: Session = Depends(get_db),
+    current_user: Optional[UserModel] = Depends(get_current_user)
+):
+    # Determine verified sender identity or fallback for backward compatibility
+    sender_id = current_user.id if current_user else (payload.sender_id or "u-user")
+    sender_name = current_user.display_name if current_user else (payload.sender_name or "Member")
+
+    # Idempotency Check: Avoid creating duplicate records if client retries
+    if payload.client_message_id:
+        existing = db.query(MessageModel).filter(MessageModel.client_message_id == payload.client_message_id).first()
+        if existing:
+            return existing
+
     msg_id = f"m-{uuid.uuid4().hex[:8]}"
     now_str = payload.time or datetime.now().strftime("%I:%M %p").lstrip("0")
 
@@ -495,8 +510,9 @@ async def send_message(chat_id: str, payload: MessageCreateRequest, db: Session 
     message = MessageModel(
         id=msg_id,
         chat_id=chat_id,
-        sender_id=payload.sender_id or "u-user",
-        sender_name=payload.sender_name or "Member",
+        client_message_id=payload.client_message_id,
+        sender_id=sender_id,
+        sender_name=sender_name,
         recipient_id=payload.recipient_id,
         text=payload.text,
         image_url=img_url,

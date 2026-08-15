@@ -81,6 +81,7 @@ class ChatResponse(BaseModel):
 
 
 class MessageCreateRequest(BaseModel):
+    client_message_id: Optional[str] = None
     sender_id: Optional[str] = "u-user"
     sender_name: Optional[str] = "Member"
     recipient_id: Optional[str] = None
@@ -92,6 +93,7 @@ class MessageCreateRequest(BaseModel):
 class MessageResponse(BaseModel):
     id: str
     chat_id: str
+    client_message_id: Optional[str] = None
     sender_id: str
     sender_name: str
     recipient_id: Optional[str] = None

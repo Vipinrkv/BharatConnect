@@ -118,7 +118,7 @@ class MessageModel(Base):
 
     id = Column(String(50), primary_key=True, index=True)
     chat_id = Column(String(50), nullable=False, index=True)
-    client_message_id = Column(String(100), index=True, nullable=True)
+    client_message_id = Column(String(100), unique=True, index=True, nullable=True)
     sequence = Column(Integer, default=0, index=True)
     sender_id = Column(String(50), nullable=False, index=True)
     sender_name = Column(String(100), nullable=False)
