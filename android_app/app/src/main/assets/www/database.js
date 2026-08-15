@@ -936,7 +936,6 @@ class LocalDB {
             const supabasePayload = {
                 id: msgObj.id,
                 chat_id: chat.id,
-                client_message_id: msgObj.id,
                 sender_id: mySenderId,
                 sender_name: mySenderName,
                 recipient_id: recipientId,
