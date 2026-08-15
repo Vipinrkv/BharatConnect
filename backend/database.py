@@ -91,16 +91,41 @@ class ChatModel(Base):
     is_pinned = Column(Boolean, default=False)
 
 
+class ConversationModel(Base):
+    __tablename__ = "conversations"
+
+    id = Column(String(50), primary_key=True, index=True)  # UUID
+    chat_type = Column(String(20), default="INDIVIDUAL")  # INDIVIDUAL, GROUP, COMMUNITY
+    title = Column(String(100), nullable=True)
+    avatar_url = Column(Text, nullable=True)
+    legacy_pairwise_id = Column(String(100), index=True, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ConversationMemberModel(Base):
+    __tablename__ = "conversation_members"
+
+    id = Column(String(50), primary_key=True, index=True)
+    conversation_id = Column(String(50), ForeignKey("conversations.id"), nullable=False, index=True)
+    user_id = Column(String(50), ForeignKey("users.id"), nullable=False, index=True)
+    role = Column(String(20), default="MEMBER")
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+
 class MessageModel(Base):
     __tablename__ = "messages"
 
     id = Column(String(50), primary_key=True, index=True)
-    chat_id = Column(String(50), nullable=False)
-    sender_id = Column(String(50), nullable=False)
+    chat_id = Column(String(50), nullable=False, index=True)
+    client_message_id = Column(String(100), index=True, nullable=True)
+    sequence = Column(Integer, default=0, index=True)
+    sender_id = Column(String(50), nullable=False, index=True)
     sender_name = Column(String(100), nullable=False)
     recipient_id = Column(String(50), nullable=True)
     text = Column(Text, nullable=False)
     image_url = Column(Text, nullable=True)
+    status = Column(String(20), default="SENT")  # SENT, DELIVERED, READ
     time = Column(String(20), default="10:30 AM")
     is_me = Column(Boolean, default=False)
     avatar_color = Column(String(20), default="#6367FF")

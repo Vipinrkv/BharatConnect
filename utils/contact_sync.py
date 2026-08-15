@@ -11,16 +11,12 @@ from kivy.utils import platform
 from database.db import db_engine
 
 
+from utils.phone import normalize_phone
+
+
 def normalize_phone_number(raw_phone):
-    """Normalizes phone numbers to standard 10-digit format for cross-matching."""
-    if not raw_phone:
-        return ""
-    digits = re.sub(r"\D", "", str(raw_phone))
-    if len(digits) > 10 and digits.startswith("91"):
-        digits = digits[2:]
-    elif len(digits) > 10 and digits.startswith("0"):
-        digits = digits[1:]
-    return digits[-10:] if len(digits) >= 10 else digits
+    """Delegates to canonical E.164 phone normalization utility."""
+    return normalize_phone(raw_phone)
 
 
 class PhoneContactSyncEngine:

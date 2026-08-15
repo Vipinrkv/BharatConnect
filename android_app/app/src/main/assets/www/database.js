@@ -74,6 +74,9 @@ class LocalDB {
         if (!localStorage.getItem(DB_KEY)) {
             localStorage.setItem(DB_KEY, JSON.stringify(cleanProductionData));
         }
+        if (window.BharatConnectMigration && window.BharatConnectMigration.migrateFromLocalStorage) {
+            window.BharatConnectMigration.migrateFromLocalStorage();
+        }
     }
 
     get() {
@@ -172,7 +175,7 @@ class LocalDB {
             if (typeof u === 'object') {
                 u = u.phone || u.username || u.id || '';
             }
-            const digits = String(u).replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+            const digits = window.BharatConnectPhone ? window.BharatConnectPhone.normalizePhone(u) : String(u).replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
             if (digits.length >= 7) return digits;
             return String(u).toLowerCase().trim();
         };
@@ -283,7 +286,7 @@ class LocalDB {
 
         const displayName = (window.securityEngine && window.securityEngine.sanitizeHTML) ? window.securityEngine.sanitizeHTML(userData.fullName || userData.username) : (userData.fullName || userData.username);
         const rawPhone = String(userData.phone || '').trim();
-        const normPhone = rawPhone.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+        const normPhone = window.BharatConnectPhone ? window.BharatConnectPhone.normalizePhone(rawPhone) : rawPhone.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
         const registerPayload = {
             full_name: displayName,
             display_name: displayName,

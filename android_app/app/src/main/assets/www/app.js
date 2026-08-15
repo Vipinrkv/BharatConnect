@@ -1413,17 +1413,14 @@ function openIndividualChatRoom(chatId) {
     renderIndividualMessages(chat.messages || []);
     showScreen('screen-chat-indiv');
 
-    // Sub-second 1000ms instant live polling loop for instant WhatsApp/Telegram message delivery!
+    // Fetch initial missed chat history asynchronously upon opening room
     if (window.localDB && window.localDB.syncChatMessagesFromCloud) {
         window.localDB.syncChatMessagesFromCloud(chatId);
-        if (chatSyncInterval) clearInterval(chatSyncInterval);
-        chatSyncInterval = setInterval(() => {
-            if (activeOpenChat && activeOpenChat.id === chatId) {
-                window.localDB.syncChatMessagesFromCloud(chatId);
-            } else {
-                clearInterval(chatSyncInterval);
-            }
-        }, 1000);
+    }
+
+    // Connect WebSocket real-time stream
+    if (window.connectionManager) {
+        window.connectionManager.connect();
     }
 }
 

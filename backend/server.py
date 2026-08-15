@@ -44,8 +44,9 @@ from backend.schemas import (
     MarketplaceItemResponse,
     ContactMatchRequest,
 )
-from backend.auth import hash_password, verify_password, create_access_token, get_current_user
+from backend.auth import hash_password, verify_password, create_access_token, get_current_user, get_required_user
 from utils.cloudinary_storage import upload_media
+from utils.phone import normalize_phone
 
 
 from contextlib import asynccontextmanager
@@ -80,14 +81,22 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
         self.global_connections: List[WebSocket] = []
+        self.user_connections: Dict[str, List[WebSocket]] = {}
 
-    async def connect_global(self, websocket: WebSocket):
+    async def connect_global(self, websocket: WebSocket, user_id: str = None):
         await websocket.accept()
         self.global_connections.append(websocket)
+        if user_id:
+            if user_id not in self.user_connections:
+                self.user_connections[user_id] = []
+            self.user_connections[user_id].append(websocket)
 
-    def disconnect_global(self, websocket: WebSocket):
+    def disconnect_global(self, websocket: WebSocket, user_id: str = None):
         if websocket in self.global_connections:
             self.global_connections.remove(websocket)
+        if user_id and user_id in self.user_connections:
+            if websocket in self.user_connections[user_id]:
+                self.user_connections[user_id].remove(websocket)
 
     async def broadcast_global(self, event_data: dict):
         for connection in self.global_connections:
@@ -95,6 +104,14 @@ class ConnectionManager:
                 await connection.send_json(event_data)
             except Exception:
                 pass
+
+    async def send_user(self, user_id: str, event_data: dict):
+        if user_id in self.user_connections:
+            for connection in self.user_connections[user_id]:
+                try:
+                    await connection.send_json(event_data)
+                except Exception:
+                    pass
 
     async def connect(self, chat_id: str, websocket: WebSocket):
         await websocket.accept()
@@ -145,16 +162,9 @@ def health_check(db: Session = Depends(get_db)):
 
 def normalize_phone_number(phone: str) -> str:
     """
-    Normalizes phone numbers to standard digits format (e.g. 10 digits).
-    Strips non-digits, country code '+91' / '91' (if 12 digits), and leading zeros ('0').
-    Example: '08261867326', '+91 8261867326', '8261 867 326' -> '8261867326'
+    Delegates to canonical E.164 phone normalization utility.
     """
-    if not phone:
-        return ""
-    digits = "".join([ch for ch in str(phone) if ch.isdigit()])
-    if len(digits) == 12 and digits.startswith("91"):
-        digits = digits[2:]
-    return digits.lstrip("0")
+    return normalize_phone(phone)
 
 
 # Authentication Endpoints
@@ -179,6 +189,14 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(UserModel).filter(sqlalchemy.or_(*login_filters)).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username, email, or password")
+
+    # Seamlessly upgrade legacy password hashes to Argon2id / scrypt format
+    if not (user.password_hash or "").startswith("$"):
+        try:
+            user.password_hash = hash_password(payload.password)
+            db.commit()
+        except Exception as e:
+            db.rollback()
 
     token = create_access_token({"sub": user.id, "username": user.username})
     user_dict = {
@@ -522,6 +540,23 @@ async def websocket_chat(websocket: WebSocket, chat_id: str):
     try:
         while True:
             data = await websocket.receive_json()
+            event_name = data.get("event") or data.get("type", "message.new")
+
+            if event_name == "ping":
+                await websocket.send_json({"event": "pong", "timestamp": datetime.utcnow().isoformat()})
+                continue
+
+            if event_name == "message.send" or "client_message_id" in data:
+                cli_id = data.get("client_message_id")
+                if cli_id:
+                    await websocket.send_json({
+                        "event": "message.ack",
+                        "client_message_id": cli_id,
+                        "chat_id": chat_id,
+                        "status": "SENT",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+
             # Broadcast message to all connected clients in the chat thread
             await ws_manager.broadcast(chat_id, data)
     except WebSocketDisconnect:
@@ -530,11 +565,17 @@ async def websocket_chat(websocket: WebSocket, chat_id: str):
 
 # WebSocket Global Real-Time Live Data Stream Endpoint
 @app.websocket("/ws/stream")
-async def websocket_stream(websocket: WebSocket):
+async def websocket_stream(websocket: WebSocket, token: str = None):
     await ws_manager.connect_global(websocket)
     try:
         while True:
             data = await websocket.receive_json()
+            event_name = data.get("event")
+
+            if event_name == "ping":
+                await websocket.send_json({"event": "pong", "timestamp": datetime.utcnow().isoformat()})
+                continue
+
             # Broadcast live feed events (posts, likes, user updates)
             await ws_manager.broadcast_global(data)
     except WebSocketDisconnect:
