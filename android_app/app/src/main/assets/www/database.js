@@ -452,6 +452,9 @@ class LocalDB {
             if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && (window.activeOpenChat.id === chat.id || window.activeOpenChat.id === sm.chat_id)) {
                 window.renderIndividualMessages(chat.messages);
             }
+            if (typeof window.renderIndividualChats === 'function') {
+                window.renderIndividualChats();
+            }
             return true;
         }
         return false;

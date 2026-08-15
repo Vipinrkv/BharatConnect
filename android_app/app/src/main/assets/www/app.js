@@ -1848,8 +1848,16 @@ function startChatFromNearby(contactTarget) {
 }
 
 /* ==========================================
- * REALTIME WEBSOCKET MESSAGE LISTENER
+ * REALTIME WEBSOCKET & UI RENDER BRIDGE
  * ========================================== */
+
+window.renderAll = renderAll;
+window.renderIndividualMessages = renderIndividualMessages;
+window.renderIndividualChats = function() {
+    if (typeof renderAll === 'function') {
+        renderAll();
+    }
+};
 
 if (window.connectionManager) {
     window.connectionManager.on('message.new', function(eventFrame) {
@@ -1858,14 +1866,14 @@ if (window.connectionManager) {
         if (window.localDB && window.localDB.ingestServerMessage) {
             const ingested = window.localDB.ingestServerMessage(msg);
             if (ingested) {
-                if (typeof renderIndividualChats === 'function') {
-                    renderIndividualChats();
-                }
+                window.renderIndividualChats();
                 const data = window.localDB.get();
                 const myId = String(data.currentUser.id || '').toLowerCase();
                 const myUsername = String(data.currentUser.username || '').toLowerCase();
+                const myPhone = String(data.currentUser.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
                 const smSender = String(msg.sender_id || '').toLowerCase();
-                if (smSender !== myId && smSender !== myUsername) {
+                const isMe = (smSender === myId || smSender === myUsername || (myPhone && smSender && smSender.endsWith(myPhone)));
+                if (!isMe) {
                     showInAppToast({
                         title: `💬 New message from ${msg.sender_name || 'Contact'}`,
                         message: msg.text || '📷 Photo',
@@ -1895,9 +1903,10 @@ if (window.connectionManager) {
             });
             if (found) {
                 window.localDB.save(data);
-                if (typeof renderIndividualMessages === 'function' && window.activeOpenChat && window.activeOpenChat.id === statusData.chat_id) {
+                window.renderIndividualChats();
+                if (window.activeOpenChat && window.activeOpenChat.id === statusData.chat_id) {
                     const chat = (data.individualChats || []).find(c => c.id === statusData.chat_id);
-                    if (chat) renderIndividualMessages(chat.messages || []);
+                    if (chat) window.renderIndividualMessages(chat.messages || []);
                 }
             }
         }
