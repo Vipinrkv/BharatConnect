@@ -1438,6 +1438,23 @@ function renderIndividualMessages(messages) {
     const myId = String(data.currentUser.id || '').toLowerCase().trim();
     const myPhone = String(data.currentUser.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
 
+    // Trigger READ receipt for unread received messages
+    if (messages && messages.length > 0) {
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
+        messages.forEach(m => {
+            const mSender = String(m.sender || '').toLowerCase().trim();
+            const isSentByMe = (mSender === 'me' || m.is_me === true || mSender === myUsername || mSender === myId || (myPhone && mSender && (myPhone.endsWith(mSender) || mSender.endsWith(myPhone))));
+            if (!isSentByMe && m.id && m.status !== 'READ') {
+                m.status = 'READ';
+                fetch(`${apiBaseUrl}/messages/${m.id}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'READ' })
+                }).catch(e => console.warn('[renderIndividualMessages] READ receipt send failed:', e));
+            }
+        });
+    }
+
     if (!messages || messages.length === 0) {
         indivContainer.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:13px; margin:auto;">No messages yet. Type a message below to start chatting!</div>`;
     } else {
@@ -1457,13 +1474,25 @@ function renderIndividualMessages(messages) {
 
             const imgHtml = (m.image_url || m.image) ? `<img src="${m.image_url || m.image}" style="max-width:220px; max-height:220px; border-radius:12px; margin-bottom:6px; display:block; object-fit:cover; border:1px solid var(--border-color);" onerror="this.style.display='none'">` : '';
 
+            let checkmarkHtml = '';
+            if (isSentByMe) {
+                const statusStr = (m.status || 'SENT').toUpperCase();
+                if (statusStr === 'READ') {
+                    checkmarkHtml = '<span style="color:#4EFEAA; font-size:12px; margin-left:4px; font-weight:bold;" title="Read">✓✓</span>';
+                } else if (statusStr === 'DELIVERED') {
+                    checkmarkHtml = '<span style="color:#A0AEC0; font-size:12px; margin-left:4px; font-weight:bold;" title="Delivered">✓✓</span>';
+                } else {
+                    checkmarkHtml = '<span style="color:#A0AEC0; font-size:12px; margin-left:4px;" title="Sent">✓</span>';
+                }
+            }
+
             return `
                 <div class="message-bubble ${isSentByMe ? 'sent' : 'received'}">
                     ${imgHtml}
                     <div>${m.text || ''}</div>
                     <div class="message-time">
                         ${timeDisplay}
-                        ${isSentByMe ? '<span style="color:#4EFEAA; font-size:12px; margin-left:4px; font-weight:bold;">✓✓</span>' : ''}
+                        ${checkmarkHtml}
                     </div>
                 </div>
             `;
@@ -1807,6 +1836,32 @@ if (window.connectionManager) {
                         avatar: 'logo.png',
                         chatId: msg.chat_id
                     });
+                }
+            }
+        }
+    });
+
+    window.connectionManager.on('message.status_update', function(eventFrame) {
+        if (!eventFrame || !eventFrame.data) return;
+        const statusData = eventFrame.data;
+        if (window.localDB) {
+            const data = window.localDB.get();
+            let found = false;
+            (data.individualChats || []).forEach(chat => {
+                if (chat.messages) {
+                    chat.messages.forEach(m => {
+                        if (m.id === statusData.id || (statusData.client_message_id && m.client_message_id === statusData.client_message_id)) {
+                            m.status = statusData.status;
+                            found = true;
+                        }
+                    });
+                }
+            });
+            if (found) {
+                window.localDB.save(data);
+                if (typeof renderIndividualMessages === 'function' && window.activeOpenChat && window.activeOpenChat.id === statusData.chat_id) {
+                    const chat = (data.individualChats || []).find(c => c.id === statusData.chat_id);
+                    if (chat) renderIndividualMessages(chat.messages || []);
                 }
             }
         }

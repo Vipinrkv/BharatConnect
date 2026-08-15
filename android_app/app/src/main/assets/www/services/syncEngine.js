@@ -87,13 +87,24 @@ class ClientSyncEngine {
                         success = res.ok;
                     }
 
+                    const attempts = (item.attempt_count || 0) + 1;
+                    const maxDelay = 30000;
+                    const backoffMs = Math.min(1000 * Math.pow(2, attempts - 1), maxDelay);
+                    const now = Date.now();
+                    
+                    if (item.next_retry_at && new Date(item.next_retry_at).getTime() > now) {
+                        continue;
+                    }
+
                     if (success) {
                         await window.syncRepo.removeSyncItem(item.id);
                         console.log(`[SyncEngine] Offline operation ${item.id} synchronized successfully.`);
                     } else {
-                        await window.syncRepo.updateSyncStatus(item.id, 'PENDING', 'Sync attempt failed');
+                        const nextRetry = new Date(now + backoffMs).toISOString();
+                        await window.syncRepo.updateSyncStatus(item.id, 'PENDING', `Sync attempt #${attempts} failed. Next retry at ${nextRetry}`);
                     }
                 } catch (err) {
+                    const attempts = (item.attempt_count || 0) + 1;
                     console.warn(`[SyncEngine] Error syncing item ${item.id}:`, err);
                     await window.syncRepo.updateSyncStatus(item.id, 'PENDING', err.message);
                 }

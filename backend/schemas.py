@@ -90,6 +90,10 @@ class MessageCreateRequest(BaseModel):
     time: Optional[str] = None
 
 
+class MessageStatusUpdateRequest(BaseModel):
+    status: str  # SENT, DELIVERED, READ
+
+
 class MessageResponse(BaseModel):
     id: str
     chat_id: str
@@ -99,6 +103,7 @@ class MessageResponse(BaseModel):
     recipient_id: Optional[str] = None
     text: str
     image_url: Optional[str] = None
+    status: str = "SENT"
     is_me: bool = False
     time: str
 

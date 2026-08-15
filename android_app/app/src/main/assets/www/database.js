@@ -338,19 +338,42 @@ class LocalDB {
         if (!chat) return false;
 
         if (!chat.messages) chat.messages = [];
-        const exists = chat.messages.some(m => m.id === sm.id || (m.text === sm.text && m.time === sm.time));
-        if (!exists) {
+        const existsIndex = chat.messages.findIndex(m => m.id === sm.id || (sm.client_message_id && m.client_message_id === sm.client_message_id) || (m.text === sm.text && m.time === sm.time));
+        
+        if (existsIndex >= 0) {
+            // Update status of existing message
+            if (sm.status && chat.messages[existsIndex].status !== sm.status) {
+                chat.messages[existsIndex].status = sm.status;
+                this.save(data);
+                if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && (window.activeOpenChat.id === chat.id || window.activeOpenChat.id === sm.chat_id)) {
+                    window.renderIndividualMessages(chat.messages);
+                }
+            }
+        } else {
+            const initialStatus = sm.status || (isSentByMe ? 'SENT' : 'DELIVERED');
             chat.messages.push({
                 id: sm.id || ('sm_' + Date.now()),
+                client_message_id: sm.client_message_id || null,
                 sender: isSentByMe ? 'me' : (sm.sender_name || chat.name || 'Contact'),
                 text: sm.text || '',
                 image_url: sm.image_url || null,
+                status: initialStatus,
                 time: sm.time || 'Just now',
                 is_me: isSentByMe
             });
             chat.lastMessage = sm.text || (sm.image_url ? '📷 Photo' : 'Message');
             chat.time = sm.time || 'Just now';
             this.save(data);
+
+            // Automatically send DELIVERED receipt to server if received by recipient
+            if (!isSentByMe && sm.id && (!sm.status || sm.status === 'SENT')) {
+                const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
+                fetch(`${apiBaseUrl}/messages/${sm.id}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'DELIVERED' })
+                }).catch(e => console.warn('[ingestServerMessage] Failed to send DELIVERED receipt:', e));
+            }
 
             if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && (window.activeOpenChat.id === chat.id || window.activeOpenChat.id === sm.chat_id)) {
                 window.renderIndividualMessages(chat.messages);

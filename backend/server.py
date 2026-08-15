@@ -530,11 +530,13 @@ async def send_message(
         "data": {
             "id": message.id,
             "chat_id": chat_id,
+            "client_message_id": message.client_message_id,
             "sender_id": message.sender_id,
             "sender_name": message.sender_name,
             "recipient_id": message.recipient_id,
             "text": message.text,
             "image_url": message.image_url,
+            "status": message.status or "SENT",
             "time": message.time,
             "created_at": message.created_at.isoformat() if message.created_at else None,
         }
@@ -543,6 +545,35 @@ async def send_message(
     await ws_manager.broadcast(chat_id, event_payload)
 
     return message
+
+
+@app.post("/api/v1/messages/{message_id}/status")
+async def update_message_status(
+    message_id: str,
+    payload: MessageStatusUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    msg = db.query(MessageModel).filter(MessageModel.id == message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    msg.status = payload.status
+    db.commit()
+    db.refresh(msg)
+
+    status_event = {
+        "event": "message.status_update",
+        "chat_id": msg.chat_id,
+        "data": {
+            "id": msg.id,
+            "chat_id": msg.chat_id,
+            "client_message_id": msg.client_message_id,
+            "status": msg.status
+        }
+    }
+    await ws_manager.broadcast_global(status_event)
+    await ws_manager.broadcast(msg.chat_id, status_event)
+    return {"status": "success", "message_id": msg.id, "new_status": msg.status}
 
 
 # Marketplace Endpoints
