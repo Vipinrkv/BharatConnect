@@ -55,6 +55,7 @@ class UserModel(Base):
     followers_count = Column(String(20), default="1.2K")
     following_count = Column(Integer, default=320)
     password_hash = Column(String(255), nullable=True)
+    fcm_token = Column(String(255), nullable=True)
 
 
 class PostModel(Base):

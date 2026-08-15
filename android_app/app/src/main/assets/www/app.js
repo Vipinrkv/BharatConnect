@@ -12,9 +12,29 @@ let currentNotificationFilter = 'all';
  * IN-APP TOAST & NOTIFICATION CONTROLLER
  * ========================================== */
 
+window.toastQueue = [];
+window.isToastShowing = false;
+
 function showInAppToast(notif) {
+    if (!notif) return;
+    window.toastQueue.push(notif);
+    if (!window.isToastShowing) {
+        processNextToast();
+    }
+}
+
+function processNextToast() {
+    if (window.toastQueue.length === 0) {
+        window.isToastShowing = false;
+        hideInAppToast();
+        return;
+    }
+
     const container = document.getElementById('in-app-toast-container');
     if (!container) return;
+
+    window.isToastShowing = true;
+    const notif = window.toastQueue.shift();
 
     const notifTitle = notif.title || 'New Notification';
     const notifMsg = notif.message || '';
@@ -26,24 +46,40 @@ function showInAppToast(notif) {
             <div class="in-app-toast-title">${notifTitle}</div>
             <div class="in-app-toast-body">${notifMsg}</div>
         </div>
-        <button class="in-app-toast-close" onclick="hideInAppToast()">×</button>
+        <button class="in-app-toast-close" onclick="dismissCurrentToast()">×</button>
     `;
 
     if (notif.chatId) {
         container.onclick = function(e) {
             if (e.target.classList.contains('in-app-toast-close')) return;
-            hideInAppToast();
+            dismissCurrentToast();
             openIndividualChatRoom(notif.chatId);
         };
     } else {
         container.onclick = null;
     }
 
+    // Trigger subtle haptic vibration if supported on device
+    try {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate([30, 40, 30]);
+        }
+    } catch(e) {}
+
     container.classList.add('show');
     clearTimeout(window.toastTimer);
     window.toastTimer = setTimeout(() => {
-        hideInAppToast();
-    }, 4500);
+        dismissCurrentToast();
+    }, 3800);
+}
+
+function dismissCurrentToast() {
+    clearTimeout(window.toastTimer);
+    const container = document.getElementById('in-app-toast-container');
+    if (container) container.classList.remove('show');
+    setTimeout(() => {
+        processNextToast();
+    }, 300);
 }
 
 function hideInAppToast() {

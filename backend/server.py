@@ -329,6 +329,20 @@ def update_profile(user_id: str, payload: ProfileUpdateRequest, db: Session = De
     }
 
 
+@app.post("/api/v1/users/fcm-token")
+def register_fcm_token(
+    payload: FCMTokenRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[UserModel] = Depends(get_current_user)
+):
+    if not current_user:
+        return {"status": "skipped", "message": "Unauthenticated device; FCM token registration deferred."}
+    
+    current_user.fcm_token = payload.fcm_token
+    db.commit()
+    return {"status": "success", "user_id": current_user.id, "fcm_token": current_user.fcm_token}
+
+
 @app.get("/api/v1/auth/users")
 def list_users(db: Session = Depends(get_db)):
     users = db.query(UserModel).all()

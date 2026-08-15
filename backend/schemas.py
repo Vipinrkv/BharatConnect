@@ -30,6 +30,10 @@ class ProfileUpdateRequest(BaseModel):
     user_avatar: Optional[str] = None
 
 
+class FCMTokenRequest(BaseModel):
+    fcm_token: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
