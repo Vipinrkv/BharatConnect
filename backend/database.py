@@ -157,14 +157,43 @@ class MarketplaceModel(Base):
     color2 = Column(String(20), default="#2F2FE4")
 
 
+def migrate_backend_db(bind_engine):
+    """Ensures all columns defined in SQLAlchemy models exist on backend database tables."""
+    from sqlalchemy import inspect, text
+    try:
+        inspector = inspect(bind_engine)
+        tables = inspector.get_table_names()
+        
+        with bind_engine.begin() as conn:
+            for table_name, table_obj in Base.metadata.tables.items():
+                if table_name in tables:
+                    existing_cols = [c["name"] for c in inspector.get_columns(table_name)]
+                    for col in table_obj.columns:
+                        if col.name not in existing_cols:
+                            col_type = col.type.compile(bind_engine.dialect)
+                            sql_type = str(col_type)
+                            try:
+                                conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col.name}" {sql_type}'))
+                                print(f"[DB Migration] Auto-added missing column {table_name}.{col.name} ({sql_type})")
+                            except Exception as e:
+                                print(f"[DB Migration] Warning adding {table_name}.{col.name}: {e}")
+    except Exception as e:
+        print(f"[DB Migration] Check error: {e}")
+
+
+
+
 def init_db():
     """Initializes database tables with automatic fallback to SQLite on connection errors."""
     global engine, SessionLocal
     try:
         Base.metadata.create_all(bind=engine)
+        migrate_backend_db(engine)
     except (OperationalError, Exception) as e:
         print(f"Warning: Primary database connection failed ({e}). Falling back to local SQLite database.")
         sqlite_url = f"sqlite:///{DEFAULT_SQLITE_PATH}"
         engine = create_db_engine(sqlite_url)
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         Base.metadata.create_all(bind=engine)
+        migrate_backend_db(engine)
+

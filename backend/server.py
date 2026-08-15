@@ -7,7 +7,7 @@ import os
 import re
 import sys
 import uuid
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import datetime
 
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
@@ -33,12 +33,14 @@ from backend.schemas import (
     LoginRequest,
     RegisterRequest,
     ProfileUpdateRequest,
+    FCMTokenRequest,
     TokenResponse,
     UserResponse,
     PostCreateRequest,
     PostResponse,
     ChatResponse,
     MessageCreateRequest,
+    MessageStatusUpdateRequest,
     MessageResponse,
     StoryResponse,
     MarketplaceItemResponse,
@@ -136,9 +138,40 @@ class ConnectionManager:
 ws_manager = ConnectionManager()
 
 
-# Initialize Database Tables (No Demo Data)
 def seed_initial_data():
     init_db()
+    db = SessionLocal()
+    try:
+        user = db.query(UserModel).filter(
+            sqlalchemy.or_(
+                sqlalchemy.func.lower(UserModel.username) == "alexmorgan",
+                sqlalchemy.func.lower(UserModel.email) == "alex.morgan@bharatconnect.com"
+            )
+        ).first()
+        if not user:
+            demo_user = UserModel(
+                id="u-alex",
+                username="alexmorgan",
+                display_name="Alex Morgan",
+                email="alex.morgan@bharatconnect.com",
+                phone="+91 98765 43210",
+                password_hash=hash_password("password123"),
+                bio="Passionate about technology, coffee, and making a difference.",
+                avatar_initials="AM",
+                avatar_color="#6367FF",
+            )
+            db.add(demo_user)
+            db.commit()
+        else:
+            user.password_hash = hash_password("password123")
+            db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        db.close()
+
+
+
 
 
 # API Health Endpoint

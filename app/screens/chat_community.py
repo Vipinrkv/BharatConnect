@@ -31,8 +31,13 @@ class CommunityChatView(MDBoxLayout):
     def build_ui(self):
         self.clear_widgets()
 
-        chats_dict = db_engine.get_chats() if hasattr(db_engine, 'get_chats') else getattr(db_engine, 'chats', {})
-        chat_info = chats_dict.get(self.chat_id, {})
+        chats_data = db_engine.get_chats() if hasattr(db_engine, 'get_chats') else getattr(db_engine, 'chats', {})
+        if isinstance(chats_data, list):
+            chat_info = next((c for c in chats_data if isinstance(c, dict) and c.get("id") == self.chat_id), {})
+        elif isinstance(chats_data, dict):
+            chat_info = chats_data.get(self.chat_id, {})
+        else:
+            chat_info = {}
 
         # Header Bar matching Community Chat image: Avatar, "Tech Community", "1.2K members, 120 online", Options
         header = GradientBox(

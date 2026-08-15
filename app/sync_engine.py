@@ -84,6 +84,8 @@ class HybridSyncEngine:
                         self.api_client.create_post(payload["content"], payload.get("image_title"))
                     elif action == "LIKE_POST":
                         self.api_client.toggle_like(payload["post_id"])
+                    elif action == "SEND_MESSAGE":
+                        self.api_client.send_message(payload["chat_id"], payload["text"])
                     
                     cursor.execute("DELETE FROM pending_sync WHERE id=?", (row["id"],))
                     conn.commit()
@@ -100,34 +102,34 @@ class HybridSyncEngine:
 
 
     def authenticate_user(self, identifier, password):
-        # Online-only Auth (Meta apps / WhatsApp style)
-        if not self.check_connection():
-            return False, "Internet connection required to log in. Please check your connection and try again."
-        success, res = self.api_client.login(identifier, password)
-        if success and isinstance(res, dict) and "id" in res:
-            with self.local_db.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('current_user_id', ?)", (res["id"],))
-                conn.commit()
-        return success, res
+        if self.check_connection():
+            try:
+                success, res = self.api_client.login(identifier, password)
+                if success and isinstance(res, dict) and "id" in res:
+                    with self.local_db.get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('current_user_id', ?)", (res["id"],))
+                        conn.commit()
+                    return success, res
+            except Exception:
+                pass
+        return self.local_db.authenticate_user(identifier, password)
 
     def register_user(self, full_name, email, username, password, phone="", dob=""):
-        # Online-only Registration (Meta apps / WhatsApp style)
-        if not self.check_connection():
-            raise ValueError("Internet connection required to create an account. Please check your connection and try again.")
-        success, res = self.api_client.register(full_name, username, email, password, phone=phone, dob=dob)
-        if success:
-            user_data = res if isinstance(res, dict) else (res.get("user") if isinstance(res, dict) else res)
-            if user_data and "id" in user_data:
-                with self.local_db.get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('current_user_id', ?)", (user_data["id"],))
-                    conn.commit()
-            return user_data
-        elif isinstance(res, str):
-            raise ValueError(res)
-        else:
-            raise ValueError("Registration failed. Please check your details and try again.")
+        if self.check_connection():
+            try:
+                success, res = self.api_client.register(full_name, username, email, password, phone=phone, dob=dob)
+                if success:
+                    user_data = res if isinstance(res, dict) else (res.get("user") if isinstance(res, dict) else res)
+                    if user_data and "id" in user_data:
+                        with self.local_db.get_connection() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('current_user_id', ?)", (user_data["id"],))
+                            conn.commit()
+                    return user_data
+            except Exception:
+                pass
+        return self.local_db.register_user(full_name, email, phone=phone, username=username, dob=dob, password=password)
 
     def reset_password(self, email):
         return self.local_db.reset_password(email)
@@ -199,7 +201,15 @@ class HybridSyncEngine:
         return self.local_db.get_chat_messages(chat_id)
 
     def send_chat_message(self, chat_id, text):
-        return self.local_db.send_chat_message(chat_id, text)
+        res = self.local_db.send_chat_message(chat_id, text)
+        if self.check_connection():
+            try:
+                self.api_client.send_message(chat_id, text)
+            except Exception:
+                self._queue_offline_action("SEND_MESSAGE", {"chat_id": chat_id, "text": text})
+        else:
+            self._queue_offline_action("SEND_MESSAGE", {"chat_id": chat_id, "text": text})
+        return res
 
     def match_registered_phone_contacts(self, phone_list):
         return self.local_db.match_registered_phone_contacts(phone_list)

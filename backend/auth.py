@@ -36,12 +36,16 @@ def hash_password(password: str) -> str:
     Hashes new passwords using Argon2id (or scrypt/PBKDF2 salted fallback).
     """
     if HAS_ARGON2:
-        return argon2.using(type="id").hash(password)
+        try:
+            return argon2.using(type="id").hash(password)
+        except Exception:
+            pass
     
     # High-security scrypt salted hash fallback format: $scrypt$salt$hash
     salt = secrets.token_hex(16)
     key = hashlib.scrypt(password.encode("utf-8"), salt=salt.encode("utf-8"), n=16384, r=8, p=1)
     return f"$scrypt${salt}${key.hex()}"
+
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -76,7 +80,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
     # 4. Legacy SHA-256 Verification Fallback
     computed_sha256 = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
-    return hmac.compare_digest(computed_sha256, hashed_password)
+    if hmac.compare_digest(computed_sha256, hashed_password):
+        return True
+
+    # 5. Local DB Engine Salted SHA-256 Verification Fallback
+    computed_bc_sha256 = hashlib.sha256(f"bharatconnect:{plain_password}".encode("utf-8")).hexdigest()
+    return hmac.compare_digest(computed_bc_sha256, hashed_password)
+
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
