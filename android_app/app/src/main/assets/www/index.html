@@ -6,8 +6,6 @@
     <title>BharatConnect Mobile</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="fontawesome/all.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
     <!-- In-App Floating Top Toast Notification Banner -->
@@ -23,7 +21,7 @@
                 </div>
                 <div class="splash-title">Connect. Share. Grow.</div>
                 <div class="splash-sub">A community for everyone. 100% Free & Secure</div>
-                <button class="btn-primary" style="margin-top: 32px; width: 85%; max-width: 320px; font-size: 16px; padding: 14px 24px; border-radius: 24px; box-shadow: 0 8px 28px rgba(99, 103, 255, 0.5); cursor: pointer;" onclick="handleGetStarted()">
+                <button class="btn-primary" style="margin-top: 32px; width: 85%; max-width: 320px; font-size: 16px; padding: 14px 24px; border-radius: 24px; box-shadow: 0 8px 28px rgba(99, 103, 255, 0.5); cursor: pointer;" onclick="if(window.handleGetStarted){window.handleGetStarted();}else{document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));const l=document.getElementById('screen-login');if(l)l.classList.add('active');}">
                     Get Started 🚀
                 </button>
             </div>

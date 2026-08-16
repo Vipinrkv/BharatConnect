@@ -324,27 +324,45 @@ function markAllNotificationsRead() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const session = window.localDB ? window.localDB.getSession() : null;
-    if (session && session.isLoggedIn && session.user) {
-        // Auto-login active session
-        const data = window.localDB.get();
-        data.currentUser = session.user;
-        window.localDB.save(data);
-        showScreen('screen-home');
-    } else {
+    try {
+        const session = (window.localDB && window.localDB.getSession) ? window.localDB.getSession() : null;
+        if (session && session.isLoggedIn && session.user) {
+            const data = window.localDB.get();
+            if (data) {
+                data.currentUser = session.user;
+                window.localDB.save(data);
+            }
+            showScreen('screen-home');
+        } else {
+            showScreen('screen-splash');
+        }
+    } catch(e) {
+        console.warn('[AppInit] Session startup error trapped:', e);
         showScreen('screen-splash');
     }
-    if (window.renderAll) renderAll();
+
+    try {
+        if (window.renderAll) renderAll();
+    } catch(e) {
+        console.warn('[AppInit] Initial renderAll trapped:', e);
+    }
 });
 
 function handleGetStarted() {
-    const session = window.localDB ? window.localDB.getSession() : null;
-    if (session && session.isLoggedIn && session.user) {
-        showScreen('screen-home');
-    } else {
+    console.log('[handleGetStarted] Triggered!');
+    try {
+        const session = (window.localDB && window.localDB.getSession) ? window.localDB.getSession() : null;
+        if (session && session.isLoggedIn && session.user) {
+            showScreen('screen-home');
+        } else {
+            showScreen('screen-login');
+        }
+    } catch(e) {
+        console.warn('[handleGetStarted] Error trapped, falling back to login screen:', e);
         showScreen('screen-login');
     }
 }
+window.handleGetStarted = handleGetStarted;
 
 function handleAvatarSelect(event) {
     const file = event.target.files && event.target.files[0];
@@ -379,48 +397,56 @@ function selectAvatarPreset(src) {
 const screenNavigationStack = [];
 
 function showScreen(screenId, isBackNavigation) {
-    const currentActive = document.querySelector('.screen.active');
-    const currentId = currentActive ? currentActive.id : '';
+    try {
+        const currentActive = document.querySelector('.screen.active');
+        const currentId = currentActive ? currentActive.id : '';
 
-    if (!isBackNavigation && currentId && currentId !== screenId) {
-        screenNavigationStack.push(currentId);
-    }
-
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    const target = document.getElementById(screenId);
-    if (target) {
-        target.classList.add('active');
-    }
-
-    // Toggle bottom nav visibility
-    const bottomNav = document.getElementById('bottom-nav');
-    if (bottomNav) {
-        if (target && (target.classList.contains('no-nav') || screenId === 'screen-splash' || screenId === 'screen-login' || screenId === 'screen-register' || screenId === 'screen-forgot')) {
-            bottomNav.style.display = 'none';
-        } else {
-            bottomNav.style.display = 'flex';
+        if (!isBackNavigation && currentId && currentId !== screenId) {
+            screenNavigationStack.push(currentId);
         }
+
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const target = document.getElementById(screenId);
+        if (target) {
+            target.classList.add('active');
+        }
+
+        // Toggle bottom nav visibility
+        const bottomNav = document.getElementById('bottom-nav');
+        if (bottomNav) {
+            if (target && (target.classList.contains('no-nav') || screenId === 'screen-splash' || screenId === 'screen-login' || screenId === 'screen-register' || screenId === 'screen-forgot')) {
+                bottomNav.style.display = 'none';
+            } else {
+                bottomNav.style.display = 'flex';
+            }
+        }
+
+        // Update bottom nav active state
+        const navItems = document.querySelectorAll('.nav-item');
+        if (navItems && navItems.length >= 5) {
+            navItems.forEach(item => item.classList.remove('active'));
+            if (screenId === 'screen-home') navItems[0].classList.add('active');
+            if (screenId.includes('chat')) navItems[1].classList.add('active');
+            if (screenId === 'screen-nearby') navItems[2].classList.add('active');
+            if (screenId === 'screen-marketplace') navItems[3].classList.add('active');
+            if (screenId === 'screen-profile') navItems[4].classList.add('active');
+        }
+
+        if (screenId === 'screen-notifications') {
+            try { renderNotifications(); } catch(e) { console.warn('[showScreen] renderNotifications trapped:', e); }
+        }
+
+        if (screenId === 'screen-nearby') {
+            try { renderNearbyUsers(); } catch(e) { console.warn('[showScreen] renderNearbyUsers trapped:', e); }
+        }
+
+        // Refresh contents safely
+        try { renderAll(); } catch(e) { console.warn('[showScreen] renderAll trapped:', e); }
+    } catch(err) {
+        console.warn('[showScreen] Critical transition error trapped:', err);
     }
-
-    // Update bottom nav active state
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-    if (screenId === 'screen-home') document.querySelectorAll('.nav-item')[0].classList.add('active');
-    if (screenId.includes('chat')) document.querySelectorAll('.nav-item')[1].classList.add('active');
-    if (screenId === 'screen-nearby') document.querySelectorAll('.nav-item')[2].classList.add('active');
-    if (screenId === 'screen-marketplace') document.querySelectorAll('.nav-item')[3].classList.add('active');
-    if (screenId === 'screen-profile') document.querySelectorAll('.nav-item')[4].classList.add('active');
-
-    if (screenId === 'screen-notifications') {
-        renderNotifications();
-    }
-
-    if (screenId === 'screen-nearby') {
-        renderNearbyUsers();
-    }
-
-    // Refresh contents
-    renderAll();
 }
+window.showScreen = showScreen;
 
 function handleHardwareBackPress() {
     // 1. Close open modal overlays if visible
@@ -2518,6 +2544,30 @@ function openDocumentAttachment(docName) {
     alert(`📄 Opening document: ${docName}\nDownloading file to device storage...`);
 }
 
+function loadLeafletDynamically(callback) {
+    if (window.L) {
+        if (callback) callback();
+        return;
+    }
+    if (!document.getElementById('leaflet-css-dyn')) {
+        const css = document.createElement('link');
+        css.id = 'leaflet-css-dyn';
+        css.rel = 'stylesheet';
+        css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(css);
+    }
+    if (!document.getElementById('leaflet-js-dyn')) {
+        const script = document.createElement('script');
+        script.id = 'leaflet-js-dyn';
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = () => { if (callback) callback(); };
+        script.onerror = () => { if (callback) callback(); };
+        document.head.appendChild(script);
+    } else if (callback) {
+        callback();
+    }
+}
+
 function initLocationScreenView() {
     const dialog = document.getElementById('gps-status-dialog');
     const dialogText = document.getElementById('gps-dialog-text');
@@ -2527,23 +2577,25 @@ function initLocationScreenView() {
     let defaultLat = 28.6139;
     let defaultLng = 77.2090;
 
-    const mapContainer = document.getElementById('location-leaflet-map');
-    if (mapContainer) {
-        if (window.currentLeafletMap) {
-            window.currentLeafletMap.remove();
-            window.currentLeafletMap = null;
+    loadLeafletDynamically(() => {
+        const mapContainer = document.getElementById('location-leaflet-map');
+        if (mapContainer && window.L) {
+            if (window.currentLeafletMap) {
+                window.currentLeafletMap.remove();
+                window.currentLeafletMap = null;
+            }
+
+            window.currentLeafletMap = L.map('location-leaflet-map').setView([defaultLat, defaultLng], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(window.currentLeafletMap);
+
+            window.currentGPSMarker = L.marker([defaultLat, defaultLng]).addTo(window.currentLeafletMap)
+                .bindPopup('Your Current Location')
+                .openPopup();
         }
-
-        window.currentLeafletMap = L.map('location-leaflet-map').setView([defaultLat, defaultLng], 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(window.currentLeafletMap);
-
-        window.currentGPSMarker = L.marker([defaultLat, defaultLng]).addTo(window.currentLeafletMap)
-            .bindPopup('Your Current Location')
-            .openPopup();
-    }
+    });
 
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
