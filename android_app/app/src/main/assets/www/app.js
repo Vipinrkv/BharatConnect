@@ -1580,13 +1580,35 @@ function renderGroupMessages(messages) {
     if (messages.length === 0) {
         groupContainer.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:13px; margin:auto;">No group messages yet. Start chatting with your team!</div>`;
     } else {
-        groupContainer.innerHTML = messages.map(m => `
-            <div class="message-bubble received">
-                <div style="font-size:11px; font-weight:bold; color:var(--accent-lavender);">${m.sender}</div>
-                <div>${m.text}</div>
-                <div class="message-time">${m.time}</div>
-            </div>
-        `).join('');
+        groupContainer.innerHTML = messages.map(m => {
+            const imgHtml = (m.image_url || m.image) ? `<img src="${m.image_url || m.image}" style="max-width:220px; max-height:220px; border-radius:12px; margin-bottom:6px; display:block; object-fit:cover; border:1px solid var(--border-color);" onerror="this.style.display='none'">` : '';
+            let msgContentHtml = m.text || '';
+            if (msgContentHtml.startsWith('📄 Document:')) {
+                const parts = msgContentHtml.replace('📄 Document:', '').trim();
+                msgContentHtml = `
+                    <div class="file-attachment-card">
+                        <div class="file-attachment-icon"><i class="fa-solid fa-file-arrow-down"></i></div>
+                        <div>
+                            <div style="font-weight:600; font-size:13px;">${parts}</div>
+                            <div style="font-size:10px; color:var(--accent-lavender);">Document Attachment</div>
+                        </div>
+                    </div>
+                `;
+            } else if (msgContentHtml.startsWith('📍 Shared Location:')) {
+                msgContentHtml = `<div style="display:flex; align-items:center; gap:6px; color:#4EFEAA; font-weight:600;"><i class="fa-solid fa-location-dot"></i> ${msgContentHtml}</div>`;
+            } else if (msgContentHtml.startsWith('₹ BHARAT PAY:')) {
+                msgContentHtml = `<div style="background:rgba(0,229,255,0.15); border:1px solid #00E5FF; padding:8px 12px; border-radius:10px; color:#00E5FF; font-weight:bold;"><i class="fa-solid fa-indian-rupee-sign"></i> ${msgContentHtml}</div>`;
+            }
+
+            return `
+                <div class="message-bubble received">
+                    <div style="font-size:11px; font-weight:bold; color:var(--accent-lavender);">${m.sender || 'Member'}</div>
+                    ${imgHtml}
+                    <div>${msgContentHtml}</div>
+                    <div class="message-time">${m.time || 'Just now'}</div>
+                </div>
+            `;
+        }).join('');
     }
     groupContainer.scrollTop = groupContainer.scrollHeight;
 }
@@ -1614,16 +1636,39 @@ function renderCommunityMessages(messages) {
     if (messages.length === 0) {
         commContainer.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:13px; margin:auto;">No community announcements yet. Share an update!</div>`;
     } else {
-        commContainer.innerHTML = messages.map(m => `
-            <div class="message-bubble received">
-                <div style="font-size:11px; font-weight:bold; color:var(--primary-indigo);">${m.sender} ${m.role ? `[${m.role}]` : ''}</div>
-                <div>${m.text}</div>
-                <div class="message-time">${m.time}</div>
-            </div>
-        `).join('');
+        commContainer.innerHTML = messages.map(m => {
+            const imgHtml = (m.image_url || m.image) ? `<img src="${m.image_url || m.image}" style="max-width:220px; max-height:220px; border-radius:12px; margin-bottom:6px; display:block; object-fit:cover; border:1px solid var(--border-color);" onerror="this.style.display='none'">` : '';
+            let msgContentHtml = m.text || '';
+            if (msgContentHtml.startsWith('📄 Document:')) {
+                const parts = msgContentHtml.replace('📄 Document:', '').trim();
+                msgContentHtml = `
+                    <div class="file-attachment-card">
+                        <div class="file-attachment-icon"><i class="fa-solid fa-file-arrow-down"></i></div>
+                        <div>
+                            <div style="font-weight:600; font-size:13px;">${parts}</div>
+                            <div style="font-size:10px; color:var(--accent-lavender);">Document Attachment</div>
+                        </div>
+                    </div>
+                `;
+            } else if (msgContentHtml.startsWith('📍 Shared Location:')) {
+                msgContentHtml = `<div style="display:flex; align-items:center; gap:6px; color:#4EFEAA; font-weight:600;"><i class="fa-solid fa-location-dot"></i> ${msgContentHtml}</div>`;
+            } else if (msgContentHtml.startsWith('₹ BHARAT PAY:')) {
+                msgContentHtml = `<div style="background:rgba(0,229,255,0.15); border:1px solid #00E5FF; padding:8px 12px; border-radius:10px; color:#00E5FF; font-weight:bold;"><i class="fa-solid fa-indian-rupee-sign"></i> ${msgContentHtml}</div>`;
+            }
+
+            return `
+                <div class="message-bubble received">
+                    <div style="font-size:11px; font-weight:bold; color:var(--primary-indigo);">${m.sender || 'Member'} ${m.role ? `[${m.role}]` : ''}</div>
+                    ${imgHtml}
+                    <div>${msgContentHtml}</div>
+                    <div class="message-time">${m.time || 'Just now'}</div>
+                </div>
+            `;
+        }).join('');
     }
     commContainer.scrollTop = commContainer.scrollHeight;
 }
+
 
 async function sendChatMessage(chatType) {
     const inputId = `${chatType === 'individual' ? 'indiv' : chatType}-input`;
@@ -2137,6 +2182,348 @@ function insertEmoji(emoji) {
     }
 }
 
+function openAttachmentScreen(type) {
+    closeAttachmentSheet();
+    window.currentAttachmentType = type;
+    const screenId = `screen-attach-${type}`;
+    if (type === 'camera') {
+        initCameraScreenView();
+    } else if (type === 'gallery') {
+        initGalleryScreenView();
+    } else if (type === 'document') {
+        initDocumentScreenView();
+    } else if (type === 'location') {
+        initLocationScreenView();
+    } else if (type === 'contact') {
+        initContactScreenView();
+    }
+    showScreen(screenId);
+}
+
+function closeAttachmentScreen() {
+    stopLiveCameraStream();
+    if (window.activeOpenChat && window.activeOpenChat.type) {
+        showScreen(`screen-chat-${window.activeOpenChat.type === 'individual' ? 'indiv' : window.activeOpenChat.type}`);
+    } else {
+        showScreen('screen-chat-indiv');
+    }
+}
+
+function initCameraScreenView() {
+    const placeholder = document.getElementById('camera-placeholder-view');
+    const video = document.getElementById('camera-live-video');
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: window.cameraFacing || 'environment' } })
+            .then(stream => {
+                window.activeCameraStream = stream;
+                if (video) {
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                }
+                if (placeholder) placeholder.style.display = 'none';
+            })
+            .catch(() => {
+                if (video) video.style.display = 'none';
+                if (placeholder) placeholder.style.display = 'block';
+            });
+    } else {
+        if (video) video.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'block';
+    }
+
+    const strip = document.getElementById('camera-recent-strip');
+    if (strip) {
+        const dummyPhotos = [
+            "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=150&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=150&auto=format&fit=crop&q=80"
+        ];
+        strip.innerHTML = dummyPhotos.map(p => `<img src="${p}" style="width:48px; height:48px; border-radius:8px; object-fit:cover; cursor:pointer;" onclick="selectCameraStripPhoto('${p}')">`).join('');
+    }
+}
+
+function stopLiveCameraStream() {
+    if (window.activeCameraStream) {
+        window.activeCameraStream.getTracks().forEach(track => track.stop());
+        window.activeCameraStream = null;
+    }
+}
+
+function captureCameraSnapshot() {
+    const video = document.getElementById('camera-live-video');
+    let photoData = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+    if (video && video.style.display !== 'none' && video.videoWidth) {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        photoData = canvas.toDataURL('image/jpeg');
+    }
+    stopLiveCameraStream();
+    closeAttachmentScreen();
+    const chatType = (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
+    sendCustomChatMessage(chatType, '📷 Camera Photo', photoData);
+}
+
+function selectCameraStripPhoto(url) {
+    stopLiveCameraStream();
+    closeAttachmentScreen();
+    const chatType = (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
+    sendCustomChatMessage(chatType, '📷 Photo', url);
+}
+
+function toggleCameraFlash() {
+    window.cameraFlashOn = !window.cameraFlashOn;
+    const btn = document.getElementById('camera-flash-btn');
+    if (btn) btn.innerHTML = window.cameraFlashOn ? `<i class="fa-solid fa-bolt" style="font-size:16px; color:#FFD700;"></i>` : `<i class="fa-solid fa-bolt-slash" style="font-size:16px;"></i>`;
+}
+
+function switchCameraFacing() {
+    window.cameraFacing = window.cameraFacing === 'user' ? 'environment' : 'user';
+    stopLiveCameraStream();
+    initCameraScreenView();
+}
+
+function setCameraMode(mode) {
+    ['video', 'photo', 'videonote'].forEach(m => {
+        const el = document.getElementById(`cam-mode-${m}`);
+        if (el) {
+            if (m === mode) {
+                el.style.color = 'white';
+                el.style.background = 'rgba(255,255,255,0.2)';
+                el.style.padding = '2px 14px';
+                el.style.borderRadius = '12px';
+            } else {
+                el.style.color = 'var(--text-muted)';
+                el.style.background = 'transparent';
+                el.style.padding = '0';
+            }
+        }
+    });
+}
+
+window.selectedGalleryPhotos = [];
+function initGalleryScreenView() {
+    window.selectedGalleryPhotos = [];
+    updateGallerySelectedCount();
+    const container = document.getElementById('gallery-grid-view');
+    if (!container) return;
+
+    const samplePhotos = [
+        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=400&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=400&auto=format&fit=crop&q=80"
+    ];
+
+    container.innerHTML = samplePhotos.map((url, idx) => `
+        <div style="position:relative; aspect-ratio:1; cursor:pointer;" onclick="toggleGalleryPhotoSelect(${idx}, '${url}')">
+            <img src="${url}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">
+            <div id="gallery-badge-${idx}" style="position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%; border:2px solid white; background:rgba(0,0,0,0.4); color:white; font-size:11px; font-weight:bold; display:flex; align-items:center; justify-content:center;"></div>
+        </div>
+    `).join('');
+}
+
+function toggleGalleryPhotoSelect(idx, url) {
+    const badge = document.getElementById(`gallery-badge-${idx}`);
+    const existingIndex = window.selectedGalleryPhotos.findIndex(item => item.idx === idx);
+    if (existingIndex > -1) {
+        window.selectedGalleryPhotos.splice(existingIndex, 1);
+        if (badge) {
+            badge.style.background = 'rgba(0,0,0,0.4)';
+            badge.innerText = '';
+        }
+    } else {
+        window.selectedGalleryPhotos.push({ idx, url });
+        if (badge) {
+            badge.style.background = '#00E676';
+            badge.innerText = window.selectedGalleryPhotos.length;
+        }
+    }
+    updateGallerySelectedCount();
+}
+
+function updateGallerySelectedCount() {
+    const countEl = document.getElementById('gallery-selected-count');
+    if (countEl) {
+        const count = window.selectedGalleryPhotos.length;
+        countEl.innerText = count > 0 ? `${count} photo${count > 1 ? 's' : ''} selected` : 'Tap photos to select';
+    }
+}
+
+function sendSelectedGalleryPhotos() {
+    const caption = document.getElementById('gallery-caption-input') ? document.getElementById('gallery-caption-input').value.trim() : '';
+    if (window.selectedGalleryPhotos.length === 0) {
+        window.selectedGalleryPhotos.push({ url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80" });
+    }
+    closeAttachmentScreen();
+    const chatType = (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
+    window.selectedGalleryPhotos.forEach((item, i) => {
+        const text = (i === 0 && caption) ? `📷 ${caption}` : '📷 Photo';
+        sendCustomChatMessage(chatType, text, item.url);
+    });
+}
+
+function initDocumentScreenView() {
+    const container = document.getElementById('recent-documents-list');
+    if (!container) return;
+
+    const sampleDocs = [
+        { name: "1 (1).jpeg", size: "140 KB", date: "01/10/2025" },
+        { name: "1. Students Undertaking.docx", size: "16 KB", date: "29/05/2025" },
+        { name: "1.jpeg", size: "207 KB", date: "01/10/2025" },
+        { name: "1000014417.png", size: "1.2 MB", date: "14/01/2025" },
+        { name: "BharatConnect_Project_Brief.pdf", size: "2.4 MB", date: "Today" },
+        { name: "BharatConnect.apk", size: "8.65 MB", date: "Today" }
+    ];
+
+    container.innerHTML = sampleDocs.map(doc => `
+        <div style="display:flex; align-items:center; gap:14px; padding:10px 12px; background:var(--surface-dark); border:1px solid var(--border-color); border-radius:12px; cursor:pointer;" onclick="selectDocumentToSend('${doc.name}', '${doc.size}')">
+            <div style="width:40px; height:40px; border-radius:8px; background:rgba(99,103,255,0.15); border:1px solid var(--primary-indigo); display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--accent-lavender);">📄</div>
+            <div style="flex:1;">
+                <div style="font-weight:600; font-size:14px; color:white;">${doc.name}</div>
+                <div style="font-size:11px; color:var(--text-muted);">${doc.size} • ${doc.date}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function selectDocumentToSend(name, size) {
+    closeAttachmentScreen();
+    const chatType = (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
+    sendCustomChatMessage(chatType, `📄 Document: ${name} (${size})`);
+}
+
+function triggerSystemFilePicker(type) {
+    if (type === 'document') {
+        const input = document.getElementById('attachment-document-input');
+        if (input) input.click();
+    } else if (type === 'gallery') {
+        openAttachmentScreen('gallery');
+    } else if (type === 'audio') {
+        const docName = prompt("Select Audio File:", "BharatConnect_Audio_Track.mp3");
+        if (docName) selectDocumentToSend(docName, "4.2 MB");
+    }
+}
+
+function initLocationScreenView() {
+    const dialog = document.getElementById('gps-status-dialog');
+    if (dialog) dialog.style.display = 'flex';
+
+    const placesContainer = document.getElementById('nearby-places-list');
+    if (placesContainer) {
+        const places = [
+            { name: "New Delhi Railway Station", sub: "Paharganj, New Delhi" },
+            { name: "Connaught Place", sub: "Inner Circle, New Delhi" },
+            { name: "BharatConnect Tech Hub", sub: "Sector 62, Noida, UP" },
+            { name: "Cyber Hub Gurugram", sub: "DLF Phase 2, Gurugram" }
+        ];
+        placesContainer.innerHTML = places.map(p => `
+            <div style="display:flex; align-items:center; gap:14px; padding:10px 12px; background:var(--surface-dark); border:1px solid var(--border-color); border-radius:12px; cursor:pointer;" onclick="selectLocationPlace('${p.name}')">
+                <div style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; color:var(--accent-lavender); font-size:16px;"><i class="fa-solid fa-location-dot"></i></div>
+                <div>
+                    <div style="font-weight:600; font-size:14px; color:white;">${p.name}</div>
+                    <div style="font-size:11px; color:var(--text-muted);">${p.sub}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+function dismissGPSDialog() {
+    const dialog = document.getElementById('gps-status-dialog');
+    if (dialog) dialog.style.display = 'none';
+}
+
+function sendCurrentGPSLocation() {
+    closeAttachmentScreen();
+    const chatType = (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
+    sendCustomChatMessage(chatType, "📍 Shared Location: https://maps.google.com/?q=28.6139,77.2090 (Accurate to 10m)");
+}
+
+function selectLocationPlace(name) {
+    closeAttachmentScreen();
+    const chatType = (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
+    sendCustomChatMessage(chatType, `📍 Shared Location: ${name} (https://maps.google.com/?q=28.6139,77.2090)`);
+}
+
+function refreshLocationMap() {
+    initLocationScreenView();
+}
+
+window.selectedContacts = [];
+function initContactScreenView() {
+    window.selectedContacts = [];
+    updateContactSelectedCount();
+    const container = document.getElementById('contacts-picker-list');
+    if (!container) return;
+
+    const sampleContacts = [
+        { id: "c1", name: "Vipin Vishwakarma", phone: "+91 98765 43210", avatar: "logo.png" },
+        { id: "c2", name: "(Mummy)", phone: "+91 91234 56789", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" },
+        { id: "c3", name: "+91 70585 67004", phone: "+91 70585 67004", avatar: null },
+        { id: "c4", name: "+91 84324 84785", phone: "+91 84324 84785", avatar: null },
+        { id: "c5", name: "+91 87 24 021710", phone: "+91 87240 21710", avatar: null },
+        { id: "c6", name: "003 Rohit Palm Dipak", phone: "+91 99887 76655", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80" },
+        { id: "c7", name: "305 Harish.....", phone: "+91 94455 66778", avatar: null }
+    ];
+
+    container.innerHTML = sampleContacts.map(c => `
+        <div style="display:flex; align-items:center; gap:14px; padding:10px 12px; background:var(--surface-dark); border:1px solid var(--border-color); border-radius:12px; cursor:pointer;" onclick="toggleContactSelect('${c.id}', '${c.name}', '${c.phone}')">
+            ${c.avatar ? `<img src="${c.avatar}" style="width:44px; height:44px; border-radius:50%; object-fit:cover;">` : `<div style="width:44px; height:44px; border-radius:50%; background:var(--primary-indigo); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px;">${c.name.charAt(0)}</div>`}
+            <div style="flex:1;">
+                <div style="font-weight:600; font-size:15px; color:white;">${c.name}</div>
+                <div style="font-size:12px; color:var(--text-muted);">${c.phone}</div>
+            </div>
+            <div id="contact-chk-${c.id}" style="width:22px; height:22px; border-radius:50%; border:2px solid var(--border-color); display:flex; align-items:center; justify-content:center; color:white; font-size:12px; font-weight:bold;"></div>
+        </div>
+    `).join('');
+}
+
+function toggleContactSelect(id, name, phone) {
+    const chk = document.getElementById(`contact-chk-${id}`);
+    const idx = window.selectedContacts.findIndex(item => item.id === id);
+    if (idx > -1) {
+        window.selectedContacts.splice(idx, 1);
+        if (chk) {
+            chk.style.background = 'transparent';
+            chk.style.borderColor = 'var(--border-color)';
+            chk.innerHTML = '';
+        }
+    } else {
+        window.selectedContacts.push({ id, name, phone });
+        if (chk) {
+            chk.style.background = '#00E676';
+            chk.style.borderColor = '#00E676';
+            chk.innerHTML = '<i class="fa-solid fa-check" style="color:black; font-size:10px;"></i>';
+        }
+    }
+    updateContactSelectedCount();
+}
+
+function updateContactSelectedCount() {
+    const countEl = document.getElementById('contact-selected-count');
+    const fab = document.getElementById('contact-send-fab');
+    const count = window.selectedContacts.length;
+    if (countEl) countEl.innerText = `${count} selected`;
+    if (fab) fab.style.display = count > 0 ? 'flex' : 'none';
+}
+
+function sendSelectedContacts() {
+    if (window.selectedContacts.length === 0) return;
+    closeAttachmentScreen();
+    const chatType = (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
+    window.selectedContacts.forEach(c => {
+        sendCustomChatMessage(chatType, `👤 Contact Card: ${c.name} (${c.phone})`);
+    });
+}
+
 window.toggleAttachmentSheet = toggleAttachmentSheet;
 window.closeAttachmentSheet = closeAttachmentSheet;
 window.triggerAttachment = triggerAttachment;
@@ -2145,4 +2532,22 @@ window.toggleEmojiPicker = toggleEmojiPicker;
 window.closeEmojiPicker = closeEmojiPicker;
 window.switchEmojiTab = switchEmojiTab;
 window.insertEmoji = insertEmoji;
+window.openAttachmentScreen = openAttachmentScreen;
+window.closeAttachmentScreen = closeAttachmentScreen;
+window.captureCameraSnapshot = captureCameraSnapshot;
+window.selectCameraStripPhoto = selectCameraStripPhoto;
+window.toggleCameraFlash = toggleCameraFlash;
+window.switchCameraFacing = switchCameraFacing;
+window.setCameraMode = setCameraMode;
+window.toggleGalleryPhotoSelect = toggleGalleryPhotoSelect;
+window.sendSelectedGalleryPhotos = sendSelectedGalleryPhotos;
+window.selectDocumentToSend = selectDocumentToSend;
+window.triggerSystemFilePicker = triggerSystemFilePicker;
+window.dismissGPSDialog = dismissGPSDialog;
+window.sendCurrentGPSLocation = sendCurrentGPSLocation;
+window.selectLocationPlace = selectLocationPlace;
+window.refreshLocationMap = refreshLocationMap;
+window.toggleContactSelect = toggleContactSelect;
+window.sendSelectedContacts = sendSelectedContacts;
+
 

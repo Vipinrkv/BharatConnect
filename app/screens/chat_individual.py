@@ -132,14 +132,14 @@ class IndividualChatView(MDBoxLayout):
         self.msg_scroll.add_widget(self.msg_box)
         self.add_widget(self.msg_scroll)
 
-        # Message Input Bar matching reference image: Emoji, Text field, clip, camera, send
+        # Message Input Bar matching reference image: Emoji, Text field, clip, send
         input_bar = MDBoxLayout(orientation="horizontal", spacing="6dp", size_hint_y=None, height="48dp")
 
         btn_emoji = MDButton(style="text", size_hint_x=None, width="36dp", on_release=self.insert_quick_emoji)
         btn_emoji.add_widget(MDButtonText(text="😊"))
         input_bar.add_widget(btn_emoji)
 
-        self.input_field = MDTextField(mode="outlined", size_hint_x=0.55)
+        self.input_field = MDTextField(mode="outlined", size_hint_x=0.64)
         self.input_field.add_widget(MDTextFieldHintText(text="Message"))
         self.input_field.bind(on_text_validate=self.send_msg)
         input_bar.add_widget(self.input_field)
@@ -148,15 +148,12 @@ class IndividualChatView(MDBoxLayout):
         btn_clip.add_widget(MDButtonText(text="📎"))
         input_bar.add_widget(btn_clip)
 
-        btn_cam = MDButton(style="text", size_hint_x=None, width="36dp", on_release=self.attach_camera)
-        btn_cam.add_widget(MDButtonText(text="📷"))
-        input_bar.add_widget(btn_cam)
-
         btn_send = MDButton(style="filled", size_hint_x=0.20, on_release=self.send_msg)
         btn_send.add_widget(MDButtonText(text="✈️"))
         input_bar.add_widget(btn_send)
 
         self.add_widget(input_bar)
+
 
     def insert_quick_emoji(self, *args):
         emojis = ["😊", "😂", "❤️", "👍", "🔥", "🙏", "🎉", "🇮🇳"]
