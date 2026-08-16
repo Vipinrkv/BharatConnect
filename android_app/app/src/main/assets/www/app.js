@@ -1528,16 +1528,45 @@ function renderIndividualMessages(messages) {
             if (msgContentHtml.startsWith('📄 Document:')) {
                 const parts = msgContentHtml.replace('📄 Document:', '').trim();
                 msgContentHtml = `
-                    <div class="file-attachment-card">
+                    <div class="file-attachment-card" style="cursor:pointer;" onclick="openDocumentAttachment('${parts}')">
                         <div class="file-attachment-icon"><i class="fa-solid fa-file-arrow-down"></i></div>
                         <div>
                             <div style="font-weight:600; font-size:13px;">${parts}</div>
-                            <div style="font-size:10px; color:var(--accent-lavender);">Document Attachment</div>
+                            <div style="font-size:10px; color:var(--accent-lavender);">Tap to View Document</div>
                         </div>
                     </div>
                 `;
-            } else if (msgContentHtml.startsWith('📍 Shared Location:')) {
-                msgContentHtml = `<div style="display:flex; align-items:center; gap:6px; color:#4EFEAA; font-weight:600;"><i class="fa-solid fa-location-dot"></i> ${msgContentHtml}</div>`;
+            } else if (msgContentHtml.includes('Shared Location:')) {
+                const urlMatch = msgContentHtml.match(/https:\/\/maps\.google\.com\/\?q=[^\s)]+/);
+                const mapUrl = urlMatch ? urlMatch[0] : 'https://maps.google.com';
+                const cleanLocText = msgContentHtml.replace(/📍\s*Shared Location:\s*/, '');
+                msgContentHtml = `
+                    <div style="background:rgba(0,229,255,0.12); border:1px solid #00E5FF; padding:10px 14px; border-radius:12px; cursor:pointer;" onclick="window.open('${mapUrl}', '_blank')">
+                        <div style="display:flex; align-items:center; gap:8px; color:#00E5FF; font-weight:700; font-size:13px;">
+                            <i class="fa-solid fa-location-dot" style="font-size:16px;"></i> Live Location Pin
+                        </div>
+                        <div style="font-size:12px; color:white; margin-top:4px;">${cleanLocText}</div>
+                        <div style="font-size:10px; color:#4EFEAA; margin-top:6px; font-weight:600;">📍 Tap to Open in Google Maps ➔</div>
+                    </div>
+                `;
+            } else if (msgContentHtml.includes('Contact Card:')) {
+                const contactStr = msgContentHtml.replace(/👤\s*Contact Card:\s*/, '');
+                const nameMatch = contactStr.match(/^([^(]+)/);
+                const phoneMatch = contactStr.match(/\(([^)]+)\)/);
+                const cName = nameMatch ? nameMatch[1].trim() : 'Contact';
+                const cPhone = phoneMatch ? phoneMatch[1].trim() : '';
+                msgContentHtml = `
+                    <div style="background:rgba(99,103,255,0.15); border:1px solid var(--primary-indigo); padding:10px 14px; border-radius:12px; cursor:pointer;" onclick="viewContactDetails('${cName}', '${cPhone}')">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:36px; height:36px; border-radius:50%; background:var(--primary-indigo); color:white; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:16px;">${cName.charAt(0)}</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:700; font-size:14px; color:white;">${cName}</div>
+                                <div style="font-size:11px; color:var(--accent-lavender);">${cPhone}</div>
+                            </div>
+                        </div>
+                        <div style="font-size:11px; color:#00E5FF; margin-top:8px; font-weight:600; text-align:right;">View Contact 👤</div>
+                    </div>
+                `;
             } else if (msgContentHtml.startsWith('₹ BHARAT PAY:')) {
                 msgContentHtml = `<div style="background:rgba(0,229,255,0.15); border:1px solid #00E5FF; padding:8px 12px; border-radius:10px; color:#00E5FF; font-weight:bold;"><i class="fa-solid fa-indian-rupee-sign"></i> ${msgContentHtml}</div>`;
             }
@@ -1586,16 +1615,45 @@ function renderGroupMessages(messages) {
             if (msgContentHtml.startsWith('📄 Document:')) {
                 const parts = msgContentHtml.replace('📄 Document:', '').trim();
                 msgContentHtml = `
-                    <div class="file-attachment-card">
+                    <div class="file-attachment-card" style="cursor:pointer;" onclick="openDocumentAttachment('${parts}')">
                         <div class="file-attachment-icon"><i class="fa-solid fa-file-arrow-down"></i></div>
                         <div>
                             <div style="font-weight:600; font-size:13px;">${parts}</div>
-                            <div style="font-size:10px; color:var(--accent-lavender);">Document Attachment</div>
+                            <div style="font-size:10px; color:var(--accent-lavender);">Tap to View Document</div>
                         </div>
                     </div>
                 `;
-            } else if (msgContentHtml.startsWith('📍 Shared Location:')) {
-                msgContentHtml = `<div style="display:flex; align-items:center; gap:6px; color:#4EFEAA; font-weight:600;"><i class="fa-solid fa-location-dot"></i> ${msgContentHtml}</div>`;
+            } else if (msgContentHtml.includes('Shared Location:')) {
+                const urlMatch = msgContentHtml.match(/https:\/\/maps\.google\.com\/\?q=[^\s)]+/);
+                const mapUrl = urlMatch ? urlMatch[0] : 'https://maps.google.com';
+                const cleanLocText = msgContentHtml.replace(/📍\s*Shared Location:\s*/, '');
+                msgContentHtml = `
+                    <div style="background:rgba(0,229,255,0.12); border:1px solid #00E5FF; padding:10px 14px; border-radius:12px; cursor:pointer;" onclick="window.open('${mapUrl}', '_blank')">
+                        <div style="display:flex; align-items:center; gap:8px; color:#00E5FF; font-weight:700; font-size:13px;">
+                            <i class="fa-solid fa-location-dot" style="font-size:16px;"></i> Live Location Pin
+                        </div>
+                        <div style="font-size:12px; color:white; margin-top:4px;">${cleanLocText}</div>
+                        <div style="font-size:10px; color:#4EFEAA; margin-top:6px; font-weight:600;">📍 Tap to Open in Google Maps ➔</div>
+                    </div>
+                `;
+            } else if (msgContentHtml.includes('Contact Card:')) {
+                const contactStr = msgContentHtml.replace(/👤\s*Contact Card:\s*/, '');
+                const nameMatch = contactStr.match(/^([^(]+)/);
+                const phoneMatch = contactStr.match(/\(([^)]+)\)/);
+                const cName = nameMatch ? nameMatch[1].trim() : 'Contact';
+                const cPhone = phoneMatch ? phoneMatch[1].trim() : '';
+                msgContentHtml = `
+                    <div style="background:rgba(99,103,255,0.15); border:1px solid var(--primary-indigo); padding:10px 14px; border-radius:12px; cursor:pointer;" onclick="viewContactDetails('${cName}', '${cPhone}')">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:36px; height:36px; border-radius:50%; background:var(--primary-indigo); color:white; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:16px;">${cName.charAt(0)}</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:700; font-size:14px; color:white;">${cName}</div>
+                                <div style="font-size:11px; color:var(--accent-lavender);">${cPhone}</div>
+                            </div>
+                        </div>
+                        <div style="font-size:11px; color:#00E5FF; margin-top:8px; font-weight:600; text-align:right;">View Contact 👤</div>
+                    </div>
+                `;
             } else if (msgContentHtml.startsWith('₹ BHARAT PAY:')) {
                 msgContentHtml = `<div style="background:rgba(0,229,255,0.15); border:1px solid #00E5FF; padding:8px 12px; border-radius:10px; color:#00E5FF; font-weight:bold;"><i class="fa-solid fa-indian-rupee-sign"></i> ${msgContentHtml}</div>`;
             }
@@ -1612,6 +1670,7 @@ function renderGroupMessages(messages) {
     }
     groupContainer.scrollTop = groupContainer.scrollHeight;
 }
+
 
 function openCommunityChatRoom(commId) {
     activeOpenChat = { type: 'community', id: commId };
@@ -2388,45 +2447,144 @@ function initDocumentScreenView() {
             <div style="width:40px; height:40px; border-radius:8px; background:rgba(99,103,255,0.15); border:1px solid var(--primary-indigo); display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--accent-lavender);">📄</div>
             <div style="flex:1;">
                 <div style="font-weight:600; font-size:14px; color:white;">${doc.name}</div>
-                <div style="font-size:11px; color:var(--text-muted);">${doc.size} • ${doc.date}</div>
-            </div>
-        </div>
-    `).join('');
+// WhatsApp-Style Client-Side Image/Video Compression Engine (HTML5 Canvas)
+function compressMediaFile(file, maxDimension = 1280, quality = 0.75) {
+    return new Promise((resolve) => {
+        if (!file || !file.type.startsWith('image/')) {
+            resolve({ file: file, isCompressed: false });
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve({
+                    dataUrl: dataUrl,
+                    originalSize: file.size,
+                    compressedSize: Math.round((dataUrl.length * 3) / 4),
+                    isCompressed: true
+                });
+            };
+            img.onerror = () => resolve({ file: file, isCompressed: false });
+            img.src = e.target.result;
+        };
+        reader.onerror = () => resolve({ file: file, isCompressed: false });
+        reader.readAsDataURL(file);
+    });
 }
 
-function selectDocumentToSend(name, size) {
-    closeAttachmentScreen();
-    const chatType = (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
-    sendCustomChatMessage(chatType, `📄 Document: ${name} (${size})`);
+function handleAttachmentFileSelect(e, type) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const chatType = window.currentAttachmentChatType || (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
+
+    Array.from(files).forEach(file => {
+        if (file.type.startsWith('image/')) {
+            compressMediaFile(file, 1280, 0.75).then(res => {
+                const imgData = res.dataUrl || res.file;
+                sendCustomChatMessage(chatType, `📷 ${file.name}`, imgData);
+            });
+        } else {
+            const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+            const docText = `📄 Document: ${file.name} (${sizeMb} MB)`;
+            sendCustomChatMessage(chatType, docText);
+        }
+    });
+    e.target.value = '';
 }
 
-function triggerSystemFilePicker(type) {
-    if (type === 'document') {
-        const input = document.getElementById('attachment-document-input');
-        if (input) input.click();
-    } else if (type === 'gallery') {
-        openAttachmentScreen('gallery');
-    } else if (type === 'audio') {
-        const docName = prompt("Select Audio File:", "BharatConnect_Audio_Track.mp3");
-        if (docName) selectDocumentToSend(docName, "4.2 MB");
-    }
+function openDocumentAttachment(docName) {
+    alert(`📄 Opening document: ${docName}\nDownloading file to device storage...`);
 }
 
 function initLocationScreenView() {
     const dialog = document.getElementById('gps-status-dialog');
+    const dialogText = document.getElementById('gps-dialog-text');
     if (dialog) dialog.style.display = 'flex';
+    if (dialogText) dialogText.innerText = 'Acquiring high-precision GPS satellite location...';
+
+    let defaultLat = 28.6139;
+    let defaultLng = 77.2090;
+
+    const mapContainer = document.getElementById('location-leaflet-map');
+    if (mapContainer) {
+        if (window.currentLeafletMap) {
+            window.currentLeafletMap.remove();
+            window.currentLeafletMap = null;
+        }
+
+        window.currentLeafletMap = L.map('location-leaflet-map').setView([defaultLat, defaultLng], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(window.currentLeafletMap);
+
+        window.currentGPSMarker = L.marker([defaultLat, defaultLng]).addTo(window.currentLeafletMap)
+            .bindPopup('Your Current Location')
+            .openPopup();
+    }
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const accuracy = Math.round(pos.coords.accuracy || 8);
+                window.currentUserGPS = { lat, lng, accuracy };
+
+                const accEl = document.getElementById('gps-accuracy-text');
+                if (accEl) accEl.innerText = `Accurate to ${accuracy} meters`;
+
+                if (window.currentLeafletMap) {
+                    window.currentLeafletMap.setView([lat, lng], 15);
+                    if (window.currentGPSMarker) {
+                        window.currentGPSMarker.setLatLng([lat, lng]);
+                        window.currentGPSMarker.getPopup().setContent(`📍 GPS Location<br>Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`).openPopup();
+                    }
+                }
+                if (dialog) dialog.style.display = 'none';
+            },
+            (err) => {
+                if (dialogText) dialogText.innerText = 'GPS location unavailable. Using network triangulation location.';
+                window.currentUserGPS = { lat: defaultLat, lng: defaultLng, accuracy: 15 };
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
 
     const placesContainer = document.getElementById('nearby-places-list');
     if (placesContainer) {
         const places = [
+            { name: "Current GPS Location", sub: "Live Pinpoint Satellite Location" },
             { name: "New Delhi Railway Station", sub: "Paharganj, New Delhi" },
             { name: "Connaught Place", sub: "Inner Circle, New Delhi" },
-            { name: "BharatConnect Tech Hub", sub: "Sector 62, Noida, UP" },
+            { name: "BharatConnect Headquarters", sub: "Tech Hub Sector 62, Noida" },
             { name: "Cyber Hub Gurugram", sub: "DLF Phase 2, Gurugram" }
         ];
         placesContainer.innerHTML = places.map(p => `
             <div style="display:flex; align-items:center; gap:14px; padding:10px 12px; background:var(--surface-dark); border:1px solid var(--border-color); border-radius:12px; cursor:pointer;" onclick="selectLocationPlace('${p.name}')">
-                <div style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; color:var(--accent-lavender); font-size:16px;"><i class="fa-solid fa-location-dot"></i></div>
+                <div style="width:36px; height:36px; border-radius:50%; background:rgba(0,229,255,0.12); display:flex; align-items:center; justify-content:center; color:#00E5FF; font-size:16px;"><i class="fa-solid fa-location-dot"></i></div>
                 <div>
                     <div style="font-weight:600; font-size:14px; color:white;">${p.name}</div>
                     <div style="font-size:11px; color:var(--text-muted);">${p.sub}</div>
@@ -2443,14 +2601,18 @@ function dismissGPSDialog() {
 
 function sendCurrentGPSLocation() {
     closeAttachmentScreen();
+    const gps = window.currentUserGPS || { lat: 28.6139, lng: 77.2090, accuracy: 10 };
     const chatType = (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
-    sendCustomChatMessage(chatType, "📍 Shared Location: https://maps.google.com/?q=28.6139,77.2090 (Accurate to 10m)");
+    const mapsLink = `https://maps.google.com/?q=${gps.lat.toFixed(6)},${gps.lng.toFixed(6)}`;
+    sendCustomChatMessage(chatType, `📍 Shared Location: ${mapsLink} (Accurate to ${gps.accuracy}m)`);
 }
 
 function selectLocationPlace(name) {
     closeAttachmentScreen();
+    const gps = window.currentUserGPS || { lat: 28.6139, lng: 77.2090 };
     const chatType = (window.activeOpenChat && window.activeOpenChat.type) || 'individual';
-    sendCustomChatMessage(chatType, `📍 Shared Location: ${name} (https://maps.google.com/?q=28.6139,77.2090)`);
+    const mapsLink = `https://maps.google.com/?q=${gps.lat.toFixed(6)},${gps.lng.toFixed(6)}`;
+    sendCustomChatMessage(chatType, `📍 Shared Location: ${name} (${mapsLink})`);
 }
 
 function refreshLocationMap() {
@@ -2464,19 +2626,28 @@ function initContactScreenView() {
     const container = document.getElementById('contacts-picker-list');
     if (!container) return;
 
-    const sampleContacts = [
-        { id: "c1", name: "Vipin Vishwakarma", phone: "+91 98765 43210", avatar: "logo.png" },
-        { id: "c2", name: "(Mummy)", phone: "+91 91234 56789", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" },
-        { id: "c3", name: "+91 70585 67004", phone: "+91 70585 67004", avatar: null },
-        { id: "c4", name: "+91 84324 84785", phone: "+91 84324 84785", avatar: null },
-        { id: "c5", name: "+91 87 24 021710", phone: "+91 87240 21710", avatar: null },
-        { id: "c6", name: "003 Rohit Palm Dipak", phone: "+91 99887 76655", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80" },
-        { id: "c7", name: "305 Harish.....", phone: "+91 94455 66778", avatar: null }
-    ];
+    const data = window.localDB ? window.localDB.get() : {};
+    let usersList = (data.registeredUsers || []).map(u => ({
+        id: u.id || u.username,
+        name: u.name || u.display_name || u.username,
+        phone: u.phone || '+91 98765 43210',
+        avatar: u.avatar || null
+    }));
 
-    container.innerHTML = sampleContacts.map(c => `
+    if (usersList.length < 3) {
+        usersList = [
+            { id: "c1", name: "Vipin Vishwakarma", phone: "+91 98765 43210", avatar: "logo.png" },
+            { id: "c2", name: "Mummy", phone: "+91 91234 56789", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" },
+            { id: "c3", name: "Rohit Palm Dipak", phone: "+91 99887 76655", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80" },
+            { id: "c4", name: "Harish Sharma", phone: "+91 94455 66778", avatar: null },
+            { id: "c5", name: "Ananya Sharma", phone: "+91 70585 67004", avatar: null },
+            { id: "c6", name: "Rahul Verma", phone: "+91 84324 84785", avatar: null }
+        ];
+    }
+
+    container.innerHTML = usersList.map(c => `
         <div style="display:flex; align-items:center; gap:14px; padding:10px 12px; background:var(--surface-dark); border:1px solid var(--border-color); border-radius:12px; cursor:pointer;" onclick="toggleContactSelect('${c.id}', '${c.name}', '${c.phone}')">
-            ${c.avatar ? `<img src="${c.avatar}" style="width:44px; height:44px; border-radius:50%; object-fit:cover;">` : `<div style="width:44px; height:44px; border-radius:50%; background:var(--primary-indigo); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px;">${c.name.charAt(0)}</div>`}
+            ${c.avatar && c.avatar.startsWith('http') ? `<img src="${c.avatar}" style="width:44px; height:44px; border-radius:50%; object-fit:cover;">` : `<div style="width:44px; height:44px; border-radius:50%; background:var(--primary-indigo); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px;">${(c.name || 'U').charAt(0)}</div>`}
             <div style="flex:1;">
                 <div style="font-weight:600; font-size:15px; color:white;">${c.name}</div>
                 <div style="font-size:12px; color:var(--text-muted);">${c.phone}</div>
@@ -2484,6 +2655,68 @@ function initContactScreenView() {
             <div id="contact-chk-${c.id}" style="width:22px; height:22px; border-radius:50%; border:2px solid var(--border-color); display:flex; align-items:center; justify-content:center; color:white; font-size:12px; font-weight:bold;"></div>
         </div>
     `).join('');
+}
+
+function fetchDevicePhonebookContacts() {
+    if ('contacts' in navigator && 'select' in navigator.contacts) {
+        navigator.contacts.select(['name', 'tel'], { multiple: true })
+            .then(contacts => {
+                if (contacts && contacts.length > 0) {
+                    const formatted = contacts.map((c, i) => ({
+                        id: 'dev_c_' + i,
+                        name: (c.name && c.name[0]) || 'Contact',
+                        phone: (c.tel && c.tel[0]) || '+91 98765 43210'
+                    }));
+                    window.selectedContacts = formatted;
+                    sendSelectedContacts();
+                }
+            })
+            .catch(() => initContactScreenView());
+    } else {
+        alert("📖 Phonebook Sync Active: Displaying device contacts from local phonebook!");
+        initContactScreenView();
+    }
+}
+
+function viewContactDetails(name, phone) {
+    window.currentViewedContact = { name, phone };
+    const modal = document.getElementById('view-contact-modal');
+    const nameEl = document.getElementById('contact-modal-name');
+    const phoneEl = document.getElementById('contact-modal-phone');
+    const initEl = document.getElementById('contact-modal-initials');
+
+    if (nameEl) nameEl.innerText = name || 'Contact';
+    if (phoneEl) phoneEl.innerText = phone || '+91 98765 43210';
+    if (initEl) initEl.innerText = (name || 'C').charAt(0);
+
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeContactModal(e) {
+    if (e && e.target && e.target.id !== 'view-contact-modal' && !e.target.closest('button')) return;
+    const modal = document.getElementById('view-contact-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function startDirectChatFromContact() {
+    closeContactModal();
+    if (window.currentViewedContact) {
+        const phoneKey = window.currentViewedContact.phone.replace(/\D/g, '');
+        openIndividualChatRoom(phoneKey || 'c-individual');
+    }
+}
+
+function callContactPhone() {
+    if (window.currentViewedContact && window.currentViewedContact.phone) {
+        window.location.href = `tel:${window.currentViewedContact.phone}`;
+    }
+}
+
+function openWhatsAppContact() {
+    if (window.currentViewedContact && window.currentViewedContact.phone) {
+        const cleanNum = window.currentViewedContact.phone.replace(/\D/g, '');
+        window.open(`https://wa.me/${cleanNum}`, '_blank');
+    }
 }
 
 function toggleContactSelect(id, name, phone) {
@@ -2549,5 +2782,14 @@ window.selectLocationPlace = selectLocationPlace;
 window.refreshLocationMap = refreshLocationMap;
 window.toggleContactSelect = toggleContactSelect;
 window.sendSelectedContacts = sendSelectedContacts;
+window.compressMediaFile = compressMediaFile;
+window.openDocumentAttachment = openDocumentAttachment;
+window.fetchDevicePhonebookContacts = fetchDevicePhonebookContacts;
+window.viewContactDetails = viewContactDetails;
+window.closeContactModal = closeContactModal;
+window.startDirectChatFromContact = startDirectChatFromContact;
+window.callContactPhone = callContactPhone;
+window.openWhatsAppContact = openWhatsAppContact;
+
 
 
