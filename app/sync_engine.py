@@ -16,9 +16,13 @@ from utils.local_storage import local_storage
 
 
 class HybridSyncEngine:
-    def __init__(self, base_url="http://127.0.0.1:8000/api/v1"):
+    def __init__(self, base_url=None):
+        import os
+        if not base_url:
+            base_url = os.environ.get("API_BASE_URL") or "https://bharatconnect-api.onrender.com/api/v1"
         self.local_db = SQLiteDatabaseEngine()
         self.api_client = BharatConnectAPIClient(base_url=base_url)
+
         self._is_online = False
         self._sync_thread = None
         self._ws_thread = None

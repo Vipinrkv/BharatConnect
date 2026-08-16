@@ -1444,7 +1444,9 @@ function clearIndivMediaAttachment() {
 
 function openIndividualChatRoom(chatId) {
     activeOpenChat = { type: 'individual', id: chatId };
+    window.activeOpenChat = activeOpenChat;
     const data = window.localDB.get();
+
     const chat = (data.individualChats || []).find(c => c.id === chatId);
     if (!chat) return;
 
@@ -1539,6 +1541,7 @@ function renderIndividualMessages(messages) {
 
 function openGroupChatRoom(groupId) {
     activeOpenChat = { type: 'group', id: groupId };
+    window.activeOpenChat = activeOpenChat;
     const data = window.localDB.get();
     const group = (data.groups || []).find(g => g.id === groupId);
     if (!group) return;
@@ -1571,7 +1574,9 @@ function renderGroupMessages(messages) {
 
 function openCommunityChatRoom(commId) {
     activeOpenChat = { type: 'community', id: commId };
+    window.activeOpenChat = activeOpenChat;
     const data = window.localDB.get();
+
     const comm = (data.communities || []).find(c => c.id === commId);
     if (!comm) return;
 
@@ -1867,6 +1872,16 @@ if (window.connectionManager) {
             const ingested = window.localDB.ingestServerMessage(msg);
             if (ingested) {
                 window.renderIndividualChats();
+
+                // Force instant UI refresh if sitting on open chat room
+                if (window.activeOpenChat && window.activeOpenChat.id) {
+                    const data = window.localDB.get();
+                    const chat = (data.individualChats || []).find(c => c.id === window.activeOpenChat.id || c.userId === window.activeOpenChat.id || c.phone === window.activeOpenChat.id);
+                    if (chat && chat.messages) {
+                        renderIndividualMessages(chat.messages);
+                    }
+                }
+
                 const data = window.localDB.get();
                 const myId = String(data.currentUser.id || '').toLowerCase();
                 const myUsername = String(data.currentUser.username || '').toLowerCase();
@@ -1903,13 +1918,28 @@ if (window.connectionManager) {
             });
             if (found) {
                 window.localDB.save(data);
-                window.renderIndividualChats();
                 if (window.activeOpenChat && window.activeOpenChat.id === statusData.chat_id) {
-                    const chat = (data.individualChats || []).find(c => c.id === statusData.chat_id);
-                    if (chat) window.renderIndividualMessages(chat.messages || []);
+                    const chat = data.individualChats.find(c => c.id === statusData.chat_id);
+                    if (chat) renderIndividualMessages(chat.messages);
                 }
             }
         }
     });
 }
 
+// High-frequency reactive auto-refresh for active open chat room (400ms ticker)
+setInterval(function() {
+    if (window.activeOpenChat && window.activeOpenChat.id && window.localDB && typeof renderIndividualMessages === 'function') {
+        const data = window.localDB.get();
+        const chat = (data.individualChats || []).find(c => c.id === window.activeOpenChat.id || c.userId === window.activeOpenChat.id || c.phone === window.activeOpenChat.id);
+        if (chat && chat.messages) {
+            const indivContainer = document.getElementById('indiv-messages');
+            if (indivContainer) {
+                const currentBubbleCount = indivContainer.querySelectorAll('.message-bubble').length;
+                if (currentBubbleCount !== chat.messages.length) {
+                    renderIndividualMessages(chat.messages);
+                }
+            }
+        }
+    }
+}, 400);
