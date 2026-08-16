@@ -867,6 +867,27 @@ class LocalDB {
         return newComm;
     }
 
+    async addStory(story) {
+        const data = this.get();
+        if (!data.stories) data.stories = [{ id: 's0', name: 'Your Story', avatar: 'logo.png', isAdd: true }];
+        
+        const newStory = {
+            id: story.id || ('st_' + Date.now()),
+            name: story.name || (data.currentUser ? (data.currentUser.name || data.currentUser.username) : 'You'),
+            avatar: story.avatar || (data.currentUser ? data.currentUser.avatar : 'logo.png'),
+            caption: story.caption || '',
+            image: story.image || null,
+            bgTheme: story.bgTheme || 'linear-gradient(135deg, #6367FF, #FF5E93)',
+            time: 'Just now',
+            isAdd: false
+        };
+
+        // Insert new story right after "Your Story" add button (index 1)
+        data.stories.splice(1, 0, newStory);
+        this.save(data);
+        return newStory;
+    }
+
     async addPost(post) {
         const data = this.get();
         data.posts.unshift(post);

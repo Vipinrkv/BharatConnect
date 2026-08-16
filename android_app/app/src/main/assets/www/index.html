@@ -117,7 +117,13 @@
                 </div>
             </div>
             
-            <div class="stories-section" id="stories-container"></div>
+            <div class="stories-wrapper">
+                <div class="stories-section-header">
+                    <span>Stories</span>
+                    <button class="btn-text-action" onclick="openCreateStoryScreen()">+ Add Story</button>
+                </div>
+                <div class="stories-section" id="stories-container"></div>
+            </div>
             
             <div id="posts-container"></div>
 
@@ -370,6 +376,48 @@
             </div>
         </div>
 
+        <!-- 13.5 CREATE STORY / STATUS SCREEN -->
+        <div id="screen-create-story" class="screen no-nav" style="background:var(--bg-dark);">
+            <div class="app-header">
+                <button class="back-btn" style="margin:0;" onclick="showScreen('screen-home')">←</button>
+                <div class="header-title">Create Story / Status</div>
+                <button class="btn-primary" style="width:auto; padding:6px 16px; font-size:13px; height:34px; margin:0;" onclick="publishStoryStatus()">Post</button>
+            </div>
+
+            <div style="padding:20px 16px; display:flex; flex-direction:column; gap:16px; flex:1;">
+                <!-- Story Canvas / Preview Card -->
+                <div id="story-preview-card" style="width:100%; height:320px; border-radius:18px; background:linear-gradient(135deg, #6367FF, #FF5E93); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; position:relative; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+                    <img id="story-preview-img" style="display:none; width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; border-radius:18px;">
+                    <div id="story-preview-overlay" style="position:relative; z-index:2; width:100%;">
+                        <textarea id="story-text-input" placeholder="Type your status update..." style="width:100%; background:transparent; border:none; color:white; font-size:20px; font-weight:700; text-align:center; outline:none; resize:none; font-family:inherit;" rows="4"></textarea>
+                    </div>
+                </div>
+
+                <!-- Theme / Color Gradient Selector -->
+                <div>
+                    <label style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:8px;">BACKGROUND THEME</label>
+                    <div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:4px;">
+                        <div onclick="setStoryTheme('linear-gradient(135deg, #6367FF, #FF5E93)')" style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg, #6367FF, #FF5E93); cursor:pointer; flex-shrink:0; border:2px solid white;"></div>
+                        <div onclick="setStoryTheme('linear-gradient(135deg, #00E5FF, #6367FF)')" style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg, #00E5FF, #6367FF); cursor:pointer; flex-shrink:0;"></div>
+                        <div onclick="setStoryTheme('linear-gradient(135deg, #FF9100, #FF5252)')" style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg, #FF9100, #FF5252); cursor:pointer; flex-shrink:0;"></div>
+                        <div onclick="setStoryTheme('linear-gradient(135deg, #00E676, #1DE9B6)')" style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg, #00E676, #1DE9B6); cursor:pointer; flex-shrink:0;"></div>
+                        <div onclick="setStoryTheme('linear-gradient(135deg, #1E1B4B, #312E81)')" style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg, #1E1B4B, #312E81); cursor:pointer; flex-shrink:0;"></div>
+                    </div>
+                </div>
+
+                <!-- Media Attachment Controls -->
+                <div style="display:flex; gap:12px;">
+                    <button class="btn-secondary" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px;" onclick="document.getElementById('story-photo-input').click()">
+                        <i class="fa-solid fa-image"></i> Add Image
+                    </button>
+                    <input type="file" id="story-photo-input" accept="image/*" style="display:none;" onchange="handleStoryImageSelect(event)">
+                    <button id="btn-remove-story-img" class="btn-secondary" style="display:none; padding:12px; color:#FF5252;" onclick="removeStoryImage()">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- 14. CREATE POST SCREEN (Instagram Style) -->
         <div id="screen-create-post" class="screen no-nav">
             <div class="app-header">
@@ -564,6 +612,34 @@
                 <div id="custom-alert-message" class="modal-message">Alert text content</div>
                 <div class="modal-actions">
                     <button id="custom-alert-ok-btn" class="btn-primary" onclick="closeCustomAlert()">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STORY VIEWER MODAL -->
+        <div id="story-viewer-modal" class="modal-overlay" style="display:none; background:rgba(0,0,0,0.92); z-index:999999;">
+            <div style="width:100%; max-width:440px; height:100%; display:flex; flex-direction:column; position:relative; padding:16px;">
+                <!-- Progress Bar -->
+                <div style="width:100%; height:3px; background:rgba(255,255,255,0.3); border-radius:2px; margin-top:8px; overflow:hidden;">
+                    <div id="story-progress-fill" style="width:0%; height:100%; background:white; transition:width 0.1s linear;"></div>
+                </div>
+
+                <!-- Author Header -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px; z-index:10;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <img id="story-viewer-avatar" src="logo.png" style="width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-indigo);">
+                        <div>
+                            <div id="story-viewer-name" style="font-weight:700; font-size:15px; color:white;">User</div>
+                            <div id="story-viewer-time" style="font-size:11px; color:var(--text-muted);">Just now</div>
+                        </div>
+                    </div>
+                    <button class="icon-btn" onclick="closeStoryViewer()" style="color:white; font-size:18px;">✕</button>
+                </div>
+
+                <!-- Story Body Container -->
+                <div id="story-viewer-body" style="flex:1; display:flex; align-items:center; justify-content:center; position:relative; margin:16px 0; border-radius:18px; overflow:hidden; padding:20px; text-align:center;">
+                    <img id="story-viewer-img" style="display:none; width:100%; height:100%; object-fit:contain;">
+                    <div id="story-viewer-caption" style="font-size:22px; font-weight:700; color:white; position:relative; z-index:2; line-height:1.4;"></div>
                 </div>
             </div>
         </div>

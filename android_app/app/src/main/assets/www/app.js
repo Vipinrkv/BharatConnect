@@ -656,31 +656,173 @@ function renderAll() {
 function renderStories(stories) {
     const container = document.getElementById('stories-container');
     if (!container) return;
-    container.innerHTML = stories.map(s => `
-        <div class="story-item" onclick="${s.isAdd ? 'createNewStoryPrompt()' : ''}">
+
+    if (!stories || stories.length === 0) {
+        stories = [{ id: 's0', name: 'Your Story', avatar: 'logo.png', isAdd: true }];
+    }
+
+    const hasAdd = stories.some(s => s.isAdd);
+    if (!hasAdd) {
+        const currentUser = (window.localDB && window.localDB.get().currentUser) || {};
+        stories.unshift({ id: 's0', name: 'Your Story', avatar: currentUser.avatar || 'logo.png', isAdd: true });
+    }
+
+    container.innerHTML = stories.map((s, idx) => `
+        <div class="story-item" onclick="${s.isAdd ? 'openCreateStoryScreen()' : `openStoryViewer(${idx})`}">
             <div class="story-ring ${s.isAdd ? 'add-story' : ''}">
-                <img src="${s.avatar}" class="story-img">
+                <img src="${s.avatar || 'logo.png'}" class="story-img">
             </div>
-            <div class="story-name">${s.name}</div>
+            <div class="story-name" style="max-width:68px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${s.isAdd ? '+ Add Story' : (s.name || 'Story')}</div>
         </div>
     `).join('');
 }
 
-function createNewStoryPrompt() {
-    showCustomPrompt({
-        title: "📸 New Story Update",
-        subtitle: "Add a status update to your story",
-        fields: [
-            { label: "Story Caption", placeholder: "What's happening right now...", multiline: true }
-        ],
-        confirmText: "Post Story",
-        onConfirm: function(caption) {
-            if (caption) {
-                showCustomAlert("Story posted successfully!", "Stories");
-            }
-        }
-    });
+window.selectedStoryImageBase64 = null;
+window.currentStoryTheme = 'linear-gradient(135deg, #6367FF, #FF5E93)';
+
+function openCreateStoryScreen() {
+    window.selectedStoryImageBase64 = null;
+    window.currentStoryTheme = 'linear-gradient(135deg, #6367FF, #FF5E93)';
+    const textInput = document.getElementById('story-text-input');
+    const previewImg = document.getElementById('story-preview-img');
+    const previewCard = document.getElementById('story-preview-card');
+    const removeBtn = document.getElementById('btn-remove-story-img');
+    
+    if (textInput) textInput.value = '';
+    if (previewImg) { previewImg.src = ''; previewImg.style.display = 'none'; }
+    if (previewCard) previewCard.style.background = window.currentStoryTheme;
+    if (removeBtn) removeBtn.style.display = 'none';
+
+    showScreen('screen-create-story');
 }
+window.openCreateStoryScreen = openCreateStoryScreen;
+
+function setStoryTheme(theme) {
+    window.currentStoryTheme = theme;
+    const previewCard = document.getElementById('story-preview-card');
+    if (previewCard) previewCard.style.background = theme;
+}
+window.setStoryTheme = setStoryTheme;
+
+function handleStoryImageSelect(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (window.compressMediaFile) {
+        window.compressMediaFile(file, 1280, 0.75).then(res => {
+            const dataUrl = res.dataUrl || res.file;
+            window.selectedStoryImageBase64 = dataUrl;
+            const previewImg = document.getElementById('story-preview-img');
+            const removeBtn = document.getElementById('btn-remove-story-img');
+            if (previewImg) {
+                previewImg.src = dataUrl;
+                previewImg.style.display = 'block';
+            }
+            if (removeBtn) removeBtn.style.display = 'block';
+        });
+    }
+}
+window.handleStoryImageSelect = handleStoryImageSelect;
+
+function removeStoryImage() {
+    window.selectedStoryImageBase64 = null;
+    const previewImg = document.getElementById('story-preview-img');
+    const removeBtn = document.getElementById('btn-remove-story-img');
+    const photoInput = document.getElementById('story-photo-input');
+    if (previewImg) { previewImg.src = ''; previewImg.style.display = 'none'; }
+    if (removeBtn) removeBtn.style.display = 'none';
+    if (photoInput) photoInput.value = '';
+}
+window.removeStoryImage = removeStoryImage;
+
+async function publishStoryStatus() {
+    const captionEl = document.getElementById('story-text-input');
+    const caption = captionEl ? captionEl.value.trim() : '';
+
+    if (!caption && !window.selectedStoryImageBase64) {
+        showCustomAlert('Please enter a status update or select an image for your story.', 'Create Story');
+        return;
+    }
+
+    const data = window.localDB.get();
+    const curUser = data.currentUser || {};
+
+    const storyObj = {
+        name: curUser.name || curUser.username || 'You',
+        avatar: curUser.avatar || 'logo.png',
+        caption: caption,
+        image: window.selectedStoryImageBase64 || null,
+        bgTheme: window.currentStoryTheme
+    };
+
+    await window.localDB.addStory(storyObj);
+    const updatedData = window.localDB.get();
+    renderStories(updatedData.stories);
+
+    showScreen('screen-home');
+    showCustomAlert('Story published successfully! 🚀', 'Story Shared');
+}
+window.publishStoryStatus = publishStoryStatus;
+
+let storyViewerTimer = null;
+function openStoryViewer(index) {
+    const data = window.localDB.get();
+    const stories = data.stories || [];
+    const story = stories[index];
+    if (!story || story.isAdd) {
+        openCreateStoryScreen();
+        return;
+    }
+
+    const modal = document.getElementById('story-viewer-modal');
+    const avatarEl = document.getElementById('story-viewer-avatar');
+    const nameEl = document.getElementById('story-viewer-name');
+    const timeEl = document.getElementById('story-viewer-time');
+    const bodyEl = document.getElementById('story-viewer-body');
+    const imgEl = document.getElementById('story-viewer-img');
+    const captionEl = document.getElementById('story-viewer-caption');
+    const progressFill = document.getElementById('story-progress-fill');
+
+    if (!modal) return;
+
+    if (avatarEl) avatarEl.src = story.avatar || 'logo.png';
+    if (nameEl) nameEl.innerText = story.name || 'User';
+    if (timeEl) timeEl.innerText = story.time || 'Just now';
+
+    if (bodyEl) {
+        bodyEl.style.background = story.bgTheme || 'linear-gradient(135deg, #6367FF, #FF5E93)';
+    }
+
+    if (story.image) {
+        if (imgEl) { imgEl.src = story.image; imgEl.style.display = 'block'; }
+    } else {
+        if (imgEl) { imgEl.src = ''; imgEl.style.display = 'none'; }
+    }
+
+    if (captionEl) {
+        captionEl.innerText = story.caption || '';
+    }
+
+    modal.style.display = 'flex';
+
+    if (progressFill) {
+        progressFill.style.width = '0%';
+        setTimeout(() => { progressFill.style.width = '100%'; }, 50);
+    }
+
+    clearTimeout(storyViewerTimer);
+    storyViewerTimer = setTimeout(() => {
+        closeStoryViewer();
+    }, 5000);
+}
+window.openStoryViewer = openStoryViewer;
+
+function closeStoryViewer() {
+    clearTimeout(storyViewerTimer);
+    const modal = document.getElementById('story-viewer-modal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeStoryViewer = closeStoryViewer;
 
 
 function renderPosts(posts) {
@@ -2718,15 +2860,16 @@ function initContactScreenView() {
         avatar: u.avatar || null
     }));
 
-    if (usersList.length < 3) {
-        usersList = [
-            { id: "c1", name: "Vipin Vishwakarma", phone: "+91 98765 43210", avatar: "logo.png" },
-            { id: "c2", name: "Mummy", phone: "+91 91234 56789", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" },
-            { id: "c3", name: "Rohit Palm Dipak", phone: "+91 99887 76655", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80" },
-            { id: "c4", name: "Harish Sharma", phone: "+91 94455 66778", avatar: null },
-            { id: "c5", name: "Ananya Sharma", phone: "+91 70585 67004", avatar: null },
-            { id: "c6", name: "Rahul Verma", phone: "+91 84324 84785", avatar: null }
-        ];
+    if (!usersList || usersList.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:30px 16px; color:var(--text-muted);">
+                <div style="font-size:36px; margin-bottom:8px;">👥</div>
+                <div style="font-size:14px; font-weight:600; color:white;">No Contacts Available</div>
+                <div style="font-size:12px; margin-top:4px;">Registered contacts or device phonebook contacts will appear here.</div>
+                <button class="btn-secondary" style="margin-top:14px; width:auto; padding:8px 16px; font-size:12px;" onclick="fetchDevicePhonebookContacts()">📖 Sync Phonebook</button>
+            </div>
+        `;
+        return;
     }
 
     container.innerHTML = usersList.map(c => `
