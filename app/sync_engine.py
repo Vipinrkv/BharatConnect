@@ -45,12 +45,23 @@ class HybridSyncEngine:
             self._chat_listeners[chat_id].remove(callback)
 
     def notify_chat_listeners(self, chat_id, data=None):
-        listeners = list(self._chat_listeners.get(chat_id, []))
-        for cb in listeners:
-            try:
-                cb(data)
-            except Exception:
-                pass
+        keys = {chat_id, "c-individual"}
+        if isinstance(data, dict):
+            if data.get("sender_id"):
+                keys.add(data.get("sender_id"))
+            if data.get("recipient_id"):
+                keys.add(data.get("recipient_id"))
+
+        called = set()
+        for k in keys:
+            for cb in list(self._chat_listeners.get(k, [])):
+                if cb not in called:
+                    called.add(cb)
+                    try:
+                        cb(data)
+                    except Exception:
+                        pass
+
 
     def start_websocket_listener(self):
         def _ws_runner():

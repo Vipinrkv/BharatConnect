@@ -401,10 +401,15 @@ class LocalDB {
         
         let chat = data.individualChats.find(c =>
             (sm.chat_id && c.id === sm.chat_id) ||
-            (contactKey && c.userId === contactKey) ||
-            (contactKey && c.phone === contactKey) ||
+            (contactKey && (c.userId === contactKey || c.phone === contactKey || c.id === contactKey)) ||
+            (sm.sender_id && (c.userId === sm.sender_id || c.phone === sm.sender_id || c.id === sm.sender_id)) ||
+            (sm.recipient_id && (c.userId === sm.recipient_id || c.phone === sm.recipient_id || c.id === sm.recipient_id)) ||
             (contactKey && this.getPairwiseChatId(myUserKey, c.phone || c.userId || c.id) === sm.chat_id)
         );
+
+        if (!chat && data.individualChats.length > 0 && (sm.chat_id === 'c-individual' || !contactKey)) {
+            chat = data.individualChats[0];
+        }
 
         if (!chat && contactKey) {
             chat = this.addIndividualContact(contactKey);
@@ -419,11 +424,12 @@ class LocalDB {
             if (sm.status && chat.messages[existsIndex].status !== sm.status) {
                 chat.messages[existsIndex].status = sm.status;
                 this.save(data);
-                if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && (window.activeOpenChat.id === chat.id || window.activeOpenChat.id === sm.chat_id)) {
+                if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && (window.activeOpenChat.id === chat.id || window.activeOpenChat.id === sm.chat_id || window.activeOpenChat.type === 'individual')) {
                     window.renderIndividualMessages(chat.messages);
                 }
             }
-        } else {
+        }
+ else {
             const initialStatus = sm.status || (isSentByMe ? 'SENT' : 'DELIVERED');
             chat.messages.push({
                 id: sm.id || ('sm_' + Date.now()),
@@ -449,9 +455,10 @@ class LocalDB {
                 }).catch(e => console.warn('[ingestServerMessage] Failed to send DELIVERED receipt:', e));
             }
 
-            if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && (window.activeOpenChat.id === chat.id || window.activeOpenChat.id === sm.chat_id)) {
+            if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && (window.activeOpenChat.id === chat.id || window.activeOpenChat.id === sm.chat_id || window.activeOpenChat.type === 'individual')) {
                 window.renderIndividualMessages(chat.messages);
             }
+
             if (typeof window.renderIndividualChats === 'function') {
                 window.renderIndividualChats();
             }
@@ -1039,9 +1046,10 @@ class LocalDB {
 
             if (hasNew) {
                 this.save(data);
-                if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && window.activeOpenChat.id === chatId) {
+                if (typeof window.renderIndividualMessages === 'function' && window.activeOpenChat && (window.activeOpenChat.id === chatId || window.activeOpenChat.type === 'individual')) {
                     window.renderIndividualMessages(chat.messages);
                 }
+
             }
         } catch (e) {
             console.warn('[syncChatMessagesFromCloud] error:', e);

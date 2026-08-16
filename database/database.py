@@ -976,8 +976,13 @@ class SQLiteDatabaseEngine:
         current_user = self.get_current_user()
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            query = "SELECT * FROM messages WHERE chat_id=? ORDER BY datetime(created_at) ASC, id ASC"
-            params = [chat_id]
+            if chat_id == "c-individual" or (isinstance(chat_id, str) and chat_id.startswith("c-")):
+                query = "SELECT * FROM messages WHERE chat_id=? OR chat_id='c-individual' ORDER BY datetime(created_at) ASC, id ASC"
+                params = [chat_id]
+            else:
+                query = "SELECT * FROM messages WHERE chat_id=? ORDER BY datetime(created_at) ASC, id ASC"
+                params = [chat_id]
+
             if limit is not None and isinstance(limit, int) and limit > 0:
                 query += " LIMIT ? OFFSET ?"
                 params.extend([limit, offset])
