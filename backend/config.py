@@ -18,9 +18,9 @@ HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", 8000))
 
 # Supabase Credentials (loaded from .env or environment variables)
-SUPABASE_PROJECT_ID = os.environ.get("SUPABASE_PROJECT_ID", "")
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
+SUPABASE_PROJECT_ID = os.environ.get("SUPABASE_PROJECT_ID", "ykbfynoofjvibnyfkifi")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://ykbfynoofjvibnyfkifi.supabase.co")
+SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrYmZ5bm9vZmp2aWJueWZraWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNzAxNjQsImV4cCI6MjEwMTk0NjE2NH0.XDeixsULEe8Z03OsxTOeACHXGkQU30MbuOvXWQrO9xw")
 SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "")
 
 # Firebase Cloud Messaging Credentials (loaded from .env or environment variables)
@@ -28,9 +28,9 @@ FCM_PROJECT_ID = os.environ.get("FCM_PROJECT_ID", "bharatconnect-fcm")
 FCM_SENDER_ID = os.environ.get("FCM_SENDER_ID", "247753000307")
 
 # Cloudinary Storage Credentials (loaded from .env or environment variables)
-CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
-CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
-CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "twiesyqj")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "446197212112895")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "AZhHnq586KtBkyhKFEdwYRwbiiA")
 CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL", "")
 
 # Universal Database Connection String
