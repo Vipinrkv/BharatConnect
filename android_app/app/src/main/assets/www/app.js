@@ -2499,6 +2499,12 @@ function initDocumentScreenView() {
             <div style="width:40px; height:40px; border-radius:8px; background:rgba(99,103,255,0.15); border:1px solid var(--primary-indigo); display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--accent-lavender);">📄</div>
             <div style="flex:1;">
                 <div style="font-weight:600; font-size:14px; color:white;">${doc.name}</div>
+                <div style="font-size:12px; color:var(--text-muted);">${doc.size} • ${doc.date}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
 // WhatsApp-Style Client-Side Image/Video Compression Engine (HTML5 Canvas)
 function compressMediaFile(file, maxDimension = 1280, quality = 0.75) {
     return new Promise((resolve) => {
