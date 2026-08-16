@@ -81,7 +81,14 @@ class LocalDB {
 
     get() {
         try {
-            return JSON.parse(localStorage.getItem(DB_KEY)) || cleanProductionData;
+            const data = JSON.parse(localStorage.getItem(DB_KEY)) || cleanProductionData;
+            // Auto sanitize corrupted currentUser phone (e.g. '25' extracted from Vishwakarmavipin25)
+            if (data && data.currentUser) {
+                if (data.currentUser.phone && (!/^[+0-9\s-]{7,}$/.test(data.currentUser.phone) || data.currentUser.phone.length < 7)) {
+                    data.currentUser.phone = '';
+                }
+            }
+            return data;
         } catch (e) {
             return cleanProductionData;
         }
@@ -567,12 +574,13 @@ class LocalDB {
                 (u.phone && u.phone.replace(/\D/g, '') === cleanIdent.replace(/\D/g, ''))
             );
 
+            const isPhoneNum = /^[+0-9\s-]{7,}$/.test(identifier);
             const userToLogin = found || {
                 id: 'u_' + Date.now(),
                 name: identifier,
                 username: identifier.includes('@') ? identifier.split('@')[0] : identifier,
-                email: identifier.includes('@') ? identifier : `${identifier}@bharatconnect.app`,
-                phone: identifier.replace(/\D/g, '') || '+91 98765 43210',
+                email: identifier.includes('@') ? identifier : '',
+                phone: isPhoneNum ? identifier : '',
                 avatar: 'logo.png',
                 bio: 'Hey there! I am using BharatConnect 🚀'
             };

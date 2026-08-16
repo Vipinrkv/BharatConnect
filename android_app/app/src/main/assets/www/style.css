@@ -749,10 +749,10 @@ body {
     border: none;
 }
 
-/* Floating Add Button for Chat Sub-Tabs (Bottom Right) */
+/* Floating Add Button for Chat Sub-Tabs & Feed (Bottom Right Fixed) */
 .fab-floating {
-    position: absolute;
-    bottom: 80px;
+    position: fixed;
+    bottom: 85px;
     right: 20px;
     width: 54px;
     height: 54px;
@@ -767,7 +767,7 @@ body {
     box-shadow: 0 10px 25px rgba(99, 103, 255, 0.5);
     border: 2px solid rgba(255, 255, 255, 0.2);
     cursor: pointer;
-    z-index: 150;
+    z-index: 9999;
     transition: transform 0.2s ease;
 }
 

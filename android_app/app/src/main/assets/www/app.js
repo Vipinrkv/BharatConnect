@@ -1187,8 +1187,10 @@ async function openContactModal() {
 }
 
 function closeContactModal() {
-    const modal = document.getElementById('modal-add-contact');
-    if (modal) modal.style.display = 'none';
+    const modal1 = document.getElementById('modal-add-contact');
+    if (modal1) modal1.style.display = 'none';
+    const modal2 = document.getElementById('modal-view-contact-profile');
+    if (modal2) modal2.style.display = 'none';
 }
 
 function getDeviceContactsList() {
@@ -1224,8 +1226,22 @@ function renderModalContactList() {
     const currentPhone = (data.currentUser.phone || '').replace(/\D/g, '');
 
     const deviceContacts = getDeviceContactsList();
-    const registeredUsers = data.registeredUsers || [];
+    const registeredUsers = [...(data.registeredUsers || []), ...(data.users || [])];
     
+    // Also include participants from previous conversations
+    const existingConversations = [...(data.conversations || []), ...(data.individualChats || [])];
+    existingConversations.forEach(c => {
+        if (c.user && c.user.id && !registeredUsers.some(u => u.id === c.user.id)) {
+            registeredUsers.push({
+                id: c.user.id,
+                name: c.user.name || c.user.username,
+                username: c.user.username,
+                phone: c.user.phone,
+                avatar: c.user.avatar || 'logo.png'
+            });
+        }
+    });
+
     const registeredList = [];
     const unregisteredList = [];
 
@@ -1284,9 +1300,9 @@ function renderModalContactList() {
         const alreadyAdded = registeredList.some(r => r.id === u.id || (r.cleanPhone && uphone && (r.cleanPhone.endsWith(uphone) || uphone.endsWith(r.cleanPhone))));
         if (!alreadyAdded) {
             registeredList.push({
-                id: u.id,
-                name: u.name || '@' + u.username,
-                phone: u.phone || '@' + u.username,
+                id: u.id || ('u_' + Date.now()),
+                name: u.name || (u.username ? '@' + u.username : 'User'),
+                phone: u.phone || (u.username ? '@' + u.username : 'Contact'),
                 cleanPhone: uphone,
                 avatar: u.avatar || 'logo.png',
                 isRegistered: true,
@@ -2025,22 +2041,23 @@ function renderMarketplace(tabType, marketplace) {
 function renderProfile(user) {
     if (!user) return;
     const imgEl = document.getElementById('profile-img');
-    if (imgEl) imgEl.src = user.avatar || 'logo.png';
+    if (imgEl) imgEl.src = (user.avatar && user.avatar !== 'logo.png') ? user.avatar : 'logo.png';
     
     const nameEl = document.getElementById('profile-name');
-    if (nameEl) nameEl.innerText = user.name || 'User';
+    if (nameEl) nameEl.innerText = user.name || user.username || 'User';
 
     const handleEl = document.getElementById('profile-handle');
     if (handleEl) handleEl.innerText = '@' + (user.username || 'user');
 
     const bioEl = document.getElementById('profile-bio');
-    if (bioEl) bioEl.innerText = user.bio || 'No bio added yet.';
+    if (bioEl) bioEl.innerText = user.bio || 'Hey there! I am using BharatConnect 🚀';
 
     const emailEl = document.getElementById('profile-email');
-    if (emailEl) emailEl.innerText = user.email || 'Not specified';
+    if (emailEl) emailEl.innerText = (user.email && user.email.includes('@')) ? user.email : 'Not specified';
 
     const phoneEl = document.getElementById('profile-phone');
-    if (phoneEl) phoneEl.innerText = user.phone || 'Not specified';
+    const validPhone = (user.phone && /^[+0-9\s-]{7,}$/.test(user.phone)) ? user.phone : null;
+    if (phoneEl) phoneEl.innerText = validPhone || 'Not specified';
 
     const dobEl = document.getElementById('profile-dob');
     if (dobEl) dobEl.innerText = user.dob || 'Not specified';
@@ -2354,24 +2371,7 @@ function triggerAttachment(type) {
     }
 }
 
-function handleAttachmentFileSelect(e, type) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const chatType = window.currentAttachmentChatType || 'individual';
 
-    if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = function(evt) {
-            sendCustomChatMessage(chatType, `📷 ${file.name}`, evt.target.result);
-        };
-        reader.readAsDataURL(file);
-    } else {
-        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-        const docText = `📄 Document: ${file.name} (${sizeMb} MB)`;
-        sendCustomChatMessage(chatType, docText);
-    }
-    e.target.value = '';
-}
 
 function sendCustomChatMessage(chatType, text, imageUrl = null) {
     if (chatType === 'individual') {
@@ -2919,11 +2919,7 @@ function viewContactDetails(name, phone) {
     if (modal) modal.style.display = 'flex';
 }
 
-function closeContactModal(e) {
-    if (e && e.target && e.target.id !== 'view-contact-modal' && !e.target.closest('button')) return;
-    const modal = document.getElementById('view-contact-modal');
-    if (modal) modal.style.display = 'none';
-}
+
 
 function startDirectChatFromContact() {
     closeContactModal();
