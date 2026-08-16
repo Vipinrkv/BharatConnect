@@ -1524,16 +1524,35 @@ function renderIndividualMessages(messages) {
                 }
             }
 
+            let msgContentHtml = m.text || '';
+            if (msgContentHtml.startsWith('📄 Document:')) {
+                const parts = msgContentHtml.replace('📄 Document:', '').trim();
+                msgContentHtml = `
+                    <div class="file-attachment-card">
+                        <div class="file-attachment-icon"><i class="fa-solid fa-file-arrow-down"></i></div>
+                        <div>
+                            <div style="font-weight:600; font-size:13px;">${parts}</div>
+                            <div style="font-size:10px; color:var(--accent-lavender);">Document Attachment</div>
+                        </div>
+                    </div>
+                `;
+            } else if (msgContentHtml.startsWith('📍 Shared Location:')) {
+                msgContentHtml = `<div style="display:flex; align-items:center; gap:6px; color:#4EFEAA; font-weight:600;"><i class="fa-solid fa-location-dot"></i> ${msgContentHtml}</div>`;
+            } else if (msgContentHtml.startsWith('₹ BHARAT PAY:')) {
+                msgContentHtml = `<div style="background:rgba(0,229,255,0.15); border:1px solid #00E5FF; padding:8px 12px; border-radius:10px; color:#00E5FF; font-weight:bold;"><i class="fa-solid fa-indian-rupee-sign"></i> ${msgContentHtml}</div>`;
+            }
+
             return `
                 <div class="message-bubble ${isSentByMe ? 'sent' : 'received'}">
                     ${imgHtml}
-                    <div>${m.text || ''}</div>
+                    <div>${msgContentHtml}</div>
                     <div class="message-time">
                         ${timeDisplay}
                         ${checkmarkHtml}
                     </div>
                 </div>
             `;
+
         }).join('');
     }
     indivContainer.scrollTop = indivContainer.scrollHeight;
@@ -1943,3 +1962,187 @@ setInterval(function() {
         }
     }
 }, 400);
+
+/* ==========================================
+ * WHATSAPP ATTACHMENT SHEET & EMOJI PICKER
+ * ========================================== */
+
+window.currentActiveEmojiInput = 'indiv-input';
+window.currentAttachmentChatType = 'individual';
+
+const EMOJI_DATA = {
+    smileys: ['😊','😂','😃','😄','😁','😆','🥹','😅','🤡','🤣','🙃','😉','😇','🥰','😍','🤩','😘','😗','😚','😋','😛','😜','🤪','🧐','🤓','😎','🥸','🥳','😏','😒','😞','😔','😟','😕','🙁'],
+    gestures: ['👍','👎','👌','🤌','🤏','✌️','🤞','🫰','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','🫵','🖐️','✋','🤚','🖖','🫱','🫲','🫳','🫴','🤝','👏','🙌','🫶','🤲','🙏','✍️'],
+    india: ['🇮🇳','🪔','🕌','🛕','🪷','🐘','🐅','🦚','🏏','☕','🫓','🍛','🥭','📜','🎨','🎬','🎼','🎖️','🏆','🎯','🚩','✨','🔥','🎉','🎈','💡'],
+    celebration: ['🎉','🥳','🎈','🎊','🎂','🎁','🎗️','🎟️','🍾','🥂','🍺','🍻','🍹','🍸','🍾','🍿','🎆','🎇','🏮','<ctrl42>','✨','🌟','💖','❤️','💙','🧡','💚','💛','💜'],
+    symbols: ['🔥','💯','⚡','✨','🌟','⭐','💥','💫','💦','💨','💬','📢','🔔','🎵','🎶','📢','🎯','📌','📍','🚀','🛸','🛸','🚗','🛺','🚲','📱','💻','📷','🛡️','🔒']
+};
+
+function toggleAttachmentSheet(chatType) {
+    if (chatType) window.currentAttachmentChatType = chatType;
+    const overlay = document.getElementById('attachment-modal-overlay');
+    if (!overlay) return;
+    if (overlay.style.display === 'flex') {
+        overlay.style.display = 'none';
+    } else {
+        closeEmojiPicker();
+        overlay.style.display = 'flex';
+    }
+}
+
+function closeAttachmentSheet(e) {
+    const overlay = document.getElementById('attachment-modal-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function triggerAttachment(type) {
+    closeAttachmentSheet();
+    const chatType = window.currentAttachmentChatType || 'individual';
+
+    if (type === 'gallery') {
+        const input = document.getElementById('attachment-gallery-input');
+        if (input) input.click();
+    } else if (type === 'camera') {
+        const input = document.getElementById('attachment-camera-input');
+        if (input) input.click();
+    } else if (type === 'document') {
+        const input = document.getElementById('attachment-document-input');
+        if (input) input.click();
+    } else if (type === 'location') {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    const lat = pos.coords.latitude.toFixed(4);
+                    const lng = pos.coords.longitude.toFixed(4);
+                    const msgText = `📍 Shared Location: https://maps.google.com/?q=${lat},${lng}`;
+                    sendCustomChatMessage(chatType, msgText);
+                },
+                err => {
+                    sendCustomChatMessage(chatType, "📍 Shared Location: New Delhi, India (28.6139° N, 77.2090° E)");
+                }
+            );
+        } else {
+            sendCustomChatMessage(chatType, "📍 Shared Location: New Delhi, India (28.6139° N, 77.2090° E)");
+        }
+    } else if (type === 'contact') {
+        const data = window.localDB ? window.localDB.get() : {};
+        const curUser = data.currentUser || { display_name: "User", phone: "+91 98765 43210" };
+        const msgText = `👤 Contact Card: ${curUser.display_name} (${curUser.phone || curUser.username || 'Member'})`;
+        sendCustomChatMessage(chatType, msgText);
+    } else if (type === 'poll') {
+        const pollQuestion = prompt("Enter Poll Question:", "Which feature should we build next?");
+        if (pollQuestion) {
+            const msgText = `📊 POLL: ${pollQuestion}\n1️⃣ Option A\n2️⃣ Option B\n(Tap to vote)`;
+            sendCustomChatMessage(chatType, msgText);
+        }
+    } else if (type === 'payment') {
+        const amt = prompt("Enter UPI Transfer Amount (₹):", "100");
+        if (amt) {
+            const msgText = `₹ BHARAT PAY: Sent ₹${amt} via UPI Transfer • Successful ✓`;
+            sendCustomChatMessage(chatType, msgText);
+        }
+    } else if (type === 'event') {
+        const evtName = prompt("Enter Event Title:", "Team Meeting");
+        if (evtName) {
+            const msgText = `📅 EVENT: ${evtName}\nTime: Today 5:00 PM • Live on BharatConnect`;
+            sendCustomChatMessage(chatType, msgText);
+        }
+    } else if (type === 'ai') {
+        const promptText = prompt("Enter AI Image Prompt:", "Cyberpunk Indian Warrior 3D Render");
+        if (promptText) {
+            const placeholderImg = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+            sendCustomChatMessage(chatType, `🇮🇳 AI Image: "${promptText}"`, placeholderImg);
+        }
+    }
+}
+
+function handleAttachmentFileSelect(e, type) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const chatType = window.currentAttachmentChatType || 'individual';
+
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            sendCustomChatMessage(chatType, `📷 ${file.name}`, evt.target.result);
+        };
+        reader.readAsDataURL(file);
+    } else {
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+        const docText = `📄 Document: ${file.name} (${sizeMb} MB)`;
+        sendCustomChatMessage(chatType, docText);
+    }
+    e.target.value = '';
+}
+
+function sendCustomChatMessage(chatType, text, imageUrl = null) {
+    if (chatType === 'individual') {
+        window.localDB.sendIndividualMessage(window.activeOpenChat.id, text, imageUrl).then(() => {
+            const data = window.localDB.get();
+            const chat = (data.individualChats || []).find(c => c.id === window.activeOpenChat.id);
+            if (chat) renderIndividualMessages(chat.messages);
+        });
+    } else if (chatType === 'group') {
+        window.localDB.sendGroupMessage(window.activeOpenChat.id, text).then(() => {
+            const data = window.localDB.get();
+            const group = (data.groups || []).find(g => g.id === window.activeOpenChat.id);
+            if (group) renderGroupMessages(group.messages);
+        });
+    } else if (chatType === 'community') {
+        window.localDB.sendCommunityMessage(window.activeOpenChat.id, text).then(() => {
+            const data = window.localDB.get();
+            const comm = (data.communities || []).find(c => c.id === window.activeOpenChat.id);
+            if (comm) renderCommunityMessages(comm.messages);
+        });
+    }
+}
+
+function toggleEmojiPicker(inputId) {
+    if (inputId) window.currentActiveEmojiInput = inputId;
+    const modal = document.getElementById('emoji-picker-modal');
+    if (!modal) return;
+    if (modal.style.display === 'flex') {
+        modal.style.display = 'none';
+    } else {
+        closeAttachmentSheet();
+        modal.style.display = 'flex';
+        switchEmojiTab('smileys');
+    }
+}
+
+function closeEmojiPicker() {
+    const modal = document.getElementById('emoji-picker-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function switchEmojiTab(category) {
+    const container = document.getElementById('emoji-grid-container');
+    if (!container) return;
+    const emojis = EMOJI_DATA[category] || EMOJI_DATA.smileys;
+    container.innerHTML = emojis.map(em => `<div class="emoji-item" onclick="insertEmoji('${em}')">${em}</div>`).join('');
+
+    const btns = document.querySelectorAll('.emoji-tab-btn');
+    if (btns && btns.length > 0 && event && event.target) {
+        btns.forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+}
+
+function insertEmoji(emoji) {
+    const inputId = window.currentActiveEmojiInput || 'indiv-input';
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.value += emoji;
+        input.focus();
+    }
+}
+
+window.toggleAttachmentSheet = toggleAttachmentSheet;
+window.closeAttachmentSheet = closeAttachmentSheet;
+window.triggerAttachment = triggerAttachment;
+window.handleAttachmentFileSelect = handleAttachmentFileSelect;
+window.toggleEmojiPicker = toggleEmojiPicker;
+window.closeEmojiPicker = closeEmojiPicker;
+window.switchEmojiTab = switchEmojiTab;
+window.insertEmoji = insertEmoji;
+

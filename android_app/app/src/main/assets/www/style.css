@@ -1084,6 +1084,195 @@ textarea.modal-input-field {
     padding: 4px;
 }
 
+/* ==========================================
+ * WHATSAPP ATTACHMENT SHEET & EMOJI PICKER
+ * ========================================== */
+
+.attachment-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.attachment-sheet {
+    width: 100%;
+    max-width: 480px;
+    background: #1F2733;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    padding: 16px 20px 28px 20px;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    animation: slideUp 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+.sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    margin: 0 auto 16px auto;
+}
+
+.attachment-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px 12px;
+}
+
+.attachment-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    outline: none;
+    color: white;
+    transition: transform 0.15s ease;
+}
+
+.attachment-item:active {
+    transform: scale(0.92);
+}
+
+.attachment-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.attachment-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-light);
+    text-align: center;
+}
+
+/* Gradients for Attachment Icons */
+.icon-gallery { background: linear-gradient(135deg, #007AFF, #00C6FF); }
+.icon-camera { background: linear-gradient(135deg, #FF2D55, #FF5E3A); }
+.icon-document { background: linear-gradient(135deg, #5856D6, #AF52DE); }
+.icon-location { background: linear-gradient(135deg, #34C759, #30D158); }
+.icon-contact { background: linear-gradient(135deg, #00A2FF, #0066FF); }
+.icon-poll { background: linear-gradient(135deg, #FF9500, #FFCC00); }
+.icon-payment { background: linear-gradient(135deg, #30B0C7, #00E5FF); }
+.icon-event { background: linear-gradient(135deg, #FF3B30, #FF6B00); }
+.icon-ai { background: linear-gradient(135deg, #FF9933, #138808); }
+
+/* Emoji Picker Drawer */
+.emoji-picker-modal {
+    position: fixed;
+    bottom: 60px;
+    left: 12px;
+    right: 12px;
+    max-width: 440px;
+    margin: 0 auto;
+    background: #181E29;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    z-index: 9998;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.emoji-header {
+    display: flex;
+    background: rgba(255,255,255,0.05);
+    border-bottom: 1px solid var(--border-color);
+    padding: 6px;
+    gap: 4px;
+}
+
+.emoji-tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    padding: 6px 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.emoji-tab-btn.active {
+    background: var(--primary-indigo);
+    color: white;
+}
+
+.emoji-grid-container {
+    height: 180px;
+    overflow-y: auto;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.emoji-item {
+    font-size: 22px;
+    text-align: center;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 8px;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.emoji-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* File Attachment Card in Chat Bubbles */
+.file-attachment-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    margin-bottom: 6px;
+    text-decoration: none;
+    color: white;
+}
+
+.file-attachment-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: var(--primary-indigo);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+
 
 
 

@@ -219,9 +219,10 @@
             </div>
 
             <div class="chat-input-bar">
-                <label for="indiv-photo-input" class="icon-btn" style="cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Attach Photo"><i class="fa-solid fa-camera"></i></label>
-                <input type="file" id="indiv-photo-input" accept="image/*" style="display:none;" onchange="handleIndivPhotoSelect(event)">
-                <input type="text" id="indiv-input" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendChatMessage('individual')">
+                <button class="icon-btn" onclick="toggleEmojiPicker('indiv-input')" title="Emoji"><i class="fa-solid fa-face-smile" style="font-size:18px;"></i></button>
+                <input type="text" id="indiv-input" class="chat-input" placeholder="Message" onkeydown="if(event.key==='Enter') sendChatMessage('individual')">
+                <button class="icon-btn" onclick="toggleAttachmentSheet('individual')" title="Attach"><i class="fa-solid fa-paperclip" style="font-size:18px;"></i></button>
+                <label for="attachment-camera-input" class="icon-btn" title="Camera" style="cursor:pointer; display:flex; align-items:center; justify-content:center;" onclick="window.currentChatType='individual'"><i class="fa-solid fa-camera" style="font-size:18px;"></i></label>
                 <button class="fab" style="width:36px; height:36px; font-size:15px; display:flex; align-items:center; justify-content:center;" onclick="sendChatMessage('individual')"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
@@ -237,8 +238,11 @@
             </div>
             <div class="chat-messages" id="group-messages"></div>
             <div class="chat-input-bar">
-                <input type="text" id="group-input" class="chat-input" placeholder="Type a group message...">
-                <button class="fab" style="width:36px; height:36px; font-size:16px;" onclick="sendChatMessage('group')">➤</button>
+                <button class="icon-btn" onclick="toggleEmojiPicker('group-input')" title="Emoji"><i class="fa-solid fa-face-smile" style="font-size:18px;"></i></button>
+                <input type="text" id="group-input" class="chat-input" placeholder="Message" onkeydown="if(event.key==='Enter') sendChatMessage('group')">
+                <button class="icon-btn" onclick="toggleAttachmentSheet('group')" title="Attach"><i class="fa-solid fa-paperclip" style="font-size:18px;"></i></button>
+                <label for="attachment-camera-input" class="icon-btn" title="Camera" style="cursor:pointer; display:flex; align-items:center; justify-content:center;" onclick="window.currentChatType='group'"><i class="fa-solid fa-camera" style="font-size:18px;"></i></label>
+                <button class="fab" style="width:36px; height:36px; font-size:15px; display:flex; align-items:center; justify-content:center;" onclick="sendChatMessage('group')"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
 
@@ -256,10 +260,14 @@
             </div>
             <div class="chat-messages" id="community-messages"></div>
             <div class="chat-input-bar">
-                <input type="text" id="community-input" class="chat-input" placeholder="Share with community...">
-                <button class="fab" style="width:36px; height:36px; font-size:16px;" onclick="sendChatMessage('community')">➤</button>
+                <button class="icon-btn" onclick="toggleEmojiPicker('community-input')" title="Emoji"><i class="fa-solid fa-face-smile" style="font-size:18px;"></i></button>
+                <input type="text" id="community-input" class="chat-input" placeholder="Message" onkeydown="if(event.key==='Enter') sendChatMessage('community')">
+                <button class="icon-btn" onclick="toggleAttachmentSheet('community')" title="Attach"><i class="fa-solid fa-paperclip" style="font-size:18px;"></i></button>
+                <label for="attachment-camera-input" class="icon-btn" title="Camera" style="cursor:pointer; display:flex; align-items:center; justify-content:center;" onclick="window.currentChatType='community'"><i class="fa-solid fa-camera" style="font-size:18px;"></i></label>
+                <button class="fab" style="width:36px; height:36px; font-size:15px; display:flex; align-items:center; justify-content:center;" onclick="sendChatMessage('community')"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
+
 
         <!-- 10. MARKETPLACE -->
         <div id="screen-marketplace" class="screen">
@@ -608,8 +616,71 @@
             </div>
         </div>
 
+        <!-- WHATSAPP-STYLE ATTACHMENT BOTTOM SHEET MODAL -->
+        <div id="attachment-modal-overlay" class="attachment-modal-overlay" onclick="closeAttachmentSheet(event)">
+            <div class="attachment-sheet" onclick="event.stopPropagation()">
+                <div class="sheet-handle"></div>
+                <div class="attachment-grid">
+                    <button class="attachment-item" onclick="triggerAttachment('gallery')">
+                        <div class="attachment-icon icon-gallery"><i class="fa-solid fa-image"></i></div>
+                        <span class="attachment-label">Gallery</span>
+                    </button>
+                    <button class="attachment-item" onclick="triggerAttachment('camera')">
+                        <div class="attachment-icon icon-camera"><i class="fa-solid fa-camera"></i></div>
+                        <span class="attachment-label">Camera</span>
+                    </button>
+                    <button class="attachment-item" onclick="triggerAttachment('document')">
+                        <div class="attachment-icon icon-document"><i class="fa-solid fa-file-lines"></i></div>
+                        <span class="attachment-label">Document</span>
+                    </button>
+                    <button class="attachment-item" onclick="triggerAttachment('location')">
+                        <div class="attachment-icon icon-location"><i class="fa-solid fa-location-dot"></i></div>
+                        <span class="attachment-label">Location</span>
+                    </button>
+                    <button class="attachment-item" onclick="triggerAttachment('contact')">
+                        <div class="attachment-icon icon-contact"><i class="fa-solid fa-user"></i></div>
+                        <span class="attachment-label">Contact</span>
+                    </button>
+                    <button class="attachment-item" onclick="triggerAttachment('poll')">
+                        <div class="attachment-icon icon-poll"><div style="font-weight:bold; font-size:16px;">📊</div></div>
+                        <span class="attachment-label">Poll</span>
+                    </button>
+                    <button class="attachment-item" onclick="triggerAttachment('payment')">
+                        <div class="attachment-icon icon-payment"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                        <span class="attachment-label">Payment</span>
+                    </button>
+                    <button class="attachment-item" onclick="triggerAttachment('event')">
+                        <div class="attachment-icon icon-event"><i class="fa-solid fa-calendar-days"></i></div>
+                        <span class="attachment-label">Event</span>
+                    </button>
+                    <button class="attachment-item" onclick="triggerAttachment('ai')">
+                        <div class="attachment-icon icon-ai"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                        <span class="attachment-label">AI Images</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMOJI PICKER DRAWER MODAL -->
+        <div id="emoji-picker-modal" class="emoji-picker-modal">
+            <div class="emoji-header">
+                <button class="emoji-tab-btn active" onclick="switchEmojiTab('smileys')">😊</button>
+                <button class="emoji-tab-btn" onclick="switchEmojiTab('gestures')">👍</button>
+                <button class="emoji-tab-btn" onclick="switchEmojiTab('india')">🇮🇳</button>
+                <button class="emoji-tab-btn" onclick="switchEmojiTab('celebration')">🎉</button>
+                <button class="emoji-tab-btn" onclick="switchEmojiTab('symbols')">🔥</button>
+                <button class="emoji-tab-btn" onclick="closeEmojiPicker()" style="color:var(--text-muted);">✖</button>
+            </div>
+            <div id="emoji-grid-container" class="emoji-grid-container"></div>
+        </div>
+
+        <!-- Hidden File Inputs for Attachments -->
+        <input type="file" id="attachment-gallery-input" accept="image/*,video/*" style="display:none;" onchange="handleAttachmentFileSelect(event, 'gallery')">
+        <input type="file" id="attachment-camera-input" accept="image/*" capture="environment" style="display:none;" onchange="handleAttachmentFileSelect(event, 'camera')">
+        <input type="file" id="attachment-document-input" accept=".pdf,.doc,.docx,.txt,.apk,.zip,.xlsx,.pptx" style="display:none;" onchange="handleAttachmentFileSelect(event, 'document')">
 
     </div>
+
 
 
     <script src="config.js"></script>
