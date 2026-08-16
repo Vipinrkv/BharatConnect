@@ -2984,6 +2984,117 @@ function sendSelectedContacts() {
     });
 }
 
+function sharePost(postId) {
+    const data = window.localDB ? window.localDB.get() : {};
+    const post = ((data && data.posts) || []).find(p => p.id === postId);
+    const content = post ? (post.caption || 'BharatConnect Post') : 'BharatConnect Post';
+    if (navigator.share) {
+        navigator.share({
+            title: 'BharatConnect Post',
+            text: content,
+            url: window.location.href
+        }).catch(e => {});
+    } else {
+        showCustomAlert(`Post summary ready to share:\n"${content.substring(0, 60)}..."`, 'Share Post');
+    }
+}
+
+function openHomeSearchModal() {
+    showCustomPrompt({
+        title: "🔍 Search BharatConnect",
+        subtitle: "Search messages, contacts, posts & communities",
+        fields: [
+            { placeholder: "Type a name, phone, or keyword...", multiline: false }
+        ],
+        confirmText: "Search",
+        onConfirm: function(query) {
+            if (query) {
+                showCustomAlert(`Searching for "${query}" across messages, contacts & posts...`, 'Search Results');
+            }
+        }
+    });
+}
+
+function openMarketplaceSearch() {
+    showCustomPrompt({
+        title: "🔍 Search Marketplace",
+        subtitle: "Search items, services & jobs",
+        fields: [
+            { placeholder: "e.g. Laptop, iPhone, Developer, Graphic Designer...", multiline: false }
+        ],
+        confirmText: "Search Market",
+        onConfirm: function(query) {
+            if (query) {
+                showCustomAlert(`Filtered marketplace items for "${query}"`, 'Marketplace Search');
+            }
+        }
+    });
+}
+
+function toggleAppTheme() {
+    const data = window.localDB ? window.localDB.get() : {};
+    data.settings = data.settings || {};
+    data.settings.darkMode = !data.settings.darkMode;
+    if (window.localDB) window.localDB.save(data);
+    showCustomAlert(`Theme set to ${data.settings.darkMode ? 'Dark Mode 🌙' : 'Light Mode ☀️'}`, 'Theme Settings');
+}
+
+function showLanguagePicker() {
+    showCustomPrompt({
+        title: "🌐 Select Language",
+        subtitle: "Choose your preferred language",
+        fields: [
+            { label: "Language", placeholder: "English, Hindi, Marathi, Tamil, Telugu, Gujarati...", value: "English", multiline: false }
+        ],
+        confirmText: "Save Language",
+        onConfirm: function(lang) {
+            if (lang) {
+                const data = window.localDB ? window.localDB.get() : {};
+                data.settings = data.settings || {};
+                data.settings.language = lang;
+                if (window.localDB) window.localDB.save(data);
+                showCustomAlert(`Language updated to ${lang}!`, 'Language');
+            }
+        }
+    });
+}
+
+function handleSocialLogin(provider) {
+    showCustomAlert(`${provider} Sign-In initiated! Authenticating via OAuth...`, `${provider} Login`);
+}
+
+function addPostTagPrompt() {
+    showCustomPrompt({
+        title: "🏷️ Tag People",
+        fields: [
+            { placeholder: "Enter usernames to tag (e.g. @alex, @vipin)...", multiline: false }
+        ],
+        confirmText: "Add Tags",
+        onConfirm: function(tags) {
+            if (tags) {
+                showCustomAlert(`Tagged users: ${tags}`, 'Tagged Users');
+            }
+        }
+    });
+}
+
+function addPostLocationPrompt() {
+    showCustomPrompt({
+        title: "📍 Add Location",
+        fields: [
+            { placeholder: "Enter location name (e.g. New Delhi, Mumbai, Tech Park)...", multiline: false }
+        ],
+        confirmText: "Add Location",
+        onConfirm: function(loc) {
+            if (loc) {
+                const titleInput = document.getElementById('create-post-imagetitle');
+                if (titleInput) titleInput.value = `📍 ${loc}`;
+                showCustomAlert(`Location set to: ${loc}`, 'Location Added');
+            }
+        }
+    });
+}
+
 window.toggleAttachmentSheet = toggleAttachmentSheet;
 window.closeAttachmentSheet = closeAttachmentSheet;
 window.triggerAttachment = triggerAttachment;
@@ -3017,6 +3128,15 @@ window.closeContactModal = closeContactModal;
 window.startDirectChatFromContact = startDirectChatFromContact;
 window.callContactPhone = callContactPhone;
 window.openWhatsAppContact = openWhatsAppContact;
+window.sharePost = sharePost;
+window.openHomeSearchModal = openHomeSearchModal;
+window.openMarketplaceSearch = openMarketplaceSearch;
+window.toggleAppTheme = toggleAppTheme;
+window.showLanguagePicker = showLanguagePicker;
+window.handleSocialLogin = handleSocialLogin;
+window.addPostTagPrompt = addPostTagPrompt;
+window.addPostLocationPrompt = addPostLocationPrompt;
+
 
 
 

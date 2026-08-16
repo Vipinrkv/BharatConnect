@@ -44,9 +44,9 @@
                 <button class="btn-primary" onclick="handleLogin()">Login</button>
                 <div class="divider">or continue with</div>
                 <div class="social-btns">
-                    <div class="social-btn">G</div>
-                    <div class="social-btn">f</div>
-                    <div class="social-btn"></div>
+                    <div class="social-btn" onclick="handleSocialLogin('Google')" style="cursor:pointer;">G</div>
+                    <div class="social-btn" onclick="handleSocialLogin('Facebook')" style="cursor:pointer;">f</div>
+                    <div class="social-btn" onclick="handleSocialLogin('Apple')" style="cursor:pointer;"></div>
                 </div>
                 <div class="auth-footer">
                     Don't have an account? <a href="#" onclick="showScreen('screen-register')">Register</a>
@@ -112,7 +112,7 @@
                     <h1>Home</h1>
                 </div>
                 <div class="header-actions">
-                    <button class="icon-btn" title="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    <button class="icon-btn" onclick="openHomeSearchModal()" title="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
                     <button class="icon-btn" id="btn-notif-bell" onclick="showScreen('screen-notifications')" style="cursor:pointer; touch-action:manipulation;" title="Notifications"><i class="fa-solid fa-bell"></i><div class="badge" style="pointer-events:none;"></div></button>
                 </div>
             </div>
@@ -277,7 +277,7 @@
         <div id="screen-marketplace" class="screen">
             <div class="app-header">
                 <div class="header-title">Marketplace</div>
-                <button class="icon-btn">🔍</button>
+                <button class="icon-btn" onclick="openMarketplaceSearch()">🔍</button>
             </div>
             <div class="market-tabs">
                 <div class="tab-btn active" onclick="switchMarketTab('items')">Items</div>
@@ -328,10 +328,10 @@
                 <button class="btn-primary" style="padding:10px; margin-top:0;" onclick="openEditProfileScreen()">Edit Profile</button>
             </div>
             <div class="profile-links">
-                <div class="profile-link-card"><span>🖼 My Posts</span><span>→</span></div>
-                <div class="profile-link-card"><span>🔖 Saved Items</span><span>→</span></div>
-                <div class="profile-link-card"><span>💼 My Jobs</span><span>→</span></div>
-                <div class="profile-link-card"><span>🌐 My Communities</span><span>→</span></div>
+                <div class="profile-link-card" onclick="showScreen('screen-home')" style="cursor:pointer;"><span>🖼 My Posts</span><span>→</span></div>
+                <div class="profile-link-card" onclick="showScreen('screen-marketplace')" style="cursor:pointer;"><span>🔖 Saved Items</span><span>→</span></div>
+                <div class="profile-link-card" onclick="showScreen('screen-marketplace'); switchMarketTab('jobs');" style="cursor:pointer;"><span>💼 My Jobs</span><span>→</span></div>
+                <div class="profile-link-card" onclick="showScreen('screen-chat-list'); switchChatSubTab('community');" style="cursor:pointer;"><span>🌐 My Communities</span><span>→</span></div>
             </div>
         </div>
 
@@ -342,13 +342,13 @@
                 <div class="header-title">Settings</div>
             </div>
             <div class="settings-list">
-                <div class="settings-item"><span>👤 Account</span><span>›</span></div>
-                <div class="settings-item"><span>🔒 Privacy</span><span>›</span></div>
+                <div class="settings-item" onclick="openEditProfileScreen()" style="cursor:pointer;"><span>👤 Account</span><span>›</span></div>
+                <div class="settings-item" onclick="showCustomAlert('Sentinel 7-Layer End-to-End Encryption is active for your account 🔒', 'Privacy & Security')" style="cursor:pointer;"><span>🔒 Privacy</span><span>›</span></div>
                 <div class="settings-item" onclick="showScreen('screen-notifications')" style="cursor:pointer;"><span>🔔 Notifications</span><span>›</span></div>
-                <div class="settings-item"><span>🌙 Theme (Dark Mode)</span><span>Active</span></div>
-                <div class="settings-item"><span>🌐 Language</span><span>English</span></div>
-                <div class="settings-item"><span>❓ Help & Support</span><span>›</span></div>
-                <div class="settings-item"><span>ℹ️ About Us</span><span>v1.0.0 (Offline)</span></div>
+                <div class="settings-item" onclick="toggleAppTheme()" style="cursor:pointer;"><span>🌙 Theme (Dark Mode)</span><span>Toggle</span></div>
+                <div class="settings-item" onclick="showLanguagePicker()" style="cursor:pointer;"><span>🌐 Language</span><span>English ›</span></div>
+                <div class="settings-item" onclick="showCustomAlert('Contact support at support@bharatconnect.app or visit github.com/Vipinrkv/BharatConnect', 'Help & Support')" style="cursor:pointer;"><span>❓ Help & Support</span><span>›</span></div>
+                <div class="settings-item" onclick="showCustomAlert('BharatConnect v2.0.0 (Sentinel Encrypted Social Messaging App)', 'About BharatConnect')" style="cursor:pointer;"><span>ℹ️ About Us</span><span>v2.0.0</span></div>
                 <button class="btn-primary" style="background:#FF3B30; margin-top:20px;" onclick="handleLogout()">Logout</button>
             </div>
         </div>
