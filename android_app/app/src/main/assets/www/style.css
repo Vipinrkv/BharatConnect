@@ -535,6 +535,69 @@ body {
     text-align: right;
 }
 
+/* WhatsApp-Style Upload Progress Bar */
+.upload-progress-bar-container {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+    position: relative;
+    animation: fadeProgressBar 1.8s forwards ease-in-out;
+}
+.upload-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: #00E676;
+    border-radius: 2px;
+    animation: uploadProgressAnim 1.2s forwards ease-in-out;
+}
+
+@keyframes uploadProgressAnim {
+    0% { width: 5%; }
+    40% { width: 45%; }
+    75% { width: 85%; }
+    100% { width: 100%; }
+}
+
+@keyframes fadeProgressBar {
+    0% { opacity: 1; height: 4px; }
+    80% { opacity: 1; height: 4px; }
+    100% { opacity: 0; height: 0px; margin-top: 0px; }
+}
+
+/* WhatsApp-Style Radial Ring Download Button */
+.whatsapp-ring-download {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-right: 10px;
+}
+.whatsapp-ring-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #00E676;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    transition: all 0.3s ease;
+}
+.whatsapp-ring-circle.downloading {
+    animation: spinRing 1s linear infinite;
+    border-color: rgba(255, 255, 255, 0.2);
+    border-top-color: #00E676;
+}
+@keyframes spinRing {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 .chat-input-bar {
     display: flex;
     align-items: center;

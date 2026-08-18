@@ -515,15 +515,42 @@ def get_chat_messages(chat_id: str, db: Session = Depends(get_db)):
 def get_user_all_messages(user_key: str, db: Session = Depends(get_db)):
     clean_key = user_key.lower().strip()
     digits = re.sub(r"\D", "", clean_key)
-    filters = [
-        MessageModel.sender_id.ilike(f"%{clean_key}%"),
-        MessageModel.recipient_id.ilike(f"%{clean_key}%"),
-        MessageModel.chat_id.ilike(f"%{clean_key}%"),
+
+    user_filters = [
+        sqlalchemy.func.lower(UserModel.id) == clean_key,
+        sqlalchemy.func.lower(UserModel.username) == clean_key,
+        sqlalchemy.func.lower(UserModel.email) == clean_key,
+        UserModel.phone == clean_key,
     ]
     if len(digits) >= 7:
-        filters.append(MessageModel.sender_id.like(f"%{digits}%"))
-        filters.append(MessageModel.recipient_id.like(f"%{digits}%"))
-        filters.append(MessageModel.chat_id.like(f"%{digits}%"))
+        user_filters.extend([
+            UserModel.phone.like(f"%{digits[-10:]}%"),
+        ])
+
+    user = db.query(UserModel).filter(sqlalchemy.or_(*user_filters)).first()
+
+    aliases = set()
+    aliases.add(clean_key)
+    if digits and len(digits) >= 7:
+        aliases.add(digits[-10:])
+
+    if user:
+        if user.id: aliases.add(user.id.lower())
+        if user.username: aliases.add(user.username.lower())
+        if user.email: aliases.add(user.email.lower())
+        if user.phone:
+            u_digits = re.sub(r"\D", "", user.phone)
+            if len(u_digits) >= 7:
+                aliases.add(u_digits[-10:])
+            aliases.add(user.phone.lower())
+
+    filters = []
+    for alias in aliases:
+        if not alias: continue
+        filters.append(MessageModel.sender_id.ilike(f"%{alias}%"))
+        filters.append(MessageModel.recipient_id.ilike(f"%{alias}%"))
+        filters.append(MessageModel.chat_id.ilike(f"%{alias}%"))
+
     messages = db.query(MessageModel).filter(sqlalchemy.or_(*filters)).order_by(MessageModel.created_at.asc()).all()
     return messages
 

@@ -333,6 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.localDB.save(data);
             }
             showScreen('screen-home');
+            if (window.connectionManager) window.connectionManager.connect();
         } else {
             showScreen('screen-splash');
         }
@@ -441,7 +442,13 @@ function showScreen(screenId, isBackNavigation) {
         }
 
         // Refresh contents safely
-        try { renderAll(); } catch(e) { console.warn('[showScreen] renderAll trapped:', e); }
+        try { 
+            renderAll(); 
+            const session = (window.localDB && window.localDB.getSession) ? window.localDB.getSession() : null;
+            if (session && session.isLoggedIn && window.connectionManager) {
+                window.connectionManager.connect();
+            }
+        } catch(e) { console.warn('[showScreen] renderAll trapped:', e); }
     } catch(err) {
         console.warn('[showScreen] Critical transition error trapped:', err);
     }
@@ -1287,31 +1294,7 @@ function renderModalContactList() {
         }
     });
 
-    // Add remaining registered users not in device contacts
-    registeredUsers.forEach(u => {
-        const uphone = String(u.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
-        const uid = String(u.id || '').toLowerCase();
-        const uname = String(u.username || '').toLowerCase();
-
-        if (uid === currentUserId || uname === currentUsername || (currentPhone && uphone && (uphone.endsWith(currentPhone) || currentPhone.endsWith(uphone)))) {
-            return;
-        }
-
-        const alreadyAdded = registeredList.some(r => r.id === u.id || (r.cleanPhone && uphone && (r.cleanPhone.endsWith(uphone) || uphone.endsWith(r.cleanPhone))));
-        if (!alreadyAdded) {
-            registeredList.push({
-                id: u.id || ('u_' + Date.now()),
-                name: u.name || (u.username ? '@' + u.username : 'User'),
-                phone: u.phone || (u.username ? '@' + u.username : 'Contact'),
-                cleanPhone: uphone,
-                avatar: u.avatar || 'logo.png',
-                isRegistered: true,
-                username: u.username
-            });
-        }
-    });
-
-    // Filter by search query
+    // Filter by search query (Only device contacts matched against registered users or unregistered)
     const filterFn = c => !q || (c.name && c.name.toLowerCase().includes(q)) || (c.phone && c.phone.toLowerCase().includes(q));
     const filteredReg = registeredList.filter(filterFn);
     const filteredUnreg = unregisteredList.filter(filterFn);
@@ -1331,7 +1314,7 @@ function renderModalContactList() {
     if (filteredReg.length > 0) {
         html += `<div style="font-size:11px; font-weight:700; color:var(--primary-indigo); text-transform:uppercase; margin:6px 0; padding:0 4px;">Contacts on BharatConnect</div>`;
         html += filteredReg.map(c => `
-            <div class="profile-link-card" style="padding:10px 14px; cursor:pointer;" onclick="selectModalContact('${c.id}')">
+            <div class="profile-link-card" style="padding:10px 14px; cursor:pointer;" onclick="selectModalContact('${c.id}', '${c.cleanPhone}')">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <img src="${c.avatar || 'logo.png'}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-indigo);" onerror="this.src='logo.png'">
                     <div>
@@ -1339,7 +1322,7 @@ function renderModalContactList() {
                         <div style="font-size:11px; color:#4CAF50; font-weight:700;"><i class="fa-solid fa-circle-check" style="margin-right:4px;"></i> BharatConnect Member</div>
                     </div>
                 </div>
-                <button class="btn-primary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;" onclick="event.stopPropagation(); selectModalContact('${c.id}')"><i class="fa-solid fa-comment-dots" style="margin-right:4px;"></i> Chat</button>
+                <button class="btn-primary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;" onclick="event.stopPropagation(); selectModalContact('${c.id}', '${c.cleanPhone}')"><i class="fa-solid fa-comment-dots" style="margin-right:4px;"></i> Chat</button>
             </div>
         `).join('');
     }
@@ -1348,15 +1331,15 @@ function renderModalContactList() {
     if (filteredUnreg.length > 0) {
         html += `<div style="font-size:11px; font-weight:700; color:var(--accent-lavender); text-transform:uppercase; margin:14px 0 6px; padding:0 4px;">Invite to BharatConnect</div>`;
         html += filteredUnreg.map(c => `
-            <div class="profile-link-card" style="padding:10px 14px; opacity:0.85; cursor:pointer;" onclick="sendSmsInvite('${c.phone}')">
+            <div class="profile-link-card" style="padding:10px 14px;">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <img src="logo.png" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid var(--border-color);" onerror="this.src='logo.png'">
+                    <div style="width:40px; height:40px; border-radius:50%; background:var(--surface-dark); border:1px solid var(--border-color); display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-weight:bold; font-size:16px;">${c.name.charAt(0)}</div>
                     <div>
                         <div style="font-weight:600; font-size:14px; color:var(--text-main);">${c.name}</div>
                         <div style="font-size:11px; color:var(--text-muted);">${c.phone}</div>
                     </div>
                 </div>
-                <button class="btn-secondary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;" onclick="event.stopPropagation(); sendSmsInvite('${c.phone}')"><i class="fa-solid fa-user-plus" style="margin-right:4px;"></i> Invite</button>
+                <button class="btn-secondary" style="padding:5px 14px; font-size:12px; width:auto; margin:0;" onclick="sendSmsInvite('${c.phone}')"><i class="fa-solid fa-paper-plane" style="margin-right:4px;"></i> Invite</button>
             </div>
         `).join('');
     }
@@ -1364,11 +1347,20 @@ function renderModalContactList() {
     container.innerHTML = html;
 }
 
-function selectModalContact(userKey) {
+function selectModalContact(userKey, cleanPhone) {
     closeContactModal();
     const data = window.localDB.get();
-    const regUser = (data.registeredUsers || []).find(u => u.id === userKey || u.username === userKey || u.phone === userKey);
-    const identifier = regUser ? (regUser.phone || regUser.username || regUser.id) : userKey;
+    const allUsers = [...(data.registeredUsers || []), ...(data.users || [])];
+    const norm = (cleanPhone || userKey || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+
+    const regUser = allUsers.find(u => {
+        const uphone = String(u.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+        return (u.id === userKey) ||
+               (uphone && norm && (uphone.endsWith(norm) || norm.endsWith(uphone))) ||
+               (u.username && u.username.toLowerCase() === String(userKey).toLowerCase());
+    });
+
+    const identifier = regUser ? (regUser.phone || regUser.username || regUser.id) : (norm || userKey);
     const newChat = window.localDB.addIndividualContact(identifier);
     openIndividualChatRoom(newChat.id);
 }
@@ -1425,9 +1417,17 @@ function handleSelectedPin() {
 }
 
 function handleSelectedDelete() {
-    showCustomAlert('Are you sure you want to delete the selected chat(s)?', 'Delete Chat', function() {
-        selectedChatIds.forEach(id => window.localDB.deleteChat(id));
-        clearChatSelection();
+    showCustomPrompt({
+        title: "🗑️ Delete Selected Chat(s)",
+        subtitle: "Are you sure you want to delete the selected chat(s)? All messages, media, and chat data will be cleared completely and removed from your chat list.",
+        fields: [],
+        confirmText: "Delete & Clear All Data",
+        onConfirm: function() {
+            selectedChatIds.forEach(id => window.localDB.deleteChat(id));
+            clearChatSelection();
+            if (window.renderAll) window.renderAll();
+            showCustomAlert('Selected chat(s) and all message data cleared completely!', 'Chat Deleted');
+        }
     });
 }
 
@@ -1447,11 +1447,63 @@ function handleSelectedViewProfile() {
     }
 }
 
+function resolveChatDisplayInfo(chat, data, currentUserKey) {
+    if (!chat) return { name: 'Chat', avatar: 'logo.png' };
+    data = data || (window.localDB ? window.localDB.get() : {});
+    
+    // Extract target identifier
+    const rawTarget = String(chat.phone || chat.userId || chat.name || '').trim();
+    const cleanPhone = rawTarget.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+
+    // 1. Check if recipient's number is saved in the DEVICE PHONEBOOK
+    const deviceContacts = (typeof getDeviceContactsList === 'function') ? getDeviceContactsList() : [];
+    if (cleanPhone) {
+        const matchedDc = deviceContacts.find(dc => {
+            const dcPhone = String(dc.phone || dc.rawPhone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+            return dcPhone && (dcPhone.endsWith(cleanPhone) || cleanPhone.endsWith(dcPhone));
+        });
+
+        if (matchedDc && matchedDc.name) {
+            return {
+                name: matchedDc.name,
+                avatar: (chat.avatar && chat.avatar !== 'logo.png') ? chat.avatar : 'logo.png',
+                phone: matchedDc.phone || cleanPhone
+            };
+        }
+    }
+
+    // 2. If NOT in phonebook, strictly DO NOT use database registered usernames. Show formatted phone number!
+    let displayPhone = cleanPhone;
+    if (displayPhone) {
+        if (displayPhone.length === 10) {
+            displayPhone = '+91 ' + displayPhone.slice(0, 5) + ' ' + displayPhone.slice(5);
+        } else if (!displayPhone.startsWith('+')) {
+            displayPhone = '+' + displayPhone;
+        }
+    }
+
+    // 3. Fallback if chat.name is a custom name saved locally and not a raw user ID
+    let finalName = displayPhone || chat.phone;
+    if (!finalName && chat.name && !chat.name.startsWith('chat_') && !chat.name.startsWith('c_') && !chat.name.startsWith('u-')) {
+        finalName = chat.name;
+    }
+
+    return {
+        name: finalName || 'Contact',
+        avatar: (chat.avatar && chat.avatar !== 'logo.png') ? chat.avatar : 'logo.png',
+        phone: chat.phone || cleanPhone
+    };
+}
+
 function openChatProfileModal(chatId) {
     window.currentViewProfileChatId = chatId;
     const data = window.localDB.get();
+    const currentUserKey = String((data.currentUser && (data.currentUser.username || data.currentUser.id || data.currentUser.phone)) || '').toLowerCase().trim();
+
     const chat = (data.individualChats || []).find(c => c.id === chatId);
     if (!chat) return;
+
+    const resolved = resolveChatDisplayInfo(chat, data, currentUserKey);
 
     const modal = document.getElementById('modal-view-contact-profile');
     const avatarEl = document.getElementById('contact-profile-avatar');
@@ -1460,10 +1512,10 @@ function openChatProfileModal(chatId) {
     const phoneEl = document.getElementById('contact-profile-phone');
     const bioEl = document.getElementById('contact-profile-bio');
 
-    if (avatarEl) avatarEl.src = (chat.avatar && chat.avatar !== 'logo.png') ? chat.avatar : 'logo.png';
-    if (nameEl) nameEl.innerText = chat.name || 'User';
-    if (handleEl) handleEl.innerText = `@${chat.username || chat.name.toLowerCase().replace(/\s+/g, '')}`;
-    if (phoneEl) phoneEl.innerText = chat.phone ? `+91 ${chat.phone}` : 'BharatConnect Contact';
+    if (avatarEl) avatarEl.src = (resolved.avatar && resolved.avatar !== 'logo.png') ? resolved.avatar : ((chat.avatar && chat.avatar !== 'logo.png') ? chat.avatar : 'logo.png');
+    if (nameEl) nameEl.innerText = resolved.name || chat.name || 'User';
+    if (handleEl) handleEl.innerText = `@${resolved.username || chat.username || (resolved.name || chat.name).toLowerCase().replace(/\s+/g, '')}`;
+    if (phoneEl) phoneEl.innerText = (resolved.phone || chat.phone) ? `+91 ${resolved.phone || chat.phone}` : 'BharatConnect Contact';
     if (bioEl) bioEl.innerText = chat.bio || 'Hey there! I am using BharatConnect 🚀';
 
     if (modal) modal.style.display = 'flex';
@@ -1494,7 +1546,10 @@ function filterChatList() {
     const data = window.localDB.get();
 
     if (currentActiveChatTab === 'individual') {
-        const filtered = (data.individualChats || []).filter(c => c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q)));
+        const filtered = (data.individualChats || []).filter(c => {
+            const r = resolveChatDisplayInfo(c, data);
+            return (r.name && r.name.toLowerCase().includes(q)) || (c.name && c.name.toLowerCase().includes(q)) || (c.phone && c.phone.includes(q));
+        });
         renderIndividualChatList(filtered);
     } else if (currentActiveChatTab === 'group') {
         const filtered = (data.groups || []).filter(g => g.name.toLowerCase().includes(q));
@@ -1509,7 +1564,10 @@ function renderChatTabContents(data) {
     const q = (document.getElementById('chat-search-input') ? document.getElementById('chat-search-input').value : '').toLowerCase().trim();
     
     // Individual
-    const indivChats = (data.individualChats || []).filter(c => c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q)));
+    const indivChats = (data.individualChats || []).filter(c => {
+        const r = resolveChatDisplayInfo(c, data);
+        return (r.name && r.name.toLowerCase().includes(q)) || (c.name && c.name.toLowerCase().includes(q)) || (c.phone && c.phone.includes(q));
+    });
     renderIndividualChatList(indivChats);
 
     // Group
@@ -1536,17 +1594,33 @@ function renderIndividualChatList(chats) {
         return;
     }
 
+    const data = window.localDB ? window.localDB.get() : {};
+    const currentUserKey = String((data.currentUser && (data.currentUser.username || data.currentUser.id || data.currentUser.phone)) || '').toLowerCase().trim();
+
     // Sort Pinned chats to the top
     const sortedChats = [...chats].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
 
+    let dbUpdated = false;
     container.innerHTML = sortedChats.map(c => {
         const isSelected = selectedChatIds.has(c.id);
-        const avatarSrc = (c.avatar && c.avatar !== 'logo.png') ? c.avatar : 'logo.png';
+        const resolved = resolveChatDisplayInfo(c, data, currentUserKey);
+
+        if (resolved.name && (c.name.startsWith('chat_') || c.name.startsWith('u-') || c.name.startsWith('c_') || c.name === c.id)) {
+            c.name = resolved.name;
+            if (resolved.avatar) c.avatar = resolved.avatar;
+            dbUpdated = true;
+        }
+
+        const avatarSrc = (resolved.avatar && resolved.avatar !== 'logo.png') ? resolved.avatar : ((c.avatar && c.avatar !== 'logo.png') ? c.avatar : 'logo.png');
 
         return `
         <div class="profile-link-card ${isSelected ? 'selected-chat-card' : ''}" 
              style="padding:12px 14px; position:relative; ${isSelected ? 'border:2px solid var(--primary-indigo); background:rgba(99,103,255,0.18);' : ''}"
-             onclick="handleChatCardClick('${c.id}', event)">
+             onclick="handleChatCardClick('${c.id}', event)"
+             oncontextmenu="event.preventDefault(); toggleChatSelection('${c.id}', event); return false;"
+             ontouchstart="window.chatHoldTimer = setTimeout(() => { toggleChatSelection('${c.id}', event); }, 450);"
+             ontouchend="if(window.chatHoldTimer) clearTimeout(window.chatHoldTimer);"
+             ontouchmove="if(window.chatHoldTimer) clearTimeout(window.chatHoldTimer);">
             <div style="display:flex; align-items:center; gap:12px; width:100%;">
                 <div style="position:relative;" onclick="event.stopPropagation(); openChatProfileModal('${c.id}')">
                     <img src="${avatarSrc}" style="width:46px; height:46px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-indigo);" onerror="this.src='logo.png'">
@@ -1554,7 +1628,7 @@ function renderIndividualChatList(chats) {
                 </div>
                 <div style="flex:1;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-weight:700; font-size:15px; color:white;">${c.name} ${c.isMuted ? '<i class="fa-solid fa-bell-slash" style="font-size:11px; color:var(--text-muted); margin-left:4px;"></i>' : ''}</div>
+                        <div style="font-weight:700; font-size:15px; color:white;">${resolved.name} ${c.isMuted ? '<i class="fa-solid fa-bell-slash" style="font-size:11px; color:var(--text-muted); margin-left:4px;"></i>' : ''}</div>
                         <div style="font-size:11px; color:var(--accent-lavender);">${c.time || 'Just now'}</div>
                     </div>
                     <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.lastMessage || 'Encrypted Chat'}</div>
@@ -1566,6 +1640,10 @@ function renderIndividualChatList(chats) {
         </div>
         `;
     }).join('');
+
+    if (dbUpdated && window.localDB) {
+        window.localDB.save(data);
+    }
 }
 
 function renderGroupChatList(groups) {
@@ -1656,12 +1734,18 @@ function openIndividualChatRoom(chatId) {
     activeOpenChat = { type: 'individual', id: chatId };
     window.activeOpenChat = activeOpenChat;
     const data = window.localDB.get();
+    const currentUserKey = String((data.currentUser && (data.currentUser.username || data.currentUser.id || data.currentUser.phone)) || '').toLowerCase().trim();
 
     const chat = (data.individualChats || []).find(c => c.id === chatId);
     if (!chat) return;
 
-    document.querySelector('#screen-chat-indiv .chat-avatar').src = (chat.avatar && chat.avatar !== 'logo.png') ? chat.avatar : 'logo.png';
-    document.querySelector('#screen-chat-indiv div[style*="font-weight:600"]').innerText = chat.name;
+    const resolved = resolveChatDisplayInfo(chat, data, currentUserKey);
+
+    const avatarEl = document.querySelector('#screen-chat-indiv .chat-avatar');
+    if (avatarEl) avatarEl.src = (resolved.avatar && resolved.avatar !== 'logo.png') ? resolved.avatar : ((chat.avatar && chat.avatar !== 'logo.png') ? chat.avatar : 'logo.png');
+
+    const nameEl = document.querySelector('#screen-chat-indiv div[style*="font-weight:600"]');
+    if (nameEl) nameEl.innerText = resolved.name || chat.name || 'Contact';
     
     renderIndividualMessages(chat.messages || []);
     showScreen('screen-chat-indiv');
@@ -1720,7 +1804,8 @@ function renderIndividualMessages(messages) {
                 } catch(e) {}
             }
 
-            const imgHtml = (m.image_url || m.image) ? `<img src="${m.image_url || m.image}" style="max-width:220px; max-height:220px; border-radius:12px; margin-bottom:6px; display:block; object-fit:cover; border:1px solid var(--border-color);" onerror="this.style.display='none'">` : '';
+            const isImage = Boolean(m.image_url || m.image);
+            const imgHtml = isImage ? `<img src="${m.image_url || m.image}" style="max-width:220px; max-height:220px; border-radius:12px; margin-bottom:6px; display:block; object-fit:cover; border:1px solid var(--border-color);" onerror="this.style.display='none'">` : '';
 
             let checkmarkHtml = '';
             if (isSentByMe) {
@@ -1735,14 +1820,46 @@ function renderIndividualMessages(messages) {
             }
 
             let msgContentHtml = m.text || '';
-            if (msgContentHtml.startsWith('📄 Document:')) {
-                const parts = msgContentHtml.replace('📄 Document:', '').trim();
+            const isMediaOrDoc = isImage || msgContentHtml.startsWith('📄 Document:') || msgContentHtml.startsWith('🎵 Audio:');
+
+            if (isImage && msgContentHtml) {
+                const trimmed = msgContentHtml.trim();
+                if (trimmed.startsWith('file_') || trimmed.startsWith('image_') || trimmed === '📷 Photo' || /\.(png|jpe?g|webp|gif)$/i.test(trimmed)) {
+                    msgContentHtml = '';
+                }
+            }
+
+            // WhatsApp Style Ring Download Overlay for Received Media/Documents
+            let downloadRingHtml = '';
+            if (!isSentByMe && isMediaOrDoc) {
+                downloadRingHtml = `
+                    <div class="whatsapp-ring-download" onclick="triggerWhatsAppRingDownload('${m.id}', '${m.image || m.text || 'Media'}', event)">
+                        <div class="whatsapp-ring-circle" id="ring-circle-${m.id}">
+                            <i class="fa-solid fa-arrow-down" id="ring-icon-${m.id}" style="color:#00E676; font-size:14px;"></i>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // WhatsApp Style Upload Progress Bar for Sender
+            let uploadProgressHtml = '';
+            if (isSentByMe && isMediaOrDoc) {
+                uploadProgressHtml = `
+                    <div class="upload-progress-bar-container" id="upload-bar-${m.id}">
+                        <div class="upload-progress-fill"></div>
+                    </div>
+                `;
+            }
+
+            if (msgContentHtml.startsWith('📄 Document:') || msgContentHtml.startsWith('🎵 Audio:')) {
+                const parts = msgContentHtml.replace('📄 Document:', '').replace('🎵 Audio:', '').trim();
                 msgContentHtml = `
-                    <div class="file-attachment-card" style="cursor:pointer;" onclick="openDocumentAttachment('${parts}')">
+                    <div class="file-attachment-card" style="cursor:pointer; display:flex; align-items:center;" onclick="triggerWhatsAppRingDownload('${m.id}', '${parts}', event)">
+                        ${downloadRingHtml}
                         <div class="file-attachment-icon"><i class="fa-solid fa-file-arrow-down"></i></div>
                         <div>
                             <div style="font-weight:600; font-size:13px;">${parts}</div>
-                            <div style="font-size:10px; color:var(--accent-lavender);">Tap to View Document</div>
+                            <div style="font-size:10px; color:var(--accent-lavender);">${!isSentByMe ? 'Tap ring to Download to BharatConnect/Media' : 'Uploaded File'}</div>
                         </div>
                     </div>
                 `;
@@ -1777,14 +1894,16 @@ function renderIndividualMessages(messages) {
                         <div style="font-size:11px; color:#00E5FF; margin-top:8px; font-weight:600; text-align:right;">View Contact 👤</div>
                     </div>
                 `;
-            } else if (msgContentHtml.startsWith('₹ BHARAT PAY:')) {
-                msgContentHtml = `<div style="background:rgba(0,229,255,0.15); border:1px solid #00E5FF; padding:8px 12px; border-radius:10px; color:#00E5FF; font-weight:bold;"><i class="fa-solid fa-indian-rupee-sign"></i> ${msgContentHtml}</div>`;
             }
 
             return `
-                <div class="message-bubble ${isSentByMe ? 'sent' : 'received'}">
-                    ${imgHtml}
+                <div class="message-bubble ${isSentByMe ? 'sent' : 'received'}" style="position:relative;">
+                    <div style="position:relative;">
+                        ${imgHtml}
+                        ${downloadRingHtml && isImage ? `<div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); z-index:5;">${downloadRingHtml}</div>` : ''}
+                    </div>
                     <div>${msgContentHtml}</div>
+                    ${uploadProgressHtml}
                     <div class="message-time">
                         ${timeDisplay}
                         ${checkmarkHtml}
@@ -2053,11 +2172,10 @@ function renderProfile(user) {
     if (bioEl) bioEl.innerText = user.bio || 'Hey there! I am using BharatConnect 🚀';
 
     const emailEl = document.getElementById('profile-email');
-    if (emailEl) emailEl.innerText = (user.email && user.email.includes('@')) ? user.email : 'Not specified';
+    if (emailEl) emailEl.innerText = user.email || 'Not specified';
 
     const phoneEl = document.getElementById('profile-phone');
-    const validPhone = (user.phone && /^[+0-9\s-]{7,}$/.test(user.phone)) ? user.phone : null;
-    if (phoneEl) phoneEl.innerText = validPhone || 'Not specified';
+    if (phoneEl) phoneEl.innerText = user.phone || 'Not specified';
 
     const dobEl = document.getElementById('profile-dob');
     if (dobEl) dobEl.innerText = user.dob || 'Not specified';
@@ -2077,21 +2195,27 @@ function editProfilePrompt() {
     const currentUser = data.currentUser || {};
     showCustomPrompt({
         title: "✏️ Edit Profile",
-        subtitle: "Update your profile details",
+        subtitle: "Update your personal profile details",
         fields: [
             { label: "Display Name", placeholder: "Enter full name", value: currentUser.name || '' },
+            { label: "Email Address", placeholder: "Enter email address", value: currentUser.email || '' },
+            { label: "Phone Number", placeholder: "Enter phone number", value: currentUser.phone || '' },
+            { label: "Date of Birth (DOB)", placeholder: "DD/MM/YYYY", value: currentUser.dob || '' },
             { label: "Bio / Status", placeholder: "Write a short bio...", value: currentUser.bio || '', multiline: true }
         ],
         confirmText: "Save Profile",
         onConfirm: function(values) {
-            const [newName, newBio] = Array.isArray(values) ? values : [values, ''];
-            if (newName || newBio) {
+            if (Array.isArray(values)) {
+                const [newName, newEmail, newPhone, newDob, newBio] = values;
                 window.localDB.updateProfile({
                     name: newName || currentUser.name,
+                    email: newEmail || currentUser.email,
+                    phone: newPhone || currentUser.phone,
+                    dob: newDob || currentUser.dob,
                     bio: newBio || currentUser.bio
                 });
                 renderAll();
-                showCustomAlert('Profile updated successfully!', 'Edit Profile');
+                showCustomAlert('Profile updated successfully! ✨', 'Edit Profile');
             }
         }
     });
@@ -2399,11 +2523,19 @@ function toggleEmojiPicker(inputId) {
     if (inputId) window.currentActiveEmojiInput = inputId;
     const modal = document.getElementById('emoji-picker-modal');
     if (!modal) return;
+
+    const chatType = (inputId && inputId.includes('group')) ? 'group' : 'indiv';
+    const btn = document.querySelector(`button[onclick*="toggleEmojiPicker('${inputId || 'indiv-input'}')"]`);
+
     if (modal.style.display === 'flex') {
         modal.style.display = 'none';
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-face-smile" style="font-size:18px;"></i>';
+        const input = document.getElementById(inputId || 'indiv-input');
+        if (input) input.focus();
     } else {
         closeAttachmentSheet();
         modal.style.display = 'flex';
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-keyboard" style="font-size:18px;"></i>';
         switchEmojiTab('smileys');
     }
 }
@@ -2411,6 +2543,9 @@ function toggleEmojiPicker(inputId) {
 function closeEmojiPicker() {
     const modal = document.getElementById('emoji-picker-modal');
     if (modal) modal.style.display = 'none';
+    const inputId = window.currentActiveEmojiInput || 'indiv-input';
+    const btn = document.querySelector(`button[onclick*="toggleEmojiPicker('${inputId}')"]`);
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-face-smile" style="font-size:18px;"></i>';
 }
 
 function switchEmojiTab(category) {
@@ -2714,8 +2849,31 @@ function handleAttachmentFileSelect(e, type) {
     e.target.value = '';
 }
 
+function triggerWhatsAppRingDownload(msgId, filename, e) {
+    if (e) e.stopPropagation();
+    const circle = document.getElementById(`ring-circle-${msgId}`);
+    const icon = document.getElementById(`ring-icon-${msgId}`);
+    if (!circle || circle.classList.contains('downloaded')) return;
+
+    circle.classList.add('downloading');
+    if (icon) icon.className = 'fa-solid fa-spinner';
+
+    setTimeout(() => {
+        circle.classList.remove('downloading');
+        circle.classList.add('downloaded');
+        circle.style.border = '2px solid #4EFEAA';
+        circle.style.background = 'rgba(78, 254, 170, 0.2)';
+        if (icon) {
+            icon.className = 'fa-solid fa-check';
+            icon.style.color = '#4EFEAA';
+        }
+        showCustomAlert(`Downloaded file to device local storage:\n📁 BharatConnect/Media/BharatConnect Documents`, 'Download Complete 📥');
+    }, 1500);
+}
+window.triggerWhatsAppRingDownload = triggerWhatsAppRingDownload;
+
 function openDocumentAttachment(docName) {
-    alert(`📄 Opening document: ${docName}\nDownloading file to device storage...`);
+    showCustomAlert(`📄 Opening document: ${docName}\nDownloaded file is saved in BharatConnect/Media directory.`, 'Document Viewer');
 }
 
 function loadLeafletDynamically(callback) {
@@ -2745,8 +2903,15 @@ function loadLeafletDynamically(callback) {
 function initLocationScreenView() {
     const dialog = document.getElementById('gps-status-dialog');
     const dialogText = document.getElementById('gps-dialog-text');
-    if (dialog) dialog.style.display = 'flex';
-    if (dialogText) dialogText.innerText = 'Acquiring high-precision GPS satellite location...';
+
+    const isGpsOn = (window.AndroidBridge && typeof window.AndroidBridge.isLocationGPSEnabled === 'function') ? window.AndroidBridge.isLocationGPSEnabled() : true;
+
+    if (!isGpsOn) {
+        if (dialog) dialog.style.display = 'flex';
+        if (dialogText) dialogText.innerHTML = '⚠️ Location/GPS is turned off on your device.<br><span style="font-size:11px; color:#FFAB00;">Please turn ON Location in settings to send live high-precision GPS pins.</span>';
+    } else {
+        if (dialog) dialog.style.display = 'none';
+    }
 
     let defaultLat = 28.6139;
     let defaultLng = 77.2090;
@@ -2913,8 +3078,56 @@ function viewContactDetails(name, phone) {
     const initEl = document.getElementById('contact-modal-initials');
 
     if (nameEl) nameEl.innerText = name || 'Contact';
-    if (phoneEl) phoneEl.innerText = phone || '+91 98765 43210';
-    if (initEl) initEl.innerText = (name || 'C').charAt(0);
+    if (phoneEl) {
+        phoneEl.innerText = phone || 'Not specified';
+        phoneEl.title = "Click or hold to copy number";
+        phoneEl.style.cursor = "pointer";
+        phoneEl.onclick = function() {
+            if (phone) {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(phone);
+                }
+                showCustomAlert(`Copied phone number ${phone} to clipboard! 📋`, 'Copied');
+            }
+        };
+        phoneEl.oncontextmenu = function(e) {
+            e.preventDefault();
+            if (phone) {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(phone);
+                }
+                showCustomAlert(`Copied phone number ${phone} to clipboard! 📋`, 'Copied');
+            }
+            return false;
+        };
+    }
+    if (initEl) initEl.innerText = (name || 'C').charAt(0).toUpperCase();
+
+    // Check if user is registered on BharatConnect system
+    const data = window.localDB ? window.localDB.get() : {};
+    const norm = String(phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+    const allUsers = [...(data.registeredUsers || []), ...(data.users || [])];
+    const isRegistered = allUsers.some(u => {
+        const uphone = String(u.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+        return uphone && norm && (uphone.endsWith(norm) || norm.endsWith(uphone));
+    });
+
+    const msgBtn = document.querySelector('#view-contact-modal button[onclick*="startDirectChatFromContact"]');
+    if (msgBtn) {
+        if (isRegistered) {
+            msgBtn.innerHTML = `
+                <div style="width:44px; height:44px; border-radius:50%; background:rgba(99,103,255,0.15); display:flex; align-items:center; justify-content:center; font-size:18px;"><i class="fa-solid fa-comment"></i></div>
+                <span style="font-size:11px; font-weight:600;">Chat</span>
+            `;
+            msgBtn.onclick = function() { startDirectChatFromContact(); };
+        } else {
+            msgBtn.innerHTML = `
+                <div style="width:44px; height:44px; border-radius:50%; background:rgba(255,171,0,0.15); color:#FFAB00; display:flex; align-items:center; justify-content:center; font-size:18px;"><i class="fa-solid fa-paper-plane"></i></div>
+                <span style="font-size:11px; font-weight:600;">Invite</span>
+            `;
+            msgBtn.onclick = function() { sendSmsInvite(phone); };
+        }
+    }
 
     if (modal) modal.style.display = 'flex';
 }

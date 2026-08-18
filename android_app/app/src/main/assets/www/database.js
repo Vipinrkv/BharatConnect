@@ -249,13 +249,49 @@ class LocalDB {
         return 'chat_' + pair;
     }
 
-    getRecipientFromChatId(chatId, senderId) {
+    getRecipientFromChatId(chatId, currentUser) {
         if (!chatId || !chatId.startsWith('chat_')) return '';
         const raw = chatId.replace('chat_', '');
         const parts = raw.split('_');
-        const s = String(senderId || '').toLowerCase().trim();
-        const recipient = parts.find(p => p && p.toLowerCase() !== s);
-        return recipient || '';
+        if (parts.length < 2) return '';
+
+        let myKeys = new Set();
+        if (typeof currentUser === 'object' && currentUser !== null) {
+            if (currentUser.id) myKeys.add(String(currentUser.id).toLowerCase().trim());
+            if (currentUser.username) myKeys.add(String(currentUser.username).toLowerCase().trim());
+            if (currentUser.phone) {
+                const pDigits = String(currentUser.phone).replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+                if (pDigits) myKeys.add(pDigits);
+                myKeys.add(String(currentUser.phone).toLowerCase().trim());
+            }
+        } else if (typeof currentUser === 'string' && currentUser) {
+            const s = currentUser.toLowerCase().trim();
+            const sDigits = s.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+            myKeys.add(s);
+            if (sDigits) myKeys.add(sDigits);
+        }
+
+        for (const p of parts) {
+            if (!p) continue;
+            const pLower = p.toLowerCase().trim();
+            const pDigits = pLower.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+            
+            let isMe = false;
+            if (myKeys.has(pLower) || (pDigits && myKeys.has(pDigits))) {
+                isMe = true;
+            } else {
+                for (const k of myKeys) {
+                    if (k && pDigits && (k.endsWith(pDigits) || pDigits.endsWith(k))) {
+                        isMe = true;
+                        break;
+                    }
+                }
+            }
+            if (!isMe) {
+                return p;
+            }
+        }
+        return parts[0] || '';
     }
 
     async syncUsersFromCloud() {
@@ -337,6 +373,7 @@ class LocalDB {
             }
 
             if (window.renderAll) window.renderAll();
+            await this.syncUsersFromCloud();
             await this.syncAllUserChatsFromCloud();
         } catch (err) {
             console.warn('[SentinelCloudSync] Cloud fetch skipped:', err);
@@ -360,8 +397,8 @@ class LocalDB {
                         updated = true;
                     }
                 }
-                if (updated && typeof window.renderIndividualChats === 'function') {
-                    window.renderIndividualChats();
+                if (updated && typeof window.renderAll === 'function') {
+                    window.renderAll();
                 }
             }
         } catch (err) {
@@ -382,8 +419,8 @@ class LocalDB {
                     updated = true;
                 }
             }
-            if (updated && typeof window.renderIndividualChats === 'function') {
-                window.renderIndividualChats();
+            if (updated && typeof window.renderAll === 'function') {
+                window.renderAll();
             }
         } catch (e) {
             console.warn('[syncAllUserChatsFromCloud] error:', e);
@@ -404,7 +441,11 @@ class LocalDB {
         const smSender = String(sm.sender_id || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '') || String(sm.sender_id || '').toLowerCase();
         const isSentByMe = (smSender === 'me' || sm.is_me === true || smSender === myId || smSender === myUsername || (myPhone && smSender && (myPhone.endsWith(smSender) || smSender.endsWith(myPhone))));
 
-        const contactKey = isSentByMe ? (sm.recipient_id || sm.chat_id) : (sm.sender_id || sm.chat_id);
+        let contactKey = isSentByMe ? (sm.recipient_id || sm.chat_id) : (sm.sender_id || sm.chat_id);
+        if (contactKey && contactKey.startsWith('chat_')) {
+            const extracted = this.getRecipientFromChatId(contactKey, data.currentUser);
+            if (extracted) contactKey = extracted;
+        }
         
         let chat = data.individualChats.find(c =>
             (sm.chat_id && c.id === sm.chat_id) ||
@@ -422,6 +463,10 @@ class LocalDB {
             chat = this.addIndividualContact(contactKey);
         }
         if (!chat) return false;
+
+        if (!isSentByMe && sm.sender_name && (!chat.name || chat.name.startsWith('chat_') || chat.name.startsWith('u-'))) {
+            chat.name = sm.sender_name;
+        }
 
         if (!chat.messages) chat.messages = [];
         const existsIndex = chat.messages.findIndex(m => m.id === sm.id || (sm.client_message_id && m.client_message_id === sm.client_message_id) || (m.text === sm.text && m.time === sm.time));
@@ -490,6 +535,20 @@ class LocalDB {
             password: userData.password,
             user_avatar: userData.avatar || 'logo.png'
         };
+
+        // Sync directly to Supabase Cloud Users Table with encrypted password hash
+        if (window.securityEngine) {
+            window.securityEngine.generateHMAC(userData.password).then(passHash => {
+                this.sendToSupabase('users', {
+                    username: registerPayload.username,
+                    display_name: registerPayload.display_name,
+                    email: registerPayload.email,
+                    phone: registerPayload.phone,
+                    password_hash: passHash || 'hashed_pwd',
+                    user_avatar: registerPayload.user_avatar
+                });
+            }).catch(e => console.warn('[registerUser] Supabase direct sync deferred:', e));
+        }
 
         const createLocalUser = () => {
             const newUser = {
@@ -735,21 +794,33 @@ class LocalDB {
 
     addIndividualContact(identifier) {
         const data = this.get();
-        const target = identifier.toLowerCase().trim();
-        const normTarget = identifier.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+        let cleanIdentifier = identifier || '';
+        if (cleanIdentifier && cleanIdentifier.startsWith('chat_')) {
+            const recipient = this.getRecipientFromChatId(cleanIdentifier, data.currentUser);
+            if (recipient) cleanIdentifier = recipient;
+        }
 
-        const regUser = (data.registeredUsers || []).find(u => {
+        const target = cleanIdentifier.toLowerCase().trim();
+        const normTarget = cleanIdentifier.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+
+        const allUsers = [...(data.registeredUsers || []), ...(data.users || [])];
+        const regUser = allUsers.find(u => {
             const uphone = String(u.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
             return (uphone && normTarget && (uphone.endsWith(normTarget) || normTarget.endsWith(uphone))) ||
                    (u.username && u.username.toLowerCase() === target) ||
                    (u.name && u.name.toLowerCase() === target) ||
-                   (u.id === identifier);
+                   (u.id === cleanIdentifier || u.id === identifier);
         });
 
-        const newContactName = regUser ? regUser.name : window.securityEngine.sanitizeHTML(identifier);
+        let fallbackName = cleanIdentifier.replace(/^u[-_]/, '');
+        if (fallbackName.length > 12) fallbackName = fallbackName.substring(0, 10);
+        if (fallbackName.length > 4) fallbackName = fallbackName.charAt(0).toUpperCase() + fallbackName.slice(1);
+        if (fallbackName.startsWith('chat_') || fallbackName.startsWith('c_')) fallbackName = 'Contact';
+
+        const newContactName = regUser ? (regUser.name || regUser.username) : window.securityEngine.sanitizeHTML(fallbackName);
         const newContactAvatar = regUser ? regUser.avatar : 'logo.png';
-        const newContactPhone = regUser ? regUser.phone : identifier;
-        const newContactId = regUser ? regUser.id : ('u_' + (normTarget || Date.now()));
+        const newContactPhone = regUser ? regUser.phone : (normTarget || identifier);
+        const newContactId = regUser ? regUser.id : (cleanIdentifier || ('u_' + Date.now()));
 
         const myUserKey = (data.currentUser.phone || data.currentUser.username || data.currentUser.id || 'me');
         const sharedChatId = this.getPairwiseChatId(myUserKey, newContactPhone || newContactId);
@@ -759,6 +830,10 @@ class LocalDB {
         let existingChat = data.individualChats.find(c => c.id === sharedChatId || c.userId === newContactId || c.phone === newContactPhone);
         if (existingChat) {
             existingChat.id = sharedChatId || existingChat.id;
+            if (regUser && (!existingChat.name || existingChat.name.startsWith('chat_') || existingChat.name.startsWith('u-'))) {
+                existingChat.name = regUser.name || regUser.username;
+                existingChat.avatar = regUser.avatar || existingChat.avatar;
+            }
             this.save(data);
             return existingChat;
         }
@@ -1229,3 +1304,10 @@ class LocalDB {
 }
 
 window.localDB = new LocalDB();
+
+// High-speed real-time cloud message listener & sync ticker (runs every 3s)
+setInterval(() => {
+    if (window.localDB && typeof window.localDB.syncAllUserChatsFromCloud === 'function') {
+        window.localDB.syncAllUserChatsFromCloud().catch(e => console.warn('[CloudSyncTicker] Error:', e));
+    }
+}, 3000);

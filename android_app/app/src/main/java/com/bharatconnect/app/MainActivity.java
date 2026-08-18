@@ -108,6 +108,17 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @JavascriptInterface
+        public boolean isLocationGPSEnabled() {
+            try {
+                android.location.LocationManager lm = (android.location.LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+                return lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) ||
+                       lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
         public void showDeviceNotification(String title, String message) {
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -155,10 +166,34 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void createBharatConnectFolders() {
+        try {
+            java.io.File externalStorageDir = android.os.Environment.getExternalStorageDirectory();
+            if (externalStorageDir != null) {
+                java.io.File baseMediaDir = new java.io.File(externalStorageDir, "BharatConnect/Media");
+                String[] subFolders = {
+                    "BharatConnect Images",
+                    "BharatConnect Documents",
+                    "BharatConnect Audio",
+                    "BharatConnect Video"
+                };
+                for (String sub : subFolders) {
+                    java.io.File folder = new java.io.File(baseMediaDir, sub);
+                    if (!folder.exists()) {
+                        folder.mkdirs();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        createBharatConnectFolders();
         
         webView = new WebView(this);
         setContentView(webView);
@@ -177,6 +212,9 @@ public class MainActivity extends AppCompatActivity {
         settings.setLoadWithOverviewMode(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setGeolocationEnabled(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        }
 
         webView.addJavascriptInterface(new ContactBridge(this), "AndroidBridge");
 
