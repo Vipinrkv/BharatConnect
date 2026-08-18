@@ -650,6 +650,40 @@ async def update_message_status(
     return {"status": "success", "message_id": msg.id, "new_status": msg.status}
 
 
+@app.delete("/api/v1/chats/{chat_id}")
+def delete_chat_messages(chat_id: str, user_key: str = None, db: Session = Depends(get_db)):
+    filters = [MessageModel.chat_id == chat_id]
+
+    if chat_id.startswith("chat_"):
+        parts = chat_id.replace("chat_", "").split("_")
+        if len(parts) == 2:
+            filters.append(
+                sqlalchemy.and_(
+                    MessageModel.sender_id.like(f"%{parts[0]}%"),
+                    MessageModel.recipient_id.like(f"%{parts[1]}%"),
+                )
+            )
+            filters.append(
+                sqlalchemy.and_(
+                    MessageModel.sender_id.like(f"%{parts[1]}%"),
+                    MessageModel.recipient_id.like(f"%{parts[0]}%"),
+                )
+            )
+
+    if user_key:
+        clean_key = user_key.lower().strip()
+        digits = re.sub(r"\D", "", clean_key)
+        filters.append(MessageModel.sender_id.ilike(f"%{clean_key}%"))
+        filters.append(MessageModel.recipient_id.ilike(f"%{clean_key}%"))
+        if digits and len(digits) >= 7:
+            filters.append(MessageModel.sender_id.like(f"%{digits[-10:]}%"))
+            filters.append(MessageModel.recipient_id.like(f"%{digits[-10:]}%"))
+
+    deleted_count = db.query(MessageModel).filter(sqlalchemy.or_(*filters)).delete(synchronize_session=False)
+    db.commit()
+    return {"status": "success", "chat_id": chat_id, "deleted_messages": deleted_count}
+
+
 # Marketplace Endpoints
 @app.get("/api/v1/marketplace", response_model=List[MarketplaceItemResponse])
 def get_marketplace_items(category: str = None, db: Session = Depends(get_db)):

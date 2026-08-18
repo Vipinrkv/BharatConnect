@@ -446,6 +446,24 @@ class LocalDB {
             const extracted = this.getRecipientFromChatId(contactKey, data.currentUser);
             if (extracted) contactKey = extracted;
         }
+
+        if (!data.deletedChatIds) data.deletedChatIds = {};
+        const delTs = data.deletedChatIds[sm.chat_id] || (contactKey && data.deletedChatIds[contactKey]) || (sm.sender_id && data.deletedChatIds[sm.sender_id]) || (sm.recipient_id && data.deletedChatIds[sm.recipient_id]);
+        if (delTs) {
+            let msgTime = Date.now();
+            if (sm.created_at) {
+                const dt = Date.parse(sm.created_at);
+                if (!isNaN(dt)) msgTime = dt;
+            }
+            if (msgTime <= delTs + 2000) {
+                return false;
+            } else {
+                delete data.deletedChatIds[sm.chat_id];
+                if (contactKey) delete data.deletedChatIds[contactKey];
+                if (sm.sender_id) delete data.deletedChatIds[sm.sender_id];
+                if (sm.recipient_id) delete data.deletedChatIds[sm.recipient_id];
+            }
+        }
         
         let chat = data.individualChats.find(c =>
             (sm.chat_id && c.id === sm.chat_id) ||
@@ -769,23 +787,12 @@ class LocalDB {
                     (chat.phone && regUser.phone && String(chat.phone).replace(/\D/g, '').endsWith(uphone)) || 
                     chat.userId === regUser.id
                 );
-                if (!existingChat) {
-                    data.individualChats.push({
-                        id: sharedChatId || ('c_' + regUser.id),
-                        userId: regUser.id,
-                        name: regUser.name || regUser.username,
-                        phone: regUser.phone || '',
-                        username: regUser.username || '',
-                        avatar: regUser.avatar || 'logo.png',
-                        lastMessage: 'Tap to start end-to-end encrypted chat 🔒',
-                        time: 'Just now',
-                        messages: []
-                    });
-                } else {
+                if (existingChat) {
                     if (sharedChatId) existingChat.id = sharedChatId;
                     existingChat.userId = regUser.id;
                     existingChat.username = regUser.username || existingChat.username;
                     if (regUser.phone) existingChat.phone = regUser.phone;
+                    if (regUser.avatar && regUser.avatar !== 'logo.png') existingChat.avatar = regUser.avatar;
                 }
             }
         });
@@ -872,12 +879,32 @@ class LocalDB {
 
     deleteChat(chatId) {
         const data = this.get();
+        if (!data.deletedChatIds) data.deletedChatIds = {};
+
+        const now = Date.now();
+        data.deletedChatIds[chatId] = now;
+
         ['individualChats', 'groups', 'communities'].forEach(key => {
             if (data[key]) {
+                const targetChat = data[key].find(c => c.id === chatId);
+                if (targetChat) {
+                    if (targetChat.userId) data.deletedChatIds[targetChat.userId] = now;
+                    if (targetChat.phone) data.deletedChatIds[targetChat.phone] = now;
+                    if (targetChat.username) data.deletedChatIds[targetChat.username] = now;
+                }
                 data[key] = data[key].filter(c => c.id !== chatId);
             }
         });
+
         this.save(data);
+
+        // Delete chat messages from backend REST Server
+        const apiBaseUrl = (window.BHARATCONNECT_CONFIG && window.BHARATCONNECT_CONFIG.API_BASE_URL) || 'https://bharatconnect-api.onrender.com/api/v1';
+        const userKey = (data.currentUser ? (data.currentUser.phone || data.currentUser.username || data.currentUser.id) : '');
+        fetch(`${apiBaseUrl}/chats/${encodeURIComponent(chatId)}?user_key=${encodeURIComponent(userKey)}`, {
+            method: 'DELETE'
+        }).catch(e => console.warn('[deleteChat] Server delete error:', e));
+
         return data;
     }
 
