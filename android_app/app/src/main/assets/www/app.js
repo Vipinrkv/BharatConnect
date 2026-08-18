@@ -1562,9 +1562,28 @@ function filterChatList() {
 
 function renderChatTabContents(data) {
     const q = (document.getElementById('chat-search-input') ? document.getElementById('chat-search-input').value : '').toLowerCase().trim();
-    
+    const currentUser = (data && data.currentUser) || {};
+    const myId = String(currentUser.id || '').toLowerCase();
+    const myUsername = String(currentUser.username || '').toLowerCase();
+    const myPhone = String(currentUser.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+
+    const isMyChat = (c) => {
+        if (!c) return false;
+        if (c.id && c.id.startsWith('chat_')) {
+            const raw = c.id.replace('chat_', '');
+            const parts = raw.split('_');
+            return parts.some(p => {
+                const pLower = p.toLowerCase();
+                const pDigits = pLower.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0+/, '');
+                return (pLower === myId || pLower === myUsername || (myPhone && pDigits && (myPhone.endsWith(pDigits) || pDigits.endsWith(myPhone))));
+            });
+        }
+        return true;
+    };
+
     // Individual
     const indivChats = (data.individualChats || []).filter(c => {
+        if (!isMyChat(c)) return false;
         const r = resolveChatDisplayInfo(c, data);
         return (r.name && r.name.toLowerCase().includes(q)) || (c.name && c.name.toLowerCase().includes(q)) || (c.phone && c.phone.includes(q));
     });
