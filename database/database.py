@@ -211,10 +211,120 @@ class SQLiteDatabaseEngine:
 
 
     def seed_initial_data(self):
-        pass
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            # 1. Seed Demo Users if not present
+            cursor.execute("SELECT COUNT(*) as count FROM users")
+            if cursor.fetchone()["count"] == 0:
+                demo_pass_hash = self._hash_password("password123")
+                users = [
+                    ("u-alex", "alexmorgan", "Alex Morgan", "alex.morgan@bharatconnect.com", "9876543210", "India", "Building BharatConnect 🚀", "Passionate about technology and code.", "ONLINE", "Just now", "AM", "#6367FF", 12, "1.2K", 320, demo_pass_hash),
+                    ("u-priya", "priyasharma", "Priya Sharma", "priya.sharma@bharatconnect.com", "9876543211", "India", "Exploring Himachal 🏔️", "Photographer & Tech Enthusiast", "ONLINE", "Just now", "PS", "#E1306C", 45, "3.4K", 180, demo_pass_hash),
+                    ("u-rohan", "rohanverma", "Rohan Verma", "rohan.verma@bharatconnect.com", "9876543212", "India", "Coding in the matrix 💻", "Full-Stack Dev & Open-Source Contributor", "ONLINE", "Just now", "RV", "#F77737", 28, "2.1K", 410, demo_pass_hash),
+                    ("u-ananya", "ananyapatel", "Ananya Patel", "ananya.patel@bharatconnect.com", "9876543213", "India", "Design is life ✨", "UI/UX Designer & Artist", "ONLINE", "Just now", "AP", "#405DE6", 19, "890", 150, demo_pass_hash),
+                ]
+                cursor.executemany(
+                    """
+                    INSERT OR IGNORE INTO users (
+                        id, username, display_name, email, phone, country,
+                        status_message, bio, presence, last_seen, avatar_initials,
+                        avatar_color, posts_count, followers_count, following_count, password_hash
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    users,
+                )
+
+            # 2. Seed Settings
+            cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('current_user_id', 'u-alex')")
+
+            # 3. Seed Stories if not present
+            cursor.execute("SELECT COUNT(*) as count FROM stories")
+            if cursor.fetchone()["count"] == 0:
+                stories = [
+                    ("s-1", "Your Story", 1, "AM", "#6367FF", 0),
+                    ("s-2", "Priya", 0, "PS", "#E1306C", 1),
+                    ("s-3", "Rohan", 0, "RV", "#F77737", 1),
+                    ("s-4", "Ananya", 0, "AP", "#405DE6", 1),
+                ]
+                cursor.executemany("INSERT OR IGNORE INTO stories (id, name, is_user, avatar, color, has_unseen) VALUES (?, ?, ?, ?, ?, ?)", stories)
+
+            # 4. Seed Posts if not present
+            cursor.execute("SELECT COUNT(*) as count FROM posts")
+            if cursor.fetchone()["count"] == 0:
+                posts = [
+                    ("post-1", "u-priya", "Priya Sharma", "2h ago", "Exploring the beautiful landscape of Himachal Pradesh! 🏔️ Amazing vibes here. #BharatConnect #TravelIndia", "sunset_post.png", 42, 5, 0, "PS", "#E1306C"),
+                    ("post-2", "u-rohan", "Rohan Verma", "4h ago", "Just built our sub-50ms realtime messaging engine on Python + FastAPI + Kivy! 🚀 Check out the speed.", "item_laptop.png", 128, 14, 1, "RV", "#F77737"),
+                    ("post-3", "u-alex", "Alex Morgan", "Yesterday", "Excited to connect with everyone on BharatConnect. Building the future of sovereign social networking! 🇮🇳", "item_iphone.png", 96, 8, 0, "AM", "#6367FF"),
+                ]
+                cursor.executemany(
+                    """
+                    INSERT OR IGNORE INTO posts (
+                        id, author_id, author_name, time_ago, content, image_title,
+                        likes_count, comments_count, is_liked, user_avatar, avatar_color
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    posts,
+                )
+
+            # 5. Seed Chats & Messages if not present
+            cursor.execute("SELECT COUNT(*) as count FROM chats")
+            if cursor.fetchone()["count"] == 0:
+                chats = [
+                    ("c-priya", "INDIVIDUAL", "Priya Sharma", "Online", "Always here to help!", 0, "account", "PS", "#E1306C", "Hey Alex, did you see the new update?", "10:30 AM", 1, "u-priya"),
+                    ("g-tech", "GROUP", "Tech Innovation Hub", "124 members", "Pinned: Next sprint meeting at 4 PM", 2, "account-group", "TI", "#2F2FE4", "WebSocket latency is below 35ms now!", "09:45 AM", 0, None),
+                    ("c-community", "COMMUNITY", "Bharat Creators", "1.2K members", "Welcome all creators!", 0, "account-multiple", "BC", "#6367FF", "Welcome all new creators! 🇮🇳", "Yesterday", 0, None),
+                ]
+                cursor.executemany(
+                    """
+                    INSERT OR IGNORE INTO chats (
+                        id, chat_type, title, subtitle, pinned_message, unread_count,
+                        icon, avatar_initials, avatar_color, last_message, last_message_time, is_pinned, target_user_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    chats,
+                )
+
+                messages = [
+                    ("m-1", "c-priya", "u-priya", "Priya Sharma", "Hi Alex! How is the project going?", "10:28 AM", 0, "#E1306C"),
+                    ("m-2", "c-priya", "u-alex", "Alex Morgan", "Going fantastic! Realtime sync is working super smoothly.", "10:29 AM", 1, "#6367FF"),
+                    ("m-3", "c-priya", "u-priya", "Priya Sharma", "Hey Alex, did you see the new update?", "10:30 AM", 0, "#E1306C"),
+                    ("m-4", "g-tech", "u-rohan", "Rohan Verma", "Latency benchmarks are looking awesome.", "09:40 AM", 0, "#F77737"),
+                    ("m-5", "g-tech", "u-ananya", "Ananya Patel", "WebSocket latency is below 35ms now!", "09:45 AM", 0, "#405DE6"),
+                    ("m-6", "c-community", "u-alex", "Alex Morgan", "Welcome all new creators! 🇮🇳", "Yesterday", 1, "#6367FF"),
+                ]
+                cursor.executemany(
+                    """
+                    INSERT OR IGNORE INTO messages (
+                        id, chat_id, sender_id, sender_name, text, time, is_me, avatar_color
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    messages,
+                )
+
+            # 6. Seed Marketplace if not present
+            cursor.execute("SELECT COUNT(*) as count FROM marketplace")
+            if cursor.fetchone()["count"] == 0:
+                market = [
+                    ("mkt-1", "popular_items", "iPhone 15 Pro (128GB)", "₹1,19,900", "Electronics", "cellphone", "#6367FF", "#2F2FE4"),
+                    ("mkt-2", "popular_items", "MacBook Pro M3 (16GB)", "₹1,69,900", "Laptops", "laptop", "#8494FF", "#162E93"),
+                    ("mkt-3", "jobs", "Senior Python / Kivy Engineer", "₹18-24 LPA", "Full-time • Remote", "briefcase", "#2F2FE4", "#162E93"),
+                    ("mkt-4", "jobs", "UI/UX Mobile App Designer", "₹12-16 LPA", "Full-time • Hybrid", "palette", "#6367FF", "#8494FF"),
+                    ("mkt-5", "quick_jobs", "Bug Fix: WebSocket Reconnect", "₹5,000", "One-time Bounty", "bug", "#F77737", "#E1306C"),
+                    ("mkt-6", "quick_jobs", "Design App Splash Screen Icon", "₹3,500", "Graphic Design", "brush", "#405DE6", "#6367FF"),
+                ]
+                cursor.executemany(
+                    """
+                    INSERT OR IGNORE INTO marketplace (
+                        id, category, title, price_payout, type_tag, icon, color1, color2
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    market,
+                )
+
+            conn.commit()
 
     def ensure_runtime_defaults(self):
-        pass
+        self.seed_initial_data()
 
     def _refresh_chat_summaries(self, cursor):
         cursor.execute("SELECT id FROM chats")
@@ -410,6 +520,13 @@ class SQLiteDatabaseEngine:
             cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('current_user_id', ?)", (user_id,))
             conn.commit()
         return self.get_current_user()
+
+    def reset_password(self, email):
+        """Generates reset OTP and instructions for forgotten passwords."""
+        success, msg = self.reset_password_with_email(email)
+        if success:
+            return True, f"Password reset instructions sent to {email}. ({msg})"
+        return False, msg
 
     def reset_password_with_email(self, email, otp=None, new_password=None):
         clean_email = email.strip().lower()

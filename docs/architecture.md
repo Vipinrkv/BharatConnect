@@ -12,14 +12,22 @@ BharatConnect follows a modular UI-driven architecture built on top of **Kivy 2.
                              │
             ┌────────────────┴────────────────┐
             ▼                                 ▼
-   ScreenManager Engine                 DatabaseEngine
-(FadeTransition Controller)         (SQLite Local Persistence)
+   ScreenManager Engine                 HybridSyncEngine
+(FadeTransition Controller)         (SQLite + Online REST/WS Sync)
             │
-            ├──────► SplashScreen (Top Pill Badge, Logo Squircle, Action Buttons)
+            ├──────► SplashScreen (Brand Intro, Connectivity Status Badge, Action Buttons)
             ├──────► LoginScreen (Email/User Input, Password Toggle, Social Login)
-            ├──────► RegisterScreen (Account Registration & Input Validation)
-            ├──────► ForgotPasswordScreen (Password Recovery Instructions)
-            └──────► DashboardScreen (Bottom Nav Container: Home Feed, Chats, Marketplace, Profile, Settings)
+            ├──────► RegisterScreen (Account Registration, Terms Checkbox & Validation)
+            ├──────► ForgotPasswordScreen (OTP Generation & Password Recovery)
+            ├──────► DashboardScreen (Bottom Navigation Container)
+            │         ├─► HomeScreenView (Brand Feed, Story Row, Post Likes/Comments)
+            │         ├─► ReelsView (Full-Screen Short Videos, Engagement Bar)
+            │         ├─► ChatListView & ChatThreadView (Individual/Group/Community Real-Time Streams)
+            │         ├─► MarketplaceView (Items, Jobs, Quick Bounties with Filters)
+            │         └─► ProfileView (Stats, Bio, Settings Action)
+            ├──────► EditProfileScreen (Avatar Customization, Bio, Display Name Updates)
+            ├──────► EncryptedCallScreen (E2EE Voice & Video Call Interface, In-Call Controls)
+            └──────► SettingsScreen (Account, Privacy, Notification & Session Hardening)
 ```
 
 ---

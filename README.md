@@ -62,66 +62,75 @@ Designed according to premium modern mobile UI/UX standards:
 ```text
 BharatConnect/
 ├── main.py                   # Main application entry point & ScreenManager setup
-├── start.bat                 # One-click launcher for Kivy Frontend App
+├── start.bat                 # One-click launcher for Kivy Mobile App
 ├── start_backend.bat         # One-click launcher for Universal Backend API Server
 ├── start_all.bat             # One-click launcher for full stack (Backend + App)
-├── build_apk.bat             # Delegated launcher for Android APK compilation
+├── build_apk.py / .bat       # Standalone Hybrid WebView APK builder
+├── build_native_apk.bat      # Native Android Jetpack Compose APK builder
 ├── requirements.txt          # Client dependencies
 ├── README.md                 # Project documentation & guide
-├── android/                  # Isolated Android Module & Build System
-│   ├── buildozer.spec        # Buildozer spec (API 34, Min API 21, Permissions)
-│   ├── build_apk.bat         # 1-Click Windows WSL compilation script launcher
-│   ├── build_apk.sh          # Linux/WSL compilation bash script
-│   ├── README.md             # Android module guide
-│   └── bin/                  # Output folder for compiled .apk binaries
 ├── backend/                  # Universal Server & Decoupled Database Layer
 │   ├── server.py             # FastAPI REST & WebSocket API Server
 │   ├── database.py           # SQLAlchemy ORM models & universal DB engine
 │   ├── schemas.py            # Pydantic API request/response schemas
 │   ├── auth.py               # JWT authentication & password security
 │   ├── config.py             # Environment & server configurations
+│   ├── fcm_push.py           # Firebase Cloud Messaging push notifications
+│   ├── google_sheets.py      # Google Sheets cloud database sync connector
 │   └── requirements.txt      # Standalone backend dependencies
-├── app/
-│   ├── api_client.py         # Universal REST API Client wrapper with offline fallback
+├── app/                      # Mobile & Desktop Client Application
+│   ├── api_client.py         # Universal REST API Client with offline fallback
 │   ├── sync_engine.py        # Hybrid offline/online background sync engine
 │   ├── session_manager.py    # Encrypted session persistence
-│   ├── notifications.py      # In-app notifications engine
-│   ├── screens/              # Pure Python screen implementations
-│   │   ├── splash.py         # Splash Screen
-│   │   ├── login.py          # Login Screen
-│   │   ├── register.py       # Register Screen
-│   │   ├── forgot_password.py# Forgot Password Screen
-│   │   ├── dashboard.py      # Bottom Navigation Container Screen
-│   │   ├── home.py           # Home Feed View
-│   │   ├── chat.py           # Chats & Thread Views
-│   │   ├── chat_individual.py# 1-on-1 Encrypted Chat
-│   │   ├── chat_group.py     # Group Chat View
-│   │   ├── chat_community.py # Public Community Channels
-│   │   ├── marketplace.py    # Marketplace View
-│   │   ├── profile.py        # Profile View
-│   │   ├── reels.py          # Short Videos View
-│   │   ├── call.py           # E2EE Call View
-│   │   └── settings.py       # Settings Screen
-│   └── theme.py              # Theme & Color Management
+│   ├── notifications.py      # Smart in-app notification engine
+│   ├── theme.py              # Theme tokens & UI component facade
+│   └── screens/              # Pure Python screen implementations
+│       ├── splash.py         # Splash Screen
+│       ├── login.py          # Login Screen
+│       ├── register.py       # Register Screen
+│       ├── forgot_password.py# Forgot Password Screen
+│       ├── dashboard.py      # Bottom Navigation Container Screen
+│       ├── home.py           # Home Feed View
+│       ├── chat.py           # Real-Time Chat & Thread Views
+│       ├── marketplace.py    # Marketplace View
+│       ├── profile.py        # Profile View
+│       ├── edit_profile.py   # Edit Profile View
+│       ├── reels.py          # Immersive Short Videos View
+│       ├── call.py           # E2EE Call Interface
+│       └── settings.py       # Settings Screen
+├── android_app/              # Standalone Hybrid WebView Android Project (Gradle)
+├── android_native/           # Native Android Kotlin + Jetpack Compose Project (Gradle)
 ├── database/                 # SQLite Local Persistence Layer
 │   ├── db.py                 # Engine helper wrappers
-│   └── database.py           # Local SQLite connection & schema (SQLiteDatabaseEngine)
-├── utils/                    # UI & Security Utilities
-│   ├── helper.py             # Color tokens, GradientCard, RoundedRectangle canvas, buttons
-│   ├── security.py           # Multi-layer AES/E2EE encryption
-│   ├── local_storage.py      # Encrypted key-value offline storage
+│   ├── database.py           # Local SQLite engine (SQLiteDatabaseEngine)
+│   └── 01_supabase_master_schema.sql # Master PostgreSQL/Supabase schema
+├── utils/                    # UI, Phone & Security Utilities
+│   ├── helper.py             # Color tokens, GradientCard, canvas shaders, buttons
+│   ├── security.py           # 9-Layer AES/E2EE encryption & token validation
+│   ├── bharat_shield.py      # Quantum-Resistant Double-Ratchet security engine
+│   ├── phone.py              # Canonical E.164 phone parser & normalizer
+│   ├── local_storage.py      # JSON disk caching & offline store
 │   ├── contact_sync.py       # Cross-platform device contact importer
-│   └── smart_fallback.py     # Offline database fallback handler
-└── docs/                     # Technical Guides & Schema Docs
-    ├── architecture.md
-    ├── database_schema.md
-    ├── user_guide.md
-    └── apk_build_guide.md
+│   ├── cloudinary_storage.py # Media storage & upload utility
+│   └── smart_fallback.py     # 3-Tier failover handler
+└── docs/                     # Comprehensive Documentation Hub
+    ├── README.md             # Documentation index & navigation
+    ├── architecture.md       # Client UI architecture & tokens
+    ├── architecture_master.md# Full system architecture specification
+    ├── database_schema.md    # Schema models & contact matching
+    ├── user_guide.md         # User guide & feature walkthrough
+    ├── apk_build_guide.md    # Android APK compilation guide
+    ├── CLOUDINARY_SETUP.md   # Cloudinary media setup guide
+    ├── FIREBASE_FCM_SETUP.md # Firebase Cloud Messaging setup
+    └── google_sheets_guide.md# Google Sheets database sync guide
 ```
 
 ---
 
 ## 📱 Building Android APK
 
-Refer to [`docs/apk_build_guide.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/apk_build_guide.md) or double-click **`build_apk.bat`** (or `android/build_apk.bat`) for detailed instructions on packaging BharatConnect into an Android `.apk` using **Buildozer** inside WSL.
+Refer to [`docs/apk_build_guide.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/apk_build_guide.md) or run:
+- **Option 1 (Hybrid App)**: Double-click **`build_apk.bat`** (or `python build_apk.py`).
+- **Option 2 (Native Compose App)**: Double-click **`build_native_apk.bat`** (or `gradlew.bat assembleDebug` in `android_native/`).
+
 

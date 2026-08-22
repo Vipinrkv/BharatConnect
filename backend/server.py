@@ -140,6 +140,198 @@ ws_manager = ConnectionManager()
 
 def seed_initial_data():
     init_db()
+    db = SessionLocal()
+    try:
+        def make_seed_uuid(key: str) -> str:
+            return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"bharatconnect.seed.{key}"))
+
+        # 1. Seed demo users if no users exist
+        try:
+            user_count = db.query(UserModel).count()
+            if user_count == 0:
+                demo_hash = hash_password("password123")
+                users = [
+                    UserModel(
+                        id=make_seed_uuid("user.alex"),
+                        username="alexmorgan",
+                        display_name="Alex Morgan",
+                        email="alex.morgan@bharatconnect.com",
+                        phone="9876543210",
+                        country="India",
+                        status_message="Building BharatConnect 🚀",
+                        bio="Passionate about technology and code.",
+                        presence="ONLINE",
+                        last_seen="Just now",
+                        avatar_initials="AM",
+                        avatar_color="#6367FF",
+                        user_avatar="logo.png",
+                        posts_count=12,
+                        followers_count="1.2K",
+                        following_count=320,
+                        password_hash=demo_hash,
+                    ),
+                    UserModel(
+                        id=make_seed_uuid("user.priya"),
+                        username="priyasharma",
+                        display_name="Priya Sharma",
+                        email="priya.sharma@bharatconnect.com",
+                        phone="9876543211",
+                        country="India",
+                        status_message="Exploring Himachal 🏔️",
+                        bio="Photographer & Tech Enthusiast",
+                        presence="ONLINE",
+                        last_seen="Just now",
+                        avatar_initials="PS",
+                        avatar_color="#E1306C",
+                        user_avatar="logo.png",
+                        posts_count=45,
+                        followers_count="3.4K",
+                        following_count=180,
+                        password_hash=demo_hash,
+                    ),
+                    UserModel(
+                        id=make_seed_uuid("user.rohan"),
+                        username="rohanverma",
+                        display_name="Rohan Verma",
+                        email="rohan.verma@bharatconnect.com",
+                        phone="9876543212",
+                        country="India",
+                        status_message="Coding in the matrix 💻",
+                        bio="Full-Stack Dev & Open-Source Contributor",
+                        presence="ONLINE",
+                        last_seen="Just now",
+                        avatar_initials="RV",
+                        avatar_color="#F77737",
+                        user_avatar="logo.png",
+                        posts_count=28,
+                        followers_count="2.1K",
+                        following_count=410,
+                        password_hash=demo_hash,
+                    ),
+                ]
+                for u in users:
+                    db.add(u)
+                db.commit()
+
+            # Ensure alexmorgan has valid password hash
+            alex = db.query(UserModel).filter(UserModel.username == "alexmorgan").first()
+            if alex and (not alex.password_hash or not verify_password("password123", alex.password_hash)):
+                alex.password_hash = hash_password("password123")
+                db.commit()
+        except Exception:
+            db.rollback()
+
+        # 2. Seed stories if empty
+        try:
+            if db.query(StoryModel).count() == 0:
+                stories = [
+                    StoryModel(id=make_seed_uuid("story.1"), name="Your Story", is_user=True, avatar="AM", color="#6367FF", has_unseen=False),
+                    StoryModel(id=make_seed_uuid("story.2"), name="Priya", is_user=False, avatar="PS", color="#E1306C", has_unseen=True),
+                    StoryModel(id=make_seed_uuid("story.3"), name="Rohan", is_user=False, avatar="RV", color="#F77737", has_unseen=True),
+                ]
+                for s in stories:
+                    db.add(s)
+                db.commit()
+        except Exception:
+            db.rollback()
+
+        # 3. Seed posts if empty
+        try:
+            if db.query(PostModel).count() == 0:
+                alex = db.query(UserModel).filter(UserModel.username == "alexmorgan").first()
+                priya = db.query(UserModel).filter(UserModel.username == "priyasharma").first()
+                author_id = (priya.id if priya else None) or (alex.id if alex else make_seed_uuid("user.priya"))
+                posts = [
+                    PostModel(
+                        id=make_seed_uuid("post.1"),
+                        author_id=author_id,
+                        author_name="Priya Sharma",
+                        time_ago="2h ago",
+                        content="Exploring the beautiful landscape of Himachal Pradesh! 🏔️ Amazing vibes here. #BharatConnect #TravelIndia",
+                        image_title="sunset_post.png",
+                        likes_count=42,
+                        comments_count=5,
+                        is_liked=False,
+                        user_avatar="PS",
+                        avatar_color="#E1306C",
+                    ),
+                    PostModel(
+                        id=make_seed_uuid("post.2"),
+                        author_id=author_id,
+                        author_name="Alex Morgan",
+                        time_ago="4h ago",
+                        content="Just built our sub-50ms realtime messaging engine on Python + FastAPI + Kivy! 🚀 Check out the speed.",
+                        image_title="item_laptop.png",
+                        likes_count=128,
+                        comments_count=14,
+                        is_liked=True,
+                        user_avatar="AM",
+                        avatar_color="#6367FF",
+                    ),
+                ]
+                for p in posts:
+                    db.add(p)
+                db.commit()
+        except Exception:
+            db.rollback()
+
+        # 4. Seed chats & messages if empty
+        try:
+            if db.query(ChatModel).count() == 0:
+                chats = [
+                    ChatModel(
+                        id=make_seed_uuid("chat.priya"),
+                        chat_type="INDIVIDUAL",
+                        title="Priya Sharma",
+                        subtitle="Online",
+                        pinned_message="Always here to help!",
+                        unread_count=0,
+                        icon="account",
+                        avatar_initials="PS",
+                        avatar_color="#E1306C",
+                        last_message="Hey Alex, did you see the new update?",
+                        last_message_time="10:30 AM",
+                        is_pinned=True,
+                    ),
+                    ChatModel(
+                        id=make_seed_uuid("chat.group.tech"),
+                        chat_type="GROUP",
+                        title="Tech Innovation Hub",
+                        subtitle="124 members",
+                        pinned_message="Pinned: Next sprint meeting at 4 PM",
+                        unread_count=2,
+                        icon="account-group",
+                        avatar_initials="TI",
+                        avatar_color="#2F2FE4",
+                        last_message="WebSocket latency is below 35ms now!",
+                        last_message_time="09:45 AM",
+                        is_pinned=False,
+                    ),
+                ]
+                for c in chats:
+                    db.add(c)
+                db.commit()
+        except Exception:
+            db.rollback()
+
+        # 5. Seed marketplace if empty
+        try:
+            if db.query(MarketplaceModel).count() == 0:
+                market = [
+                    MarketplaceModel(id=make_seed_uuid("mkt.1"), category="popular_items", title="iPhone 15 Pro (128GB)", price_payout="₹1,19,900", type_tag="Electronics", icon="cellphone", color1="#6367FF", color2="#2F2FE4"),
+                    MarketplaceModel(id=make_seed_uuid("mkt.2"), category="jobs", title="Senior Python / Kivy Engineer", price_payout="₹18-24 LPA", type_tag="Full-time • Remote", icon="briefcase", color1="#2F2FE4", color2="#162E93"),
+                    MarketplaceModel(id=make_seed_uuid("mkt.3"), category="quick_jobs", title="Bug Fix: WebSocket Reconnect", price_payout="₹5,000", type_tag="One-time Bounty", icon="bug", color1="#F77737", color2="#E1306C"),
+                ]
+                for m in market:
+                    db.add(m)
+                db.commit()
+        except Exception:
+            db.rollback()
+    except Exception as e:
+        print(f"[Seed Warning] Backend seed initial data: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 
 
