@@ -27,6 +27,10 @@ wheels/
 bin/
 *.apk
 *.aab
+**/build/
+android_native/.gradle/
+android_native/app/build/
+android_native/local.properties
 
 # Local runtime data / DB
 data/app.db
