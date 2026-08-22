@@ -11,6 +11,14 @@ import com.bharatconnect.app.domain.model.Message
 import com.bharatconnect.app.domain.repository.ChatRepository
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.realtime.RealtimeChannel
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.decodeRecord
+import io.github.jan.supabase.realtime.decodeOldRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -51,7 +59,6 @@ class ChatRepositoryImpl : ChatRepository {
             Result.success(entities.map { it.toDomain() })
         } catch (e: Exception) {
             // Offline fallback to Room
-            val local = conversationDao.getAllConversationsFlow()
             Result.success(emptyList())
         }
     }
@@ -82,11 +89,11 @@ class ChatRepositoryImpl : ChatRepository {
         mediaType: String?
     ): Result<Message> = withContext(Dispatchers.IO) {
         val currentUserId = supabase.auth.currentUserOrNull()?.id ?: "local_user"
-        val tempId = UUID.randomUUID().toString()
+        val messageId = UUID.randomUUID().toString()
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
         val localMessage = Message(
-            id = tempId,
+            id = messageId,
             conversationId = conversationId,
             senderId = currentUserId,
             content = content,
@@ -101,32 +108,33 @@ class ChatRepositoryImpl : ChatRepository {
         messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(localMessage))
         conversationDao.updateLastMessage(conversationId, content, "You", timestamp)
 
-        // 2. Dispatch to Supabase
+        // 2. Dispatch to Supabase idempotently with client-assigned message ID
         try {
             val messageDto = MessageDto(
+                id = messageId,
                 conversationId = conversationId,
                 senderId = currentUserId,
                 content = content,
                 mediaUrl = mediaUrl,
                 mediaType = mediaType,
-                status = "sent"
+                status = "sent",
+                createdAt = timestamp
             )
 
             val inserted = supabase.postgrest["messages"]
-                .insert(messageDto) {
+                .upsert(messageDto) {
                     select()
                 }
                 .decodeSingle<MessageDto>()
 
             val finalMessage = inserted.toDomain()
-            // 3. Reconcile in Room DB
-            messageDao.deleteMessage(tempId)
-            messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(finalMessage))
+            // 3. Mark synced in Room DB
+            messageDao.updateMessageStatus(messageId, "sent", false)
 
             Result.success(finalMessage)
         } catch (e: Exception) {
             // Keep in Room DB with failed/pending_sync status for WorkManager offline retry
-            messageDao.updateMessageStatus(tempId, "failed", true)
+            messageDao.updateMessageStatus(messageId, "failed", true)
             Result.success(localMessage.copy(status = "failed"))
         }
     }
@@ -138,24 +146,72 @@ class ChatRepositoryImpl : ChatRepository {
         for (msg in pending) {
             try {
                 val messageDto = MessageDto(
+                    id = msg.id,
                     conversationId = msg.conversationId,
                     senderId = msg.senderId,
                     content = msg.content,
                     mediaUrl = msg.mediaUrl,
                     mediaType = msg.mediaType,
-                    status = "sent"
+                    status = "sent",
+                    createdAt = msg.createdAt
                 )
-                val inserted = supabase.postgrest["messages"]
-                    .insert(messageDto) {
-                        select()
-                    }
-                    .decodeSingle<MessageDto>()
-
-                messageDao.deleteMessage(msg.id)
-                messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(inserted.toDomain()))
+                supabase.postgrest["messages"].upsert(messageDto)
+                messageDao.updateMessageStatus(msg.id, "sent", false)
                 successCount++
             } catch (_: Exception) {}
         }
         Result.success(successCount)
+    }
+
+    private var activeRealtimeChannel: RealtimeChannel? = null
+
+    override suspend fun subscribeToRealtime(conversationId: String): Unit = withContext(Dispatchers.IO) {
+        try {
+            unsubscribeRealtime()
+            val channel = supabase.realtime.channel("messages_$conversationId")
+            activeRealtimeChannel = channel
+
+            channel.subscribe()
+
+            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public")
+            changeFlow.collect { action: PostgresAction ->
+                when (action) {
+                    is PostgresAction.Insert -> {
+                        try {
+                            val record = action.decodeRecord<MessageDto>()
+                            if (record.conversationId == conversationId) {
+                                messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(record.toDomain()))
+                            }
+                        } catch (_: Exception) {}
+                    }
+                    is PostgresAction.Update -> {
+                        try {
+                            val record = action.decodeRecord<MessageDto>()
+                            if (record.conversationId == conversationId) {
+                                messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(record.toDomain()))
+                            }
+                        } catch (_: Exception) {}
+                    }
+                    is PostgresAction.Delete -> {
+                        try {
+                            val oldRecord = action.decodeOldRecord<MessageDto>()
+                            messageDao.deleteMessage(oldRecord.id)
+                        } catch (_: Exception) {}
+                    }
+                    else -> {}
+                }
+            }
+        } catch (_: Exception) {}
+        Unit
+    }
+
+    override suspend fun unsubscribeRealtime(): Unit = withContext(Dispatchers.IO) {
+        try {
+            activeRealtimeChannel?.let { channel ->
+                supabase.realtime.removeChannel(channel)
+                activeRealtimeChannel = null
+            }
+        } catch (_: Exception) {}
+        Unit
     }
 }

@@ -51,10 +51,10 @@ class FeedRepositoryImpl : FeedRepository {
     ): Result<Post> = withContext(Dispatchers.IO) {
         val currentUserId = supabase.auth.currentUserOrNull()?.id ?: "local_user"
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-        val tempId = UUID.randomUUID().toString()
+        val postId = UUID.randomUUID().toString()
 
         val post = Post(
-            id = tempId,
+            id = postId,
             authorId = currentUserId,
             authorName = "You",
             content = content,
@@ -66,25 +66,26 @@ class FeedRepositoryImpl : FeedRepository {
             createdAt = timestamp
         )
 
-        // Insert locally
+        // Insert locally for immediate UI response
         postDao.insertOrUpdatePost(PostEntity.fromDomain(post))
 
-        // Remote sync
+        // Remote sync with idempotent postId
         try {
             val postDto = PostDto(
+                id = postId,
                 authorId = currentUserId,
                 content = content,
                 mediaUrl = mediaUrl,
-                mediaType = mediaType
+                mediaType = mediaType,
+                createdAt = timestamp
             )
             val inserted = supabase.postgrest["posts"]
-                .insert(postDto) {
+                .upsert(postDto) {
                     select()
                 }
                 .decodeSingle<PostDto>()
 
             val finalPost = inserted.toDomain()
-            postDao.deletePost(tempId)
             postDao.insertOrUpdatePost(PostEntity.fromDomain(finalPost))
 
             Result.success(finalPost)
@@ -95,7 +96,33 @@ class FeedRepositoryImpl : FeedRepository {
 
     override suspend fun toggleLike(postId: String): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
+            val currentUserId = supabase.auth.currentUserOrNull()?.id
+            // Optimistic local update
             postDao.toggleLike(postId, true)
+
+            // Remote sync if user is authenticated
+            if (currentUserId != null) {
+                try {
+                    @kotlinx.serialization.Serializable
+                    data class PostLikePayload(
+                        val post_id: String,
+                        val user_id: String
+                    )
+                    supabase.postgrest["post_likes"].upsert(
+                        PostLikePayload(post_id = postId, user_id = currentUserId)
+                    )
+                } catch (_: Exception) {
+                    // Fallback delete if like was removed
+                    try {
+                        supabase.postgrest["post_likes"].delete {
+                            filter {
+                                eq("post_id", postId)
+                                eq("user_id", currentUserId)
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
             Result.success(true)
         } catch (e: Exception) {
             Result.failure(e)

@@ -12,4 +12,6 @@ interface ChatRepository {
     suspend fun fetchMessages(conversationId: String): Result<List<Message>>
     suspend fun sendMessage(conversationId: String, content: String, mediaUrl: String? = null, mediaType: String? = null): Result<Message>
     suspend fun retryPendingMessages(): Result<Int>
+    suspend fun subscribeToRealtime(conversationId: String)
+    suspend fun unsubscribeRealtime()
 }

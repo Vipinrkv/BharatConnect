@@ -27,7 +27,7 @@ class BharatConnectFirebaseMessagingService : FirebaseMessagingService() {
                 val userId = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return@launch
                 val deviceModel = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"
                 
-                SupabaseClient.client.postgrest["device_tokens"].insert(
+                SupabaseClient.client.postgrest["device_tokens"].upsert(
                     DeviceTokenDto(
                         user_id = userId,
                         fcm_token = token,

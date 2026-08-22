@@ -32,7 +32,7 @@ data class ConversationDto(
 
 @Serializable
 data class MessageDto(
-    val id: String? = null,
+    val id: String,
     @SerialName("conversation_id")
     val conversationId: String,
     @SerialName("sender_id")
@@ -48,7 +48,7 @@ data class MessageDto(
 ) {
     fun toDomain(senderName: String? = null): Message {
         return Message(
-            id = id ?: java.util.UUID.randomUUID().toString(),
+            id = id,
             conversationId = conversationId,
             senderId = senderId,
             senderName = senderName,
@@ -64,7 +64,7 @@ data class MessageDto(
 
 @Serializable
 data class PostDto(
-    val id: String? = null,
+    val id: String,
     @SerialName("author_id")
     val authorId: String,
     @SerialName("author_name")
@@ -83,7 +83,7 @@ data class PostDto(
 ) {
     fun toDomain(): Post {
         return Post(
-            id = id ?: java.util.UUID.randomUUID().toString(),
+            id = id,
             authorId = authorId,
             authorName = authorName ?: "BharatConnect Member",
             content = content,

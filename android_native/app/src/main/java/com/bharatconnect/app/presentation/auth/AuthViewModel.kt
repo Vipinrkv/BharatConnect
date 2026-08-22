@@ -6,13 +6,21 @@ import com.bharatconnect.app.data.repository.AuthRepositoryImpl
 import com.bharatconnect.app.domain.model.AuthState
 import com.bharatconnect.app.domain.model.UserProfile
 import com.bharatconnect.app.domain.repository.AuthRepository
+import com.bharatconnect.app.domain.usecase.auth.GetCurrentUserUseCase
+import com.bharatconnect.app.domain.usecase.auth.LoginUseCase
+import com.bharatconnect.app.domain.usecase.auth.LogoutUseCase
+import com.bharatconnect.app.domain.usecase.auth.RegisterUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AuthViewModel(
-    private val authRepository: AuthRepository = AuthRepositoryImpl()
+    authRepository: AuthRepository = AuthRepositoryImpl(),
+    private val loginUseCase: LoginUseCase = LoginUseCase(authRepository),
+    private val registerUseCase: RegisterUseCase = RegisterUseCase(authRepository),
+    private val logoutUseCase: LogoutUseCase = LogoutUseCase(authRepository),
+    private val getCurrentUserUseCase: GetCurrentUserUseCase = GetCurrentUserUseCase(authRepository)
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -27,7 +35,7 @@ class AuthViewModel(
 
     fun checkSession() {
         viewModelScope.launch {
-            val user = authRepository.getCurrentUser()
+            val user = getCurrentUserUseCase()
             if (user != null) {
                 _currentUser.value = user
                 _authState.value = AuthState.Authenticated(user)
@@ -45,7 +53,7 @@ class AuthViewModel(
 
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            val result = authRepository.login(email, password)
+            val result = loginUseCase(email, password)
             result.fold(
                 onSuccess = { user ->
                     _currentUser.value = user
@@ -71,7 +79,7 @@ class AuthViewModel(
 
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            val result = authRepository.register(email, password, username, fullName)
+            val result = registerUseCase(email, password, username, fullName)
             result.fold(
                 onSuccess = { user ->
                     _currentUser.value = user
@@ -86,7 +94,7 @@ class AuthViewModel(
 
     fun logout(onComplete: () -> Unit) {
         viewModelScope.launch {
-            authRepository.logout()
+            logoutUseCase()
             _currentUser.value = null
             _authState.value = AuthState.Idle
             onComplete()

@@ -6,13 +6,28 @@ import com.bharatconnect.app.data.repository.ChatRepositoryImpl
 import com.bharatconnect.app.domain.model.Conversation
 import com.bharatconnect.app.domain.model.Message
 import com.bharatconnect.app.domain.repository.ChatRepository
+import com.bharatconnect.app.domain.usecase.chat.FetchConversationsUseCase
+import com.bharatconnect.app.domain.usecase.chat.FetchMessagesUseCase
+import com.bharatconnect.app.domain.usecase.chat.GetConversationsUseCase
+import com.bharatconnect.app.domain.usecase.chat.GetMessagesUseCase
+import com.bharatconnect.app.domain.usecase.chat.SendMessageUseCase
+import com.bharatconnect.app.domain.usecase.chat.SubscribeToRealtimeUseCase
+import com.bharatconnect.app.domain.usecase.chat.UnsubscribeRealtimeUseCase
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ChatViewModel(
-    private val chatRepository: ChatRepository = ChatRepositoryImpl()
+    chatRepository: ChatRepository = ChatRepositoryImpl(),
+    private val getConversationsUseCase: GetConversationsUseCase = GetConversationsUseCase(chatRepository),
+    private val getMessagesUseCase: GetMessagesUseCase = GetMessagesUseCase(chatRepository),
+    private val sendMessageUseCase: SendMessageUseCase = SendMessageUseCase(chatRepository),
+    private val fetchConversationsUseCase: FetchConversationsUseCase = FetchConversationsUseCase(chatRepository),
+    private val fetchMessagesUseCase: FetchMessagesUseCase = FetchMessagesUseCase(chatRepository),
+    private val subscribeToRealtimeUseCase: SubscribeToRealtimeUseCase = SubscribeToRealtimeUseCase(chatRepository),
+    private val unsubscribeRealtimeUseCase: UnsubscribeRealtimeUseCase = UnsubscribeRealtimeUseCase(chatRepository)
 ) : ViewModel() {
 
     private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
@@ -24,6 +39,9 @@ class ChatViewModel(
     private val _selectedConversation = MutableStateFlow<Conversation?>(null)
     val selectedConversation: StateFlow<Conversation?> = _selectedConversation.asStateFlow()
 
+    private var messageObservationJob: Job? = null
+    private var realtimeJob: Job? = null
+
     init {
         observeConversations()
         refreshConversations()
@@ -31,25 +49,15 @@ class ChatViewModel(
 
     private fun observeConversations() {
         viewModelScope.launch {
-            chatRepository.getConversationsFlow().collect { list ->
-                if (list.isNotEmpty()) {
-                    _conversations.value = list
-                } else {
-                    // Seed initial sample conversations for offline demo
-                    _conversations.value = listOf(
-                        Conversation(id = "conv_1", title = "BharatConnect Devs", lastMessage = "Supabase Realtime socket is active! 🚀", lastMessageTime = "Just now", unreadCount = 2),
-                        Conversation(id = "conv_2", title = "Aarav Sharma", lastMessage = "Did you check the new Jetpack Compose layout?", lastMessageTime = "10m ago"),
-                        Conversation(id = "conv_3", title = "Priya Patel", lastMessage = "Sent a high-res photo via Cloudinary CDN", lastMessageTime = "1h ago"),
-                        Conversation(id = "conv_4", title = "Vikram Singh", lastMessage = "Room offline persistence is ready!", lastMessageTime = "Yesterday")
-                    )
-                }
+            getConversationsUseCase().collect { list ->
+                _conversations.value = list
             }
         }
     }
 
     fun refreshConversations() {
         viewModelScope.launch {
-            chatRepository.fetchConversations()
+            fetchConversationsUseCase()
         }
     }
 
@@ -59,24 +67,36 @@ class ChatViewModel(
     }
 
     private fun observeMessages(conversationId: String) {
-        viewModelScope.launch {
-            chatRepository.getMessagesFlow(conversationId).collect { msgList ->
+        messageObservationJob?.cancel()
+        messageObservationJob = viewModelScope.launch {
+            getMessagesUseCase(conversationId).collect { msgList ->
                 _messages.value = msgList
             }
         }
+
         viewModelScope.launch {
-            chatRepository.fetchMessages(conversationId)
+            fetchMessagesUseCase(conversationId)
+        }
+
+        realtimeJob?.cancel()
+        realtimeJob = viewModelScope.launch {
+            subscribeToRealtimeUseCase(conversationId)
         }
     }
 
     fun sendMessage(conversationId: String, text: String) {
         if (text.isBlank()) return
         viewModelScope.launch {
-            chatRepository.sendMessage(conversationId, text)
+            sendMessageUseCase(conversationId, text)
         }
     }
 
     fun closeChat() {
+        messageObservationJob?.cancel()
+        realtimeJob?.cancel()
+        viewModelScope.launch {
+            unsubscribeRealtimeUseCase()
+        }
         _selectedConversation.value = null
         _messages.value = emptyList()
     }
