@@ -1,9 +1,9 @@
 -- ============================================================================
 -- 🇮🇳 BHARATCONNECT SUPABASE POSTGRESQL DATABASE SCHEMA & SECURITY POLICIES
 -- ============================================================================
--- Production Schema & Migration Script for BharatConnect Native Android App
--- Safe & Idempotent: Handles existing tables, adds missing columns automatically,
--- recreates triggers, policies & realtime publications without conflicts.
+-- Production Schema & Universal Migration Script for BharatConnect Native Android App
+-- 100% Idempotent: Automatically creates tables, patches all missing columns on
+-- existing tables, recreates indexes, triggers, RLS policies & publications safely.
 -- ============================================================================
 
 -- Enable required extensions
@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure newly added columns exist if table was previously created
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
@@ -41,7 +40,6 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ DEFAU
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
--- Case-insensitive lookup indexes for multi-identifier login
 CREATE INDEX IF NOT EXISTS idx_profiles_username_lower ON public.profiles (LOWER(username));
 CREATE INDEX IF NOT EXISTS idx_profiles_phone ON public.profiles (phone_number);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles (email);
@@ -77,6 +75,9 @@ CREATE TABLE IF NOT EXISTS public.conversation_members (
     UNIQUE(conversation_id, user_id)
 );
 
+ALTER TABLE public.conversation_members ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';
+ALTER TABLE public.conversation_members ADD COLUMN IF NOT EXISTS joined_at TIMESTAMPTZ DEFAULT NOW();
+
 CREATE INDEX IF NOT EXISTS idx_conversation_members_user ON public.conversation_members (user_id);
 CREATE INDEX IF NOT EXISTS idx_conversation_members_conv ON public.conversation_members (conversation_id);
 
@@ -92,9 +93,12 @@ CREATE TABLE IF NOT EXISTS public.messages (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS sender_name TEXT DEFAULT 'User';
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS content TEXT DEFAULT '';
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS media_url TEXT;
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS media_type TEXT;
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages (conversation_id, created_at ASC);
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON public.messages (sender_id);
@@ -118,10 +122,13 @@ CREATE TABLE IF NOT EXISTS public.posts (
 
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS author_name TEXT;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS author_avatar TEXT;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS content TEXT;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS media_url TEXT;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS media_type TEXT;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS comments_count INT DEFAULT 0;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON public.posts (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_author ON public.posts (author_id);
@@ -134,6 +141,8 @@ CREATE TABLE IF NOT EXISTS public.post_likes (
     UNIQUE(post_id, user_id)
 );
 
+ALTER TABLE public.post_likes ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
 CREATE INDEX IF NOT EXISTS idx_post_likes_post ON public.post_likes (post_id);
 
 CREATE TABLE IF NOT EXISTS public.post_comments (
@@ -144,6 +153,10 @@ CREATE TABLE IF NOT EXISTS public.post_comments (
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.post_comments ADD COLUMN IF NOT EXISTS author_name TEXT NOT NULL DEFAULT 'User';
+ALTER TABLE public.post_comments ADD COLUMN IF NOT EXISTS content TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.post_comments ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS idx_post_comments_post ON public.post_comments (post_id, created_at ASC);
 
@@ -162,6 +175,14 @@ CREATE TABLE IF NOT EXISTS public.stories (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.stories ADD COLUMN IF NOT EXISTS author_name TEXT;
+ALTER TABLE public.stories ADD COLUMN IF NOT EXISTS author_avatar TEXT;
+ALTER TABLE public.stories ADD COLUMN IF NOT EXISTS media_url TEXT;
+ALTER TABLE public.stories ADD COLUMN IF NOT EXISTS text_content TEXT;
+ALTER TABLE public.stories ADD COLUMN IF NOT EXISTS background_gradient TEXT;
+ALTER TABLE public.stories ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours');
+ALTER TABLE public.stories ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
 CREATE INDEX IF NOT EXISTS idx_stories_expires_at ON public.stories (expires_at DESC);
 
 -- ============================================================================
@@ -179,6 +200,14 @@ CREATE TABLE IF NOT EXISTS public.marketplace_items (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS seller_name TEXT;
+ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS price TEXT;
+ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
 CREATE TABLE IF NOT EXISTS public.jobs (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
     poster_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -190,6 +219,13 @@ CREATE TABLE IF NOT EXISTS public.jobs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS company TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS salary TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS type TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
 CREATE TABLE IF NOT EXISTS public.quick_jobs (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
     poster_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -200,6 +236,13 @@ CREATE TABLE IF NOT EXISTS public.quick_jobs (
     urgency TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.quick_jobs ADD COLUMN IF NOT EXISTS poster_name TEXT;
+ALTER TABLE public.quick_jobs ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.quick_jobs ADD COLUMN IF NOT EXISTS payout TEXT;
+ALTER TABLE public.quick_jobs ADD COLUMN IF NOT EXISTS duration TEXT;
+ALTER TABLE public.quick_jobs ADD COLUMN IF NOT EXISTS urgency TEXT;
+ALTER TABLE public.quick_jobs ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
 -- ============================================================================
 -- 6. NOTIFICATIONS & NEARBY RADAR
@@ -214,6 +257,12 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'system';
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications (user_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS public.user_locations (
@@ -224,6 +273,12 @@ CREATE TABLE IF NOT EXISTS public.user_locations (
     is_visible BOOLEAN NOT NULL DEFAULT TRUE,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.user_locations ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE public.user_locations ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE public.user_locations ADD COLUMN IF NOT EXISTS status TEXT;
+ALTER TABLE public.user_locations ADD COLUMN IF NOT EXISTS is_visible BOOLEAN DEFAULT TRUE;
+ALTER TABLE public.user_locations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 -- ============================================================================
 -- 7. DATABASE TRIGGERS & AUTOMATION

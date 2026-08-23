@@ -174,6 +174,7 @@
 
 ### 🔹 Entry #007 — Supabase Schema Idempotency & Missing Column Migration Fix
 - **Date & Time**: `2026-08-23 13:57:00 IST` (`2026-08-23T08:27:00Z`)
+- **Git Commit**: `29870be`
 - **Files Modified**:
   - [`supabase_schema.sql`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/supabase_schema.sql)
   - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
@@ -184,6 +185,19 @@
   - Wrapped `ALTER PUBLICATION supabase_realtime ADD TABLE` in exception-handling `DO $$ ... $$` blocks to guarantee 100% idempotent migrations.
 
 ---
+
+### 🔹 Entry #008 — Comprehensive Column Patching Across All 13 Database Tables
+- **Date & Time**: `2026-08-23 14:00:00 IST` (`2026-08-23T08:30:00Z`)
+- **Files Modified**:
+  - [`supabase_schema.sql`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/supabase_schema.sql)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - Resolved `ERROR 42703: column "expires_at" does not exist` on `public.stories`.
+  - Added comprehensive `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements covering every column in all 13 tables (`profiles`, `conversations`, `conversation_members`, `messages`, `posts`, `post_likes`, `post_comments`, `stories`, `marketplace_items`, `jobs`, `quick_jobs`, `notifications`, `user_locations`).
+  - Guarantees seamless execution regardless of any previous schema state in Supabase.
+
+---
 *(Append all future system changes below this line)*
+
 
 
