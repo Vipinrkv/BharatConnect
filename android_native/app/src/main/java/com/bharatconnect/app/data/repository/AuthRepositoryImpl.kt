@@ -1,5 +1,6 @@
 package com.bharatconnect.app.data.repository
 
+import com.bharatconnect.app.core.network.NetworkErrorSanitizer
 import com.bharatconnect.app.core.network.SupabaseClient
 import com.bharatconnect.app.data.remote.dto.ProfileDto
 import com.bharatconnect.app.domain.model.UserProfile
@@ -56,7 +57,7 @@ class AuthRepositoryImpl : AuthRepository {
             _currentUserFlow.value = userProfile
             Result.success(userProfile)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
         }
     }
 
@@ -90,7 +91,7 @@ class AuthRepositoryImpl : AuthRepository {
             _currentUserFlow.value = userProfile
             Result.success(userProfile)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
         }
     }
 
@@ -123,7 +124,7 @@ class AuthRepositoryImpl : AuthRepository {
             _currentUserFlow.value = domainProfile
             Result.success(domainProfile)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
         }
     }
 
@@ -153,7 +154,7 @@ class AuthRepositoryImpl : AuthRepository {
             supabase.auth.resetPasswordForEmail(emailToUse)
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
         }
     }
 
@@ -163,7 +164,7 @@ class AuthRepositoryImpl : AuthRepository {
             _currentUserFlow.value = null
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
         }
     }
 

@@ -2,6 +2,7 @@ package com.bharatconnect.app.presentation.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bharatconnect.app.core.network.NetworkErrorSanitizer
 import com.bharatconnect.app.data.repository.AuthRepositoryImpl
 import com.bharatconnect.app.domain.model.AuthState
 import com.bharatconnect.app.domain.model.UserProfile
@@ -73,7 +74,7 @@ class AuthViewModel(
                     _authState.value = AuthState.Authenticated(user)
                 },
                 onFailure = { error ->
-                    _authState.value = AuthState.Error(error.message ?: "Login failed. Please check your credentials.")
+                    _authState.value = AuthState.Error(NetworkErrorSanitizer.sanitize(error))
                 }
             )
         }
@@ -115,7 +116,7 @@ class AuthViewModel(
                     _authState.value = AuthState.Authenticated(user)
                 },
                 onFailure = { error ->
-                    _authState.value = AuthState.Error(error.message ?: "Registration failed")
+                    _authState.value = AuthState.Error(NetworkErrorSanitizer.sanitize(error))
                 }
             )
         }
@@ -140,7 +141,7 @@ class AuthViewModel(
                     onResult(true, null)
                 },
                 onFailure = { error ->
-                    onResult(false, error.message ?: "Failed to update profile")
+                    onResult(false, NetworkErrorSanitizer.sanitize(error))
                 }
             )
         }
@@ -163,7 +164,7 @@ class AuthViewModel(
                     onResult(true, msg)
                 },
                 onFailure = { error ->
-                    val msg = error.message ?: "Failed to send reset link. Please verify your details."
+                    val msg = NetworkErrorSanitizer.sanitize(error)
                     _resetPasswordMessage.value = msg
                     onResult(false, msg)
                 }

@@ -267,6 +267,7 @@
 
 ### 🔹 Entry #013 — Tool Mentions Sanitization & Infrastructure Info Masking
 - **Date & Time**: `2026-08-23 14:53:00 IST` (`2026-08-23T09:23:00Z`)
+- **Git Commit**: `202a979`
 - **Files Modified**:
   - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt)
   - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
@@ -284,7 +285,25 @@
   - All 25 unit tests verified and updated standalone APK binary compiled and pushed to GitHub `origin/main`.
 
 ---
+
+### 🔹 Entry #014 — Network Timeout Resilience (60s) & URL Error Leak Prevention
+- **Date & Time**: `2026-08-23 15:09:30 IST` (`2026-08-23T09:39:30Z`)
+- **Files Modified**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/network/SupabaseClient.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/network/SupabaseClient.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/network/NetworkErrorSanitizer.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/network/NetworkErrorSanitizer.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Network Timeout Extension**: Configured Ktor CIO engine in `SupabaseClient.kt` with a 60-second request timeout (`requestTimeout = 60.seconds`), 30-second connect timeout, and 60-second socket timeout (extended from the default 10-second limit that caused mobile signup timeouts).
+  - **Universal Network Error Sanitizer**: Added `NetworkErrorSanitizer.kt` to catch and mask any low-level network exceptions, completely stripping internal Supabase URLs (`https://.../auth/v1/signup`), request parameters, and stack traces into friendly, polished user prompts.
+  - **Recompiled Standalone APK**: Tested with 25 unit test suites and compiled fresh binary to root `BharatConnect-Native.apk`.
+
+---
 *(Append all future system changes below this line)*
+
 
 
 

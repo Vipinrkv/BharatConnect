@@ -85,7 +85,7 @@ fun RegisterScreen(
                         avatarUrl = secureUrl
                     },
                     onFailure = { error ->
-                        localError = "Avatar upload failed: ${error.message ?: "Network error"}"
+                        localError = com.bharatconnect.app.core.network.NetworkErrorSanitizer.sanitize(error)
                     }
                 )
             }
