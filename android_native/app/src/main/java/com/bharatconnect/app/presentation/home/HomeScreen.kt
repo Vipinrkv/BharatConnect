@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
@@ -1009,7 +1010,7 @@ fun ChatDetailScreen(
                     val attachmentOptions = listOf(
                         Triple(Icons.Default.CameraAlt, "Camera", Color(0xFFFF5252)),
                         Triple(Icons.Default.Image, "Gallery", Color(0xFF00E5FF)),
-                        Triple(Icons.Default.InsertDriveFile, "Document", Color(0xFF00C853)),
+                        Triple(Icons.AutoMirrored.Filled.InsertDriveFile, "Document", Color(0xFF00C853)),
                         Triple(Icons.Default.LocationOn, "Location", Color(0xFFFF9100)),
                         Triple(Icons.Default.Person, "Contact", Color(0xFF6367FF))
                     )
