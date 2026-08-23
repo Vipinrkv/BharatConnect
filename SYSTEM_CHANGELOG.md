@@ -423,7 +423,22 @@
   - **Compilation & Test Pass**: Verified all **25 unit test suites** pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone `BharatConnect-Native.apk` (24.7 MB).
 
 ---
+
+### 🔹 Entry #021 — Bharat Hubs & Privacy-Safe Proximity Radar Architecture
+- **Date & Time**: `2026-08-23 21:54:00 IST` (`2026-08-23T16:24:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/nearby/NearbyScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/nearby/NearbyScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Bharat Hubs & Circles Evolution**: Added a top-level tab switcher to `NearbyScreen.kt` featuring **"Bharat Hubs 🇮🇳"** (Metro & Campus Circles including Delhi NCR, Bengaluru Tech, Mumbai Creatives, Pune Students, Hyderabad Circle) with zero-privacy-risk group engagement and 1-tap chat entry.
+  - **Privacy-Safe Proximity Radar**: Added a **"Ghost / Incognito Mode"** toggle (`👻 Ghost Mode: ON/OFF`), area-level distance tags, and radius filters (1km/5km/10km).
+  - **Custom SMTP Template**: Documented branded HTML email template featuring dual 1-tap deep link and 6-digit OTP code box.
+  - **Compilation & Test Pass**: Verified all **25 unit test suites** pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone `BharatConnect-Native.apk` (24.7 MB).
+
+---
 *(Append all future system changes below this line)*
+
 
 
 
