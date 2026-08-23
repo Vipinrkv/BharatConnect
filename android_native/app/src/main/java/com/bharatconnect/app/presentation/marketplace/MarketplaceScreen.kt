@@ -58,30 +58,15 @@ fun MarketplaceScreen(
     var showCreateListingDialog by remember { mutableStateOf(false) }
 
     val itemsList = remember {
-        mutableStateListOf(
-            MarketItem("1", "Dell UltraSharp 27\" 4K Monitor", "₹18,500", "Electronics", "Bengaluru", "Karan Malhotra"),
-            MarketItem("2", "Ergonomic Mesh Office Chair", "₹4,200", "Furniture", "Gurugram", "Sneha Roy"),
-            MarketItem("3", "Sony WH-1000XM4 Noise Canceling Headphones", "₹12,000", "Audio", "Mumbai", "Amit Deshmukh"),
-            MarketItem("4", "Raspberry Pi 4 Model B (8GB)", "₹5,500", "Gadgets", "Pune", "Devendra Kumar")
-        )
+        mutableStateListOf<MarketItem>()
     }
 
     val jobsList = remember {
-        mutableStateListOf(
-            JobListing("1", "Senior Android Kotlin Developer", "Bharat Tech Labs", "₹18-24 LPA", "Full-time • Remote", "Pan India"),
-            JobListing("2", "UI/UX Product Designer", "IndieSpark Studio", "₹12-16 LPA", "Full-time • Hybrid", "Bengaluru"),
-            JobListing("3", "Backend FastAPI / PostgreSQL Engineer", "CloudSentinels", "₹15-20 LPA", "Full-time • Remote", "Delhi NCR"),
-            JobListing("4", "Community & Growth Lead", "BharatConnect Network", "₹10-14 LPA", "Full-time • On-site", "Hyderabad")
-        )
+        mutableStateListOf<JobListing>()
     }
 
     val quickJobsList = remember {
-        mutableStateListOf(
-            QuickJob("1", "Deliver documents in Connaught Place", "₹350", "45 mins", "Urgent", "Rajesh C."),
-            QuickJob("2", "Local Photography for Cafe Menu", "₹2,500", "2 hours", "Today", "Brew & Bean"),
-            QuickJob("3", "WordPress speed optimization fix", "₹1,800", "1 hour", "Flexible", "Sunil M."),
-            QuickJob("4", "Assemble IKEA Bookshelf", "₹600", "1.5 hours", "Urgent", "Pooja K.")
-        )
+        mutableStateListOf<QuickJob>()
     }
 
     Box(
@@ -160,48 +145,86 @@ fun MarketplaceScreen(
                         val filteredItems = itemsList.filter {
                             searchQuery.isBlank() || it.title.contains(searchQuery, ignoreCase = true) || it.category.contains(searchQuery, ignoreCase = true)
                         }
-                        items(filteredItems) { item ->
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
+                        if (filteredItems.isEmpty()) {
+                            item {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                                    shape = RoundedCornerShape(18.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(vertical = 24.dp)
                                 ) {
-                                    Box(
+                                    Column(
                                         modifier = Modifier
-                                            .size(56.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(
-                                                Brush.linearGradient(
-                                                    listOf(Color(0xFF2C2856), ColorPrimary6367FF)
-                                                )
-                                            ),
-                                        contentAlignment = Alignment.Center
+                                            .fillMaxWidth()
+                                            .padding(28.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Icon(Icons.Default.ShoppingCart, contentDescription = "Item", tint = Color.White)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(60.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF221F45)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ShoppingCart,
+                                                contentDescription = null,
+                                                tint = ColorPrimary6367FF,
+                                                modifier = Modifier.size(30.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(14.dp))
+                                        Text("No Items Listed for Sale", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text("Tap '+' below to list your electronics, vehicles, furniture, or gadgets with ₹ pricing.", color = Color.Gray, fontSize = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                                     }
-
-                                    Spacer(modifier = Modifier.width(14.dp))
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(item.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(item.price, color = Color(0xFF4EFEAA), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        Text("${item.category} • ${item.location}", color = Color.Gray, fontSize = 11.sp)
-                                    }
-
-                                    Button(
-                                        onClick = { onItemContact(item.title) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                }
+                            }
+                        } else {
+                            items(filteredItems) { item ->
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text("Contact", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(56.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(
+                                                    Brush.linearGradient(
+                                                        listOf(Color(0xFF2C2856), ColorPrimary6367FF)
+                                                    )
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.ShoppingCart, contentDescription = "Item", tint = Color.White)
+                                        }
+
+                                        Spacer(modifier = Modifier.width(14.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(item.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(item.price, color = Color(0xFF4EFEAA), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            Text("${item.category} • ${item.location}", color = Color.Gray, fontSize = 11.sp)
+                                        }
+
+                                        Button(
+                                            onClick = { onItemContact(item.title) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Text("Contact", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
@@ -211,51 +234,89 @@ fun MarketplaceScreen(
                         val filteredJobs = jobsList.filter {
                             searchQuery.isBlank() || it.title.contains(searchQuery, ignoreCase = true) || it.company.contains(searchQuery, ignoreCase = true)
                         }
-                        items(filteredJobs) { job ->
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                        if (filteredJobs.isEmpty()) {
+                            item {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 24.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(28.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(job.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                            Text(job.company, color = ColorPrimary6367FF, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                        }
-                                        Surface(
-                                            color = Color(0xFF1E1B45),
-                                            shape = RoundedCornerShape(8.dp)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(60.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF221F45)),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = job.type,
-                                                color = Color(0xFF4EFEAA),
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            Icon(
+                                                imageVector = Icons.Default.WorkOutline,
+                                                contentDescription = null,
+                                                tint = Color(0xFF4EFEAA),
+                                                modifier = Modifier.size(30.dp)
                                             )
                                         }
+                                        Spacer(modifier = Modifier.height(14.dp))
+                                        Text("No Open Job Vacancies", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text("Check back soon for new hiring updates or post a job opening in the community.", color = Color.Gray, fontSize = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                                     }
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("💰 ${job.salary}", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                        Button(
-                                            onClick = { onItemContact(job.title) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
-                                            shape = RoundedCornerShape(10.dp),
-                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                }
+                            }
+                        } else {
+                            items(filteredJobs) { job ->
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text("Apply", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(job.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                                Text(job.company, color = ColorPrimary6367FF, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                            }
+                                            Surface(
+                                                color = Color(0xFF1E1B45),
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Text(
+                                                    text = job.type,
+                                                    color = Color(0xFF4EFEAA),
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("💰 ${job.salary}", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                            Button(
+                                                onClick = { onItemContact(job.title) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                                shape = RoundedCornerShape(10.dp),
+                                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                            ) {
+                                                Text("Apply", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            }
                                         }
                                     }
                                 }
@@ -266,37 +327,75 @@ fun MarketplaceScreen(
                         val filteredQuick = quickJobsList.filter {
                             searchQuery.isBlank() || it.title.contains(searchQuery, ignoreCase = true)
                         }
-                        items(filteredQuick) { task ->
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
+                        if (filteredQuick.isEmpty()) {
+                            item {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                                    shape = RoundedCornerShape(18.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(vertical = 24.dp)
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(task.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        }
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Text("⚡ ${task.payout}", color = Color(0xFF4EFEAA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                            Text("⏱ ${task.duration}", color = Color.Gray, fontSize = 12.sp)
-                                            Text("• ${task.urgency}", color = Color(0xFFFF9933), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                        }
-                                    }
-
-                                    Button(
-                                        onClick = { onItemContact(task.title) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF138808)),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(28.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Text("Accept", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(60.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF221F45)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Bolt,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFF9933),
+                                                modifier = Modifier.size(30.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(14.dp))
+                                        Text("No Quick Gigs Available", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text("Tap '+' to post quick tasks, local deliveries, or freelance gigs with instant payouts.", color = Color.Gray, fontSize = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    }
+                                }
+                            }
+                        } else {
+                            items(filteredQuick) { task ->
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(task.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                Text("⚡ ${task.payout}", color = Color(0xFF4EFEAA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                Text("⏱ ${task.duration}", color = Color.Gray, fontSize = 12.sp)
+                                                Text("• ${task.urgency}", color = Color(0xFFFF9933), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                            }
+                                        }
+
+                                        Button(
+                                            onClick = { onItemContact(task.title) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF138808)),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Text("Accept", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }

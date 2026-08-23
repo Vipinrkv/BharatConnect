@@ -44,14 +44,7 @@ fun NearbyScreen(
     var searchQuery by remember { mutableStateOf("") }
 
     val allNearbyUsers = remember {
-        listOf(
-            NearbyUser("1", "Aarav Sharma", "@aarav_s", 0.4, "Exploring local startups & tech 🚀", true, "Developer"),
-            NearbyUser("2", "Priya Patel", "@priya_p", 1.2, "Coffee lover ☕ | Graphic Designer", true, "Designer"),
-            NearbyUser("3", "Rahul Verma", "@rahul_v", 2.8, "Available for weekend badminton 🏸", false, "Fitness"),
-            NearbyUser("4", "Ananya Iyer", "@ananya_i", 4.5, "Building BharatConnect modules ✨", true, "Engineer"),
-            NearbyUser("5", "Vikram Singh", "@vikram_s", 7.2, "Organizing local meetup in CP 📍", false, "Community Lead"),
-            NearbyUser("6", "Neha Gupta", "@neha_g", 9.1, "Photography & travel stories 📸", true, "Photographer")
-        )
+        mutableStateListOf<NearbyUser>()
     }
 
     val filteredUsers = allNearbyUsers.filter {
@@ -130,7 +123,7 @@ fun NearbyScreen(
                     fontSize = 18.sp
                 )
                 Text(
-                    text = "● Local Grid Active • ${filteredUsers.size} members within ${selectedRadius} km",
+                    text = if (filteredUsers.isEmpty()) "● Radar Active • Scanning $selectedRadius km perimeter" else "● Local Grid Active • ${filteredUsers.size} members within $selectedRadius km",
                     color = Color(0xFF4EFEAA),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -189,7 +182,54 @@ fun NearbyScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(filteredUsers) { user ->
+            if (filteredUsers.isEmpty()) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 20.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF221F45)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationSearching,
+                                    contentDescription = null,
+                                    tint = Color(0xFF4EFEAA),
+                                    modifier = Modifier.size(30.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                text = "No Nearby Members Discovered",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "No active users found within $selectedRadius km. Try selecting 10 km or search for specific tags and interests.",
+                                color = Color.Gray,
+                                fontSize = 13.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(filteredUsers) { user ->
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
                     shape = RoundedCornerShape(16.dp),
@@ -278,4 +318,5 @@ fun NearbyScreen(
             }
         }
     }
+}
 }

@@ -42,58 +42,7 @@ fun NotificationsScreen(
     var selectedCategory by remember { mutableStateOf("all") }
 
     val notifications = remember {
-        mutableStateListOf(
-            NotificationItem(
-                "1",
-                "Emma Watson started following you.",
-                "Check out her profile and recent posts.",
-                "5m ago",
-                "system",
-                Icons.Default.Person,
-                ColorPrimary6367FF,
-                false
-            ),
-            NotificationItem(
-                "2",
-                "Alice Johnson liked your post.",
-                "\"Building offline-first Sentinel encryption in Kotlin!\"",
-                "1h ago",
-                "likes",
-                Icons.Default.Favorite,
-                Color(0xFFFF4B6B),
-                false
-            ),
-            NotificationItem(
-                "3",
-                "Michael Brown in Project Team",
-                "\"Awesome architecture! When are we deploying to Play Store?\"",
-                "2h ago",
-                "messages",
-                Icons.Default.ChatBubble,
-                Color(0xFF00E5FF),
-                false
-            ),
-            NotificationItem(
-                "4",
-                "Welcome to BharatConnect 2.0!",
-                "Enjoy offline SQLite sync, Supabase Realtime, and Sentinel 7-layer security.",
-                "1d ago",
-                "system",
-                Icons.Default.Celebration,
-                Color(0xFF138808),
-                true
-            ),
-            NotificationItem(
-                "5",
-                "Karan Malhotra liked your listing.",
-                "\"Dell UltraSharp 27 4K Monitor\"",
-                "1d ago",
-                "likes",
-                Icons.Default.Favorite,
-                Color(0xFFFF4B6B),
-                true
-            )
-        )
+        mutableStateListOf<NotificationItem>()
     }
 
     val filteredNotifications = notifications.filter {
@@ -110,12 +59,14 @@ fun NotificationsScreen(
                     }
                 },
                 actions = {
-                    TextButton(
-                        onClick = {
-                            notifications.forEach { it.isRead = true }
+                    if (notifications.isNotEmpty()) {
+                        TextButton(
+                            onClick = {
+                                notifications.forEach { it.isRead = true }
+                            }
+                        ) {
+                            Text("Mark Read", color = ColorPrimary6367FF, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
-                    ) {
-                        Text("Mark Read", color = ColorPrimary6367FF, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F0D24))
@@ -164,7 +115,54 @@ fun NotificationsScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(filteredNotifications) { notif ->
+                if (filteredNotifications.isEmpty()) {
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                            shape = RoundedCornerShape(18.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(28.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF221F45)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.NotificationsNone,
+                                        contentDescription = null,
+                                        tint = ColorPrimary6367FF,
+                                        modifier = Modifier.size(30.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Text(
+                                    text = "No Notifications",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "You're all caught up! Likes, comments, mentions, and updates will appear here.",
+                                    color = Color.Gray,
+                                    fontSize = 13.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    items(filteredNotifications) { notif ->
                     Card(
                         colors = CardDefaults.cardColors(
                             containerColor = if (notif.isRead) Color(0xFF121026) else Color(0xFF1A173A)
@@ -233,4 +231,5 @@ fun NotificationsScreen(
             }
         }
     }
+}
 }

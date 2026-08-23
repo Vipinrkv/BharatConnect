@@ -58,12 +58,7 @@ fun HomeScreen(
 
     // Stories state
     val stories = remember {
-        mutableStateListOf(
-            StoryItem("1", "Aarav Sharma", textContent = "🚀 Deploying BharatConnect Native 2.0 with Jetpack Compose!", gradientColors = listOf(Color(0xFF6367FF), Color(0xFFFF5E93)), timeAgo = "10m ago"),
-            StoryItem("2", "Priya Patel", textContent = "✨ Golden hour in Bangalore ☕ enjoying the weekend vibes!", gradientColors = listOf(Color(0xFFFF9100), Color(0xFFFF5252)), timeAgo = "35m ago"),
-            StoryItem("3", "Rahul Verma", textContent = "⚡ 10km morning run completed! #FitnessGoals", gradientColors = listOf(Color(0xFF00E676), Color(0xFF1DE9B6)), timeAgo = "1h ago"),
-            StoryItem("4", "Ananya Iyer", textContent = "🔒 7-Layer Sentinel encryption is live and fully offline sync ready.", gradientColors = listOf(Color(0xFF00E5FF), Color(0xFF6367FF)), timeAgo = "3h ago")
-        )
+        mutableStateListOf<StoryItem>()
     }
     var activeViewingStory by remember { mutableStateOf<StoryItem?>(null) }
     var showCreateStoryDialog by remember { mutableStateOf(false) }
@@ -303,11 +298,69 @@ fun FeedTab(
                 )
             }
 
-            items(posts) { post ->
-                PostCard(
-                    post = post,
-                    onLikeClick = { feedViewModel.toggleLike(post.id) }
-                )
+            if (posts.isEmpty()) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 20.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF221F45)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DynamicFeed,
+                                    contentDescription = null,
+                                    tint = ColorPrimary6367FF,
+                                    modifier = Modifier.size(30.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                text = "Your Feed is Ready",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Be the first to share an update, thought, or story with your community!",
+                                color = Color.Gray,
+                                fontSize = 13.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(18.dp))
+                            Button(
+                                onClick = { showCreatePostDialog = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Create First Post")
+                            }
+                        }
+                    }
+                }
+            } else {
+                items(posts) { post ->
+                    PostCard(
+                        post = post,
+                        onLikeClick = { feedViewModel.toggleLike(post.id) }
+                    )
+                }
             }
         }
 
@@ -539,41 +592,94 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
             )
 
             // Conversations List
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 6.dp)
-            ) {
-                items(filteredConversations) { conv ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { chatViewModel.selectConversation(conv) }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            if (filteredConversations.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(68.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF2C2856)),
+                                .background(Color(0xFF1F1C3F)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(conv.title.take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Icon(
+                                imageVector = Icons.Default.ChatBubbleOutline,
+                                contentDescription = null,
+                                tint = ColorPrimary6367FF,
+                                modifier = Modifier.size(32.dp)
+                            )
                         }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(conv.title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(conv.lastMessage ?: "", color = Color.Gray, fontSize = 13.sp, maxLines = 1)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF138808))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No Conversations Yet",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp
                         )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Start an encrypted 1-on-1 or group chat with friends and colleagues.",
+                            color = Color.Gray,
+                            fontSize = 13.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Button(
+                            onClick = { showNewChatDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Start New Chat")
+                        }
                     }
-                    HorizontalDivider(color = Color(0xFF1B1933), thickness = 0.8.dp)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 6.dp)
+                ) {
+                    items(filteredConversations) { conv ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { chatViewModel.selectConversation(conv) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF2C2856)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(conv.title.take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(conv.title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(conv.lastMessage ?: "", color = Color.Gray, fontSize = 13.sp, maxLines = 1)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF138808))
+                            )
+                        }
+                        HorizontalDivider(color = Color(0xFF1B1933), thickness = 0.8.dp)
+                    }
                 }
             }
         }
@@ -915,11 +1021,11 @@ fun ProfileTab(
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
 
-    var fullName by remember { mutableStateOf(user?.fullName ?: "Bharat Member") }
-    var username by remember { mutableStateOf(user?.username ?: "bharat_user") }
-    var bio by remember { mutableStateOf("Hey there! I am using BharatConnect with Sentinel 7-layer security 🚀") }
-    var phone by remember { mutableStateOf("+91 98765 43210") }
-    var dob by remember { mutableStateOf("15 Aug 1997") }
+    var fullName by remember { mutableStateOf(user?.fullName ?: "Bharat User") }
+    var username by remember { mutableStateOf(user?.username ?: "user") }
+    var bio by remember { mutableStateOf("Welcome to BharatConnect. Ready to connect and explore!") }
+    var phone by remember { mutableStateOf("Not provided") }
+    var dob by remember { mutableStateOf("Not set") }
 
     LazyColumn(
         modifier = Modifier
@@ -999,15 +1105,15 @@ fun ProfileTab(
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("12", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("0", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             Text("Posts", color = Color.Gray, fontSize = 11.sp)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("348", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("0", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             Text("Followers", color = Color.Gray, fontSize = 11.sp)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("192", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("0", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             Text("Following", color = Color.Gray, fontSize = 11.sp)
                         }
                     }
