@@ -581,5 +581,66 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
         }
+
+        // Verification Email Sent Dialog
+        if (authState is AuthState.VerificationEmailSent) {
+            val targetEmail = (authState as AuthState.VerificationEmailSent).email
+            AlertDialog(
+                onDismissRequest = {
+                    authViewModel.clearError()
+                    onNavigateToLogin()
+                },
+                containerColor = Color(0xFF15102A),
+                titleContentColor = Color.White,
+                textContentColor = Color(0xFFA0A3BD),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.MarkEmailRead,
+                        contentDescription = null,
+                        tint = Color(0xFF4ADE80),
+                        modifier = Modifier.size(44.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        text = "Account Created!",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "We have sent a verification email to:",
+                            fontSize = 14.sp,
+                            color = Color.White
+                        )
+                        Text(
+                            text = targetEmail,
+                            color = Color(0xFF60A5FA),
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            text = "Please check your inbox (or spam folder) to confirm your email, then proceed to sign in.",
+                            fontSize = 13.sp,
+                            color = Color.LightGray
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            authViewModel.clearError()
+                            onNavigateToLogin()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Proceed to Sign In", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            )
+        }
     }
 }

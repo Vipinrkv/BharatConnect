@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class AuthRepositoryImpl : AuthRepository {
 
@@ -71,25 +73,51 @@ class AuthRepositoryImpl : AuthRepository {
         avatarUrl: String?
     ): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
+            val trimmedEmail = email.trim()
+            val trimmedUsername = username.trim()
+            val trimmedFullName = fullName.trim()
+            val trimmedPhone = phoneNumber?.trim()
+            val trimmedDob = dob?.trim()
+            val trimmedAvatar = avatarUrl?.trim()
+
             supabase.auth.signUpWith(Email) {
-                this.email = email.trim()
+                this.email = trimmedEmail
                 this.password = password
+                this.data = buildJsonObject {
+                    put("username", trimmedUsername)
+                    put("full_name", trimmedFullName)
+                    if (!trimmedPhone.isNullOrBlank()) put("phone_number", trimmedPhone)
+                    if (!trimmedDob.isNullOrBlank()) put("dob", trimmedDob)
+                    if (!trimmedAvatar.isNullOrBlank()) put("avatar_url", trimmedAvatar)
+                }
             }
 
             val user = supabase.auth.currentUserOrNull()
-                ?: return@withContext Result.failure(Exception("Registration submitted. Please check email verification if configured."))
-
-            val userProfile = fetchOrCreateProfile(
-                userId = user.id,
-                email = user.email ?: email.trim(),
-                username = username.trim(),
-                fullName = fullName.trim(),
-                phoneNumber = phoneNumber?.trim(),
-                dob = dob?.trim(),
-                avatarUrl = avatarUrl?.trim()
-            )
-            _currentUserFlow.value = userProfile
-            Result.success(userProfile)
+            if (user != null) {
+                val userProfile = fetchOrCreateProfile(
+                    userId = user.id,
+                    email = user.email ?: trimmedEmail,
+                    username = trimmedUsername,
+                    fullName = trimmedFullName,
+                    phoneNumber = trimmedPhone,
+                    dob = trimmedDob,
+                    avatarUrl = trimmedAvatar
+                )
+                _currentUserFlow.value = userProfile
+                Result.success(userProfile)
+            } else {
+                // User account created in Supabase Auth; email verification required before session token is granted
+                val pendingProfile = UserProfile(
+                    id = "",
+                    email = trimmedEmail,
+                    username = trimmedUsername,
+                    fullName = trimmedFullName,
+                    phoneNumber = trimmedPhone,
+                    dob = trimmedDob,
+                    avatarUrl = trimmedAvatar
+                )
+                Result.success(pendingProfile)
+            }
         } catch (e: Exception) {
             Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
         }

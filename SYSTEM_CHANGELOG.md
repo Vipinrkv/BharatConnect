@@ -288,6 +288,7 @@
 
 ### 🔹 Entry #014 — Network Timeout Resilience (60s) & URL Error Leak Prevention
 - **Date & Time**: `2026-08-23 15:09:30 IST` (`2026-08-23T09:39:30Z`)
+- **Git Commit**: `909686f`
 - **Files Modified**:
   - [`android_native/app/src/main/java/com/bharatconnect/app/core/network/SupabaseClient.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/network/SupabaseClient.kt)
   - [`android_native/app/src/main/java/com/bharatconnect/app/core/network/NetworkErrorSanitizer.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/network/NetworkErrorSanitizer.kt)
@@ -302,7 +303,25 @@
   - **Recompiled Standalone APK**: Tested with 25 unit test suites and compiled fresh binary to root `BharatConnect-Native.apk`.
 
 ---
+
+### 🔹 Entry #015 — Seamless Email Verification Flow & User Metadata Synchronization
+- **Date & Time**: `2026-08-23 15:27:00 IST` (`2026-08-23T09:57:00Z`)
+- **Files Modified**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/model/User.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/model/User.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Email Verification State**: Added `AuthState.VerificationEmailSent` to seamlessly handle Supabase GoTrue email confirmation without throwing error banners on mobile.
+  - **Celebratory Verification Dialog**: Added an interactive AlertDialog in `RegisterScreen.kt` highlighting the target email with a direct "Proceed to Sign In" navigation CTA.
+  - **Metadata Payload on Registration**: In `AuthRepositoryImpl.kt`, attached user metadata (`username`, `full_name`, `phone_number`, `dob`, `avatar_url`) into `data = buildJsonObject { ... }` during `signUpWith(Email)` for database triggers and profile synchronization.
+  - **APK & Tests**: All 25 unit tests passed and fresh standalone binary compiled to `BharatConnect-Native.apk`.
+
+---
 *(Append all future system changes below this line)*
+
 
 
 

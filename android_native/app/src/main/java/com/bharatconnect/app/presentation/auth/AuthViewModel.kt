@@ -112,8 +112,12 @@ class AuthViewModel(
             )
             result.fold(
                 onSuccess = { user ->
-                    _currentUser.value = user
-                    _authState.value = AuthState.Authenticated(user)
+                    if (user.id.isBlank()) {
+                        _authState.value = AuthState.VerificationEmailSent(user.email ?: email.trim())
+                    } else {
+                        _currentUser.value = user
+                        _authState.value = AuthState.Authenticated(user)
+                    }
                 },
                 onFailure = { error ->
                     _authState.value = AuthState.Error(NetworkErrorSanitizer.sanitize(error))
