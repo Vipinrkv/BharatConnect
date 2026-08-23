@@ -48,6 +48,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.bharatconnect.app.core.storage.CloudinaryManager
 import kotlinx.coroutines.launch
 
@@ -139,6 +140,39 @@ fun HomeScreen(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // Profile Avatar in Top Bar
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF221F45))
+                            .border(1.5.dp, ColorPrimary6367FF, CircleShape)
+                            .clickable { selectedTab = 4 },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!currentUser?.avatarUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(currentUser?.avatarUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Profile",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                text = (currentUser?.fullName ?: currentUser?.username ?: "U").take(1).uppercase(),
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF0F0D24)
@@ -178,7 +212,7 @@ fun HomeScreen(
                 NavigationBarItem(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
-                    icon = { Icon(Icons.Default.LocationOn, contentDescription = "Nearby") },
+                    icon = { Icon(Icons.Default.LocationSearching, contentDescription = "Nearby") },
                     label = { Text("Nearby", fontSize = 11.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = ColorPrimary6367FF,
@@ -191,7 +225,7 @@ fun HomeScreen(
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = { selectedTab = 3 },
-                    icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Market") },
+                    icon = { Icon(Icons.Default.Storefront, contentDescription = "Market") },
                     label = { Text("Market", fontSize = 11.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = ColorPrimary6367FF,
@@ -227,6 +261,7 @@ fun HomeScreen(
                 0 -> FeedTab(
                     feedViewModel = feedViewModel,
                     stories = stories,
+                    currentUser = currentUser,
                     onAddStoryClick = { showCreateStoryDialog = true },
                     onStoryClick = { activeViewingStory = it }
                 )
@@ -285,6 +320,7 @@ fun HomeScreen(
 fun FeedTab(
     feedViewModel: FeedViewModel,
     stories: List<StoryItem>,
+    currentUser: UserProfile? = null,
     onAddStoryClick: () -> Unit,
     onStoryClick: (StoryItem) -> Unit
 ) {
@@ -302,6 +338,7 @@ fun FeedTab(
             item {
                 StoriesRow(
                     stories = stories,
+                    currentUserAvatar = currentUser?.avatarUrl,
                     onAddStoryClick = onAddStoryClick,
                     onStoryClick = onStoryClick
                 )

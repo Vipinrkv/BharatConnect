@@ -384,7 +384,34 @@
   - **Zero-Error Compilation & Unit Tests**: Verified all **25 unit test suites** pass cleanly (`./gradlew testDebugUnitTest`); compiled and updated standalone `BharatConnect-Native.apk` (24.5 MB).
 
 ---
+
+### 🔹 Entry #019 — Crash-Loop Fix on Deep Link & Profile Picture Visibility Synchronization
+- **Date & Time**: `2026-08-23 21:28:00 IST` (`2026-08-23T15:58:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/MainActivity.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/MainActivity.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/navigation/NavGraph.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/navigation/NavGraph.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/story/StoryComponents.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/story/StoryComponents.kt)
+  - [`android_native/app/src/main/AndroidManifest.xml`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/AndroidManifest.xml)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Repeated App Closing / Crash-Loop Root Cause Solved**:
+    1. In `MainActivity.kt`, deep-link intents were retained on the activity instance; on configuration changes/restarts, the consumed authentication token was repeatedly parsed and caused failure transitions. Cleared `intent.data = null` upon first consumption.
+    2. In `NavGraph.kt`, replaced individual route popups with `popUpTo(navController.graph.id) { inclusive = true }` and `launchSingleTop = true`, ensuring atomic backstack reset to Home without empty-backstack pop crashes.
+    3. In `AuthViewModel.kt`, added session fallback checking `getCurrentUserUseCase()` if deep link parsing fails due to already-consumed tokens.
+  - **Profile Picture Rendering & Metadata Preservation**:
+    1. In `AuthRepositoryImpl.kt`, implemented `extractMetadata(user, key)` to extract `avatar_url`, `username`, `full_name`, `phone_number`, and `dob` directly from `UserInfo.userMetadata`.
+    2. Synchronized avatar URLs during `handleAuthCallback`, `login`, and `getCurrentUser` so registration avatars uploaded to Cloudinary are never lost.
+    3. In `HomeScreen.kt` & `StoryComponents.kt`, added the user's avatar image to the **TopAppBar**, **StoriesRow ("Your Story")**, and verified high-resolution Coil `ImageRequest` rendering with crossfade.
+    4. Enabled `android:usesCleartextTraffic="true"` in `AndroidManifest.xml` for network & image loading resilience.
+  - **Unit Testing & Standalone APK**: Verified all **25 unit test suites** pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone `BharatConnect-Native.apk` (24.5 MB).
+
+---
 *(Append all future system changes below this line)*
+
 
 
 

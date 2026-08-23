@@ -43,10 +43,11 @@ class MainActivity : ComponentActivity() {
         handleDeepLinkIntent(intent)
     }
 
-    private fun handleDeepLinkIntent(intent: Intent?) {
-        val uri: Uri? = intent?.data
-        if (uri != null && uri.scheme == "bharatconnect" && uri.host == "auth") {
-            authViewModel.handleAuthCallback(uri)
+    private fun handleDeepLinkIntent(targetIntent: Intent?) {
+        val rawUri: Uri? = targetIntent?.data
+        if (rawUri != null && rawUri.scheme == "bharatconnect" && rawUri.host == "auth") {
+            targetIntent.data = null
+            authViewModel.handleAuthCallback(rawUri)
         }
     }
 }

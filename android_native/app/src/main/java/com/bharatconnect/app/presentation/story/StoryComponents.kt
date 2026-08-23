@@ -27,6 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
 
 data class StoryItem(
@@ -42,6 +46,7 @@ data class StoryItem(
 @Composable
 fun StoriesRow(
     stories: List<StoryItem>,
+    currentUserAvatar: String? = null,
     onAddStoryClick: () -> Unit,
     onStoryClick: (StoryItem) -> Unit
 ) {
@@ -93,12 +98,39 @@ fun StoriesRow(
                             .border(2.dp, ColorPrimary6367FF, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Story",
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
+                        if (!currentUserAvatar.isNullOrBlank()) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(currentUserAvatar)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Your Story Avatar",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .align(Alignment.BottomEnd)
+                                    .clip(CircleShape)
+                                    .background(ColorPrimary6367FF),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add Story",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add Story",
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(

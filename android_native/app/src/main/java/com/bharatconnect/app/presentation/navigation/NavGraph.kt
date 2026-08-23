@@ -39,7 +39,8 @@ fun BharatConnectNavGraph(
                 authViewModel = authViewModel,
                 onNavigateToHome = {
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
@@ -51,7 +52,8 @@ fun BharatConnectNavGraph(
                 authViewModel = authViewModel,
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
                 onNavigateToRegister = { navController.navigate(Screen.Register.route) },
@@ -63,7 +65,8 @@ fun BharatConnectNavGraph(
                 authViewModel = authViewModel,
                 onRegisterSuccess = {
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
                 onNavigateToOtp = { targetEmail ->
@@ -84,7 +87,8 @@ fun BharatConnectNavGraph(
                 authViewModel = authViewModel,
                 onVerificationSuccess = {
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
                 onNavigateBack = { navController.popBackStack() }
@@ -95,7 +99,8 @@ fun BharatConnectNavGraph(
                 authViewModel = authViewModel,
                 onSignOut = {
                     navController.navigate(Screen.Splash.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )

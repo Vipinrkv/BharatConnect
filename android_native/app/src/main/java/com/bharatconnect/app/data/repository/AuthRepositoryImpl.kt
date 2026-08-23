@@ -9,6 +9,7 @@ import com.bharatconnect.app.domain.repository.AuthRepository
 import io.github.jan.supabase.gotrue.OtpType
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.gotrue.user.UserInfo
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 class AuthRepositoryImpl : AuthRepository {
@@ -130,33 +133,28 @@ class AuthRepositoryImpl : AuthRepository {
             // Check for error parameters in query or fragment
             val errorDescription = uri.getQueryParameter("error_description")
                 ?: uri.getQueryParameter("error")
-                ?: extractFragmentParam(uri.fragment, "error_description")
-                ?: extractFragmentParam(uri.fragment, "error")
+                ?: extractParam(uri.fragment, "error_description")
+                ?: extractParam(uri.fragment, "error")
 
             if (!errorDescription.isNullOrBlank()) {
                 return@withContext Result.failure(Exception(NetworkErrorSanitizer.sanitize(Exception(errorDescription))))
             }
 
-            // Check for PKCE authorization code in query
-            val code = uri.getQueryParameter("code")
+            // Check for PKCE authorization code in query or fragment
+            val code = uri.getQueryParameter("code") ?: extractParam(uri.fragment, "code")
             if (!code.isNullOrBlank()) {
                 try {
                     supabase.auth.exchangeCodeForSession(code)
-                } catch (e: Exception) {
-                    // Fallback continue to check session
-                }
+                } catch (_: Exception) {}
             }
 
-            // Check for implicit access_token and refresh_token in fragment
-            val fragment = uri.fragment
-            if (!fragment.isNullOrBlank()) {
-                val accessToken = extractFragmentParam(fragment, "access_token")
-                val refreshToken = extractFragmentParam(fragment, "refresh_token")
-                if (!accessToken.isNullOrBlank() && !refreshToken.isNullOrBlank()) {
-                    try {
-                        supabase.auth.importAuthToken(accessToken = accessToken, refreshToken = refreshToken)
-                    } catch (_: Exception) {}
-                }
+            // Check for implicit access_token and refresh_token in fragment or query
+            val accessToken = extractParam(uri.fragment, "access_token") ?: uri.getQueryParameter("access_token")
+            val refreshToken = extractParam(uri.fragment, "refresh_token") ?: uri.getQueryParameter("refresh_token")
+            if (!accessToken.isNullOrBlank() && !refreshToken.isNullOrBlank()) {
+                try {
+                    supabase.auth.importAuthToken(accessToken = accessToken, refreshToken = refreshToken)
+                } catch (_: Exception) {}
             }
 
             val user = supabase.auth.currentUserOrNull()
@@ -302,12 +300,23 @@ class AuthRepositoryImpl : AuthRepository {
         return supabase.auth.currentUserOrNull() != null
     }
 
-    private fun extractFragmentParam(fragment: String?, key: String): String? {
-        if (fragment.isNullOrBlank()) return null
-        return fragment.split("&")
+    private fun extractParam(rawString: String?, key: String): String? {
+        if (rawString.isNullOrBlank()) return null
+        val clean = rawString.trimStart('#', '?')
+        return clean.split("&")
             .map { it.split("=") }
             .firstOrNull { it.size == 2 && it[0] == key }
             ?.get(1)
+            ?.let { Uri.decode(it) }
+    }
+
+    private fun extractMetadata(user: UserInfo?, key: String): String? {
+        if (user == null) return null
+        return try {
+            user.userMetadata?.get(key)?.jsonPrimitive?.contentOrNull
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private suspend fun fetchOrCreateProfile(
@@ -319,6 +328,19 @@ class AuthRepositoryImpl : AuthRepository {
         dob: String? = null,
         avatarUrl: String? = null
     ): UserProfile {
+        val user = supabase.auth.currentUserOrNull()
+        val metaUsername = extractMetadata(user, "username")
+        val metaFullName = extractMetadata(user, "full_name")
+        val metaPhone = extractMetadata(user, "phone_number")
+        val metaDob = extractMetadata(user, "dob")
+        val metaAvatar = extractMetadata(user, "avatar_url")
+
+        val finalUsername = username ?: metaUsername ?: email?.substringBefore("@") ?: "user_${userId.take(6)}"
+        val finalFullName = fullName ?: metaFullName ?: finalUsername
+        val finalPhone = phoneNumber ?: metaPhone
+        val finalDob = dob ?: metaDob
+        val finalAvatar = avatarUrl ?: metaAvatar
+
         return try {
             val existing = supabase.postgrest["profiles"].select {
                 filter {
@@ -329,11 +351,11 @@ class AuthRepositoryImpl : AuthRepository {
             if (existing != null) {
                 val updated = existing.copy(
                     email = existing.email ?: email,
-                    username = existing.username ?: username,
-                    fullName = existing.fullName ?: fullName,
-                    phoneNumber = existing.phoneNumber ?: phoneNumber,
-                    dob = existing.dob ?: dob,
-                    avatarUrl = existing.avatarUrl ?: avatarUrl
+                    username = existing.username ?: finalUsername,
+                    fullName = existing.fullName ?: finalFullName,
+                    phoneNumber = existing.phoneNumber ?: finalPhone,
+                    dob = existing.dob ?: finalDob,
+                    avatarUrl = existing.avatarUrl ?: finalAvatar
                 )
                 try {
                     supabase.postgrest["profiles"].update(updated) {
@@ -345,11 +367,11 @@ class AuthRepositoryImpl : AuthRepository {
                 val newProfile = ProfileDto(
                     id = userId,
                     email = email,
-                    username = username ?: email?.substringBefore("@") ?: "user_${userId.take(6)}",
-                    fullName = fullName ?: username ?: "BharatConnect User",
-                    phoneNumber = phoneNumber,
-                    dob = dob,
-                    avatarUrl = avatarUrl
+                    username = finalUsername,
+                    fullName = finalFullName,
+                    phoneNumber = finalPhone,
+                    dob = finalDob,
+                    avatarUrl = finalAvatar
                 )
                 try {
                     supabase.postgrest["profiles"].insert(newProfile)
@@ -360,11 +382,11 @@ class AuthRepositoryImpl : AuthRepository {
             UserProfile(
                 id = userId,
                 email = email,
-                username = username ?: email?.substringBefore("@") ?: "user",
-                fullName = fullName ?: "BharatConnect User",
-                phoneNumber = phoneNumber,
-                dob = dob,
-                avatarUrl = avatarUrl
+                username = finalUsername,
+                fullName = finalFullName,
+                phoneNumber = finalPhone,
+                dob = finalDob,
+                avatarUrl = finalAvatar
             )
         }
     }

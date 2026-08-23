@@ -162,7 +162,13 @@ class AuthViewModel(
                     _authState.value = AuthState.Authenticated(user)
                 },
                 onFailure = { error ->
-                    _authState.value = AuthState.Error(NetworkErrorSanitizer.sanitize(error))
+                    val existingUser = getCurrentUserUseCase()
+                    if (existingUser != null) {
+                        _currentUser.value = existingUser
+                        _authState.value = AuthState.Authenticated(existingUser)
+                    } else {
+                        _authState.value = AuthState.Error(NetworkErrorSanitizer.sanitize(error))
+                    }
                 }
             )
         }
