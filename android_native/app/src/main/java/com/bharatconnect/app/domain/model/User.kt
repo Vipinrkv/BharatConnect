@@ -11,6 +11,7 @@ data class UserProfile(
     val avatarUrl: String? = null,
     val bio: String? = null,
     val phoneNumber: String? = null,
+    val dob: String? = null,
     val isOnline: Boolean = false,
     val createdAt: String? = null
 )

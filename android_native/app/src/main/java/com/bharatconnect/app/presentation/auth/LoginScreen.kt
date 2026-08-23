@@ -7,14 +7,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,11 +32,16 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
+    var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var forgotPasswordInput by remember { mutableStateOf("") }
+    var forgotPasswordFeedback by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+
     val authState by authViewModel.authState.collectAsState()
+    val isResettingPassword by authViewModel.isResettingPassword.collectAsState()
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Authenticated) {
@@ -54,57 +57,85 @@ fun LoginScreen(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 20.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Branding Icon
+            Box(
+                modifier = Modifier
+                    .size(68.dp)
+                    .background(
+                        Brush.linearGradient(listOf(Color(0xFFFF9933), ColorPrimary6367FF, Color(0xFF138808))),
+                        shape = RoundedCornerShape(18.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LockOpen,
+                    contentDescription = "Sign In",
+                    tint = Color.White,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
-                text = "Welcome Back",
-                fontSize = 28.sp,
+                text = "Welcome to BharatConnect",
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
 
             Text(
-                text = "Sign in to access your secure BharatConnect chats",
+                text = "Sign in using your Username, Email, or Mobile Number",
                 fontSize = 13.sp,
                 color = Color(0xFF9E9EB8),
                 modifier = Modifier.padding(top = 6.dp)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // Error Banner
             if (authState is AuthState.Error) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF3B1218)),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
                 ) {
-                    Text(
-                        text = (authState as AuthState.Error).message,
-                        color = Color(0xFFFF6B6B),
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(12.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = Color(0xFFFF6B6B))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = (authState as AuthState.Error).message,
+                            color = Color(0xFFFF6B6B),
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             }
 
-            // Email Input
+            // Identifier Input (Username / Email / Phone)
             OutlinedTextField(
-                value = email,
+                value = identifier,
                 onValueChange = { 
-                    email = it
+                    identifier = it
                     authViewModel.clearError()
                 },
-                label = { Text("Email Address") },
+                label = { Text("Username, Email, or Mobile Number") },
+                placeholder = { Text("e.g. rahul_99, rahul@mail.com, or 9876543210", color = Color.Gray, fontSize = 12.sp) },
                 leadingIcon = {
-                    Icon(imageVector = Icons.Default.Email, contentDescription = "Email", tint = Color.LightGray)
+                    Icon(imageVector = Icons.Default.Badge, contentDescription = "User Identity", tint = Color.LightGray)
                 },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -155,11 +186,32 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            // Forgot Password Button (Right aligned)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = {
+                        forgotPasswordInput = identifier
+                        forgotPasswordFeedback = null
+                        showForgotPasswordDialog = true
+                    }
+                ) {
+                    Text(
+                        text = "Forgot Password?",
+                        color = ColorPrimary6367FF,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Sign In Button
             Button(
-                onClick = { authViewModel.login(email, password) },
+                onClick = { authViewModel.login(identifier, password) },
                 enabled = authState !is AuthState.Loading,
                 colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
                 shape = RoundedCornerShape(12.dp),
@@ -174,11 +226,11 @@ fun LoginScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Sign In", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Sign In", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -193,5 +245,104 @@ fun LoginScreen(
                 Text("← Back to Splash", color = Color.LightGray, fontSize = 13.sp)
             }
         }
+    }
+
+    // Forgot Password Dialog
+    if (showForgotPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = { showForgotPasswordDialog = false },
+            title = {
+                Text(
+                    text = "Reset Password",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Enter your registered Email, Username, or Mobile Number. We will send password reset instructions to your associated email.",
+                        color = Color.LightGray,
+                        fontSize = 13.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (forgotPasswordFeedback != null) {
+                        val (isSuccess, msg) = forgotPasswordFeedback!!
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSuccess) Color(0xFF0F3818) else Color(0xFF3B1218)
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp)
+                        ) {
+                            Text(
+                                text = msg,
+                                color = if (isSuccess) Color(0xFF4EFEAA) else Color(0xFFFF6B6B),
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = forgotPasswordInput,
+                        onValueChange = { 
+                            forgotPasswordInput = it
+                            forgotPasswordFeedback = null
+                        },
+                        label = { Text("Email, Username, or Mobile Number") },
+                        placeholder = { Text("e.g. user@example.com", color = Color.Gray, fontSize = 12.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Email, contentDescription = "Email", tint = Color.LightGray)
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ColorPrimary6367FF,
+                            unfocusedBorderColor = Color(0xFF2C2A4A),
+                            focusedLabelColor = ColorPrimary6367FF,
+                            unfocusedLabelColor = Color.Gray,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        authViewModel.forgotPassword(forgotPasswordInput) { isSuccess, message ->
+                            forgotPasswordFeedback = Pair(isSuccess, message)
+                        }
+                    },
+                    enabled = !isResettingPassword && forgotPasswordInput.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    if (isResettingPassword) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Send Reset Link", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showForgotPasswordDialog = false }) {
+                    Text("Close", color = Color.LightGray)
+                }
+            },
+            containerColor = Color(0xFF16142E),
+            shape = RoundedCornerShape(18.dp)
+        )
     }
 }

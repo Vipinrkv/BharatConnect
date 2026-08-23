@@ -5,8 +5,8 @@ import com.bharatconnect.app.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
 
 class LoginUseCase(private val authRepository: AuthRepository) {
-    suspend operator fun invoke(email: String, password: String): Result<UserProfile> {
-        return authRepository.login(email, password)
+    suspend operator fun invoke(identifier: String, password: String): Result<UserProfile> {
+        return authRepository.login(identifier, password)
     }
 }
 
@@ -15,9 +15,17 @@ class RegisterUseCase(private val authRepository: AuthRepository) {
         email: String,
         password: String,
         username: String,
-        fullName: String
+        fullName: String,
+        phoneNumber: String? = null,
+        dob: String? = null
     ): Result<UserProfile> {
-        return authRepository.register(email, password, username, fullName)
+        return authRepository.register(email, password, username, fullName, phoneNumber, dob)
+    }
+}
+
+class ResetPasswordUseCase(private val authRepository: AuthRepository) {
+    suspend operator fun invoke(emailOrIdentifier: String): Result<Unit> {
+        return authRepository.resetPassword(emailOrIdentifier)
     }
 }
 

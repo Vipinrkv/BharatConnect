@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ProfileDto(
     val id: String,
+    val email: String? = null,
     val username: String? = null,
     @SerialName("full_name")
     val fullName: String? = null,
@@ -15,20 +16,22 @@ data class ProfileDto(
     val bio: String? = null,
     @SerialName("phone_number")
     val phoneNumber: String? = null,
+    val dob: String? = null,
     @SerialName("is_online")
     val isOnline: Boolean? = false,
     @SerialName("created_at")
     val createdAt: String? = null
 ) {
-    fun toDomain(email: String? = null): UserProfile {
+    fun toDomain(overrideEmail: String? = null): UserProfile {
         return UserProfile(
             id = id,
-            email = email,
+            email = overrideEmail ?: email,
             username = username ?: "",
             fullName = fullName ?: username ?: "BharatConnect User",
             avatarUrl = avatarUrl,
             bio = bio,
             phoneNumber = phoneNumber,
+            dob = dob,
             isOnline = isOnline ?: false,
             createdAt = createdAt
         )

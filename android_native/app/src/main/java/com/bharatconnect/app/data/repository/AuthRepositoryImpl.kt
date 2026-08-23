@@ -19,17 +19,40 @@ class AuthRepositoryImpl : AuthRepository {
     private val _currentUserFlow = MutableStateFlow<UserProfile?>(null)
     override val currentUserFlow: Flow<UserProfile?> = _currentUserFlow.asStateFlow()
 
-    override suspend fun login(email: String, password: String): Result<UserProfile> = withContext(Dispatchers.IO) {
+    override suspend fun login(identifier: String, password: String): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
+            val trimmed = identifier.trim()
+            val emailToUse = if (trimmed.contains("@")) {
+                trimmed
+            } else {
+                // Lookup in profiles table by username or phone_number
+                val profile = try {
+                    supabase.postgrest["profiles"].select {
+                        filter {
+                            or {
+                                eq("username", trimmed)
+                                eq("phone_number", trimmed)
+                            }
+                        }
+                    }.decodeSingleOrNull<ProfileDto>()
+                } catch (e: Exception) {
+                    null
+                }
+
+                profile?.email ?: return@withContext Result.failure(
+                    Exception("No registered account found for '$trimmed'. Please sign in with your email or check your username/mobile number.")
+                )
+            }
+
             supabase.auth.signInWith(Email) {
-                this.email = email.trim()
+                this.email = emailToUse
                 this.password = password
             }
 
             val user = supabase.auth.currentUserOrNull()
-                ?: return@withContext Result.failure(Exception("Authentication succeeded but user is null"))
+                ?: return@withContext Result.failure(Exception("Authentication succeeded but user session is unavailable"))
 
-            val userProfile = fetchOrCreateProfile(user.id, user.email, null, null)
+            val userProfile = fetchOrCreateProfile(user.id, user.email, null, null, null, null)
             _currentUserFlow.value = userProfile
             Result.success(userProfile)
         } catch (e: Exception) {
@@ -41,7 +64,9 @@ class AuthRepositoryImpl : AuthRepository {
         email: String,
         password: String,
         username: String,
-        fullName: String
+        fullName: String,
+        phoneNumber: String?,
+        dob: String?
     ): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
             supabase.auth.signUpWith(Email) {
@@ -50,11 +75,48 @@ class AuthRepositoryImpl : AuthRepository {
             }
 
             val user = supabase.auth.currentUserOrNull()
-                ?: return@withContext Result.failure(Exception("Registration succeeded. Please verify your email if required."))
+                ?: return@withContext Result.failure(Exception("Registration submitted. Please check email verification if configured."))
 
-            val userProfile = fetchOrCreateProfile(user.id, user.email, username.trim(), fullName.trim())
+            val userProfile = fetchOrCreateProfile(
+                userId = user.id,
+                email = user.email ?: email.trim(),
+                username = username.trim(),
+                fullName = fullName.trim(),
+                phoneNumber = phoneNumber?.trim(),
+                dob = dob?.trim()
+            )
             _currentUserFlow.value = userProfile
             Result.success(userProfile)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun resetPassword(emailOrIdentifier: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val trimmed = emailOrIdentifier.trim()
+            val emailToUse = if (trimmed.contains("@")) {
+                trimmed
+            } else {
+                val profile = try {
+                    supabase.postgrest["profiles"].select {
+                        filter {
+                            or {
+                                eq("username", trimmed)
+                                eq("phone_number", trimmed)
+                            }
+                        }
+                    }.decodeSingleOrNull<ProfileDto>()
+                } catch (e: Exception) {
+                    null
+                }
+                profile?.email ?: return@withContext Result.failure(
+                    Exception("No account email found for '$trimmed'. Please enter your registered email address.")
+                )
+            }
+
+            supabase.auth.resetPasswordForEmail(emailToUse)
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -73,7 +135,7 @@ class AuthRepositoryImpl : AuthRepository {
     override suspend fun getCurrentUser(): UserProfile? = withContext(Dispatchers.IO) {
         try {
             val user = supabase.auth.currentUserOrNull() ?: return@withContext null
-            val profile = fetchOrCreateProfile(user.id, user.email, null, null)
+            val profile = fetchOrCreateProfile(user.id, user.email, null, null, null, null)
             _currentUserFlow.value = profile
             profile
         } catch (e: Exception) {
@@ -89,7 +151,9 @@ class AuthRepositoryImpl : AuthRepository {
         userId: String,
         email: String?,
         username: String?,
-        fullName: String?
+        fullName: String?,
+        phoneNumber: String? = null,
+        dob: String? = null
     ): UserProfile {
         return try {
             val existing = supabase.postgrest["profiles"].select {
@@ -99,12 +163,28 @@ class AuthRepositoryImpl : AuthRepository {
             }.decodeSingleOrNull<ProfileDto>()
 
             if (existing != null) {
-                existing.toDomain(email)
+                // If existing profile lacks phone/dob/name, update with new values
+                val updated = existing.copy(
+                    email = existing.email ?: email,
+                    username = existing.username ?: username,
+                    fullName = existing.fullName ?: fullName,
+                    phoneNumber = existing.phoneNumber ?: phoneNumber,
+                    dob = existing.dob ?: dob
+                )
+                try {
+                    supabase.postgrest["profiles"].update(updated) {
+                        filter { eq("id", userId) }
+                    }
+                } catch (_: Exception) {}
+                updated.toDomain(email)
             } else {
                 val newProfile = ProfileDto(
                     id = userId,
+                    email = email,
                     username = username ?: email?.substringBefore("@") ?: "user_${userId.take(6)}",
-                    fullName = fullName ?: username ?: "BharatConnect User"
+                    fullName = fullName ?: username ?: "BharatConnect User",
+                    phoneNumber = phoneNumber,
+                    dob = dob
                 )
                 try {
                     supabase.postgrest["profiles"].insert(newProfile)
@@ -117,7 +197,9 @@ class AuthRepositoryImpl : AuthRepository {
                 id = userId,
                 email = email,
                 username = username ?: email?.substringBefore("@") ?: "user",
-                fullName = fullName ?: "BharatConnect User"
+                fullName = fullName ?: "BharatConnect User",
+                phoneNumber = phoneNumber,
+                dob = dob
             )
         }
     }
