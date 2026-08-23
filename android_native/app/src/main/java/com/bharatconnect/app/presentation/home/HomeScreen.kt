@@ -1,5 +1,14 @@
 package com.bharatconnect.app.presentation.home
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
+import com.bharatconnect.app.core.contacts.ContactsManager
+import com.bharatconnect.app.core.contacts.PhoneContact
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,10 +53,7 @@ import com.bharatconnect.app.presentation.story.StoriesRow
 import com.bharatconnect.app.presentation.story.StoryItem
 import com.bharatconnect.app.presentation.story.StoryViewerDialog
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.bharatconnect.app.core.storage.CloudinaryManager
@@ -576,12 +582,38 @@ fun PostCard(post: Post, onLikeClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatsTab(chatViewModel: ChatViewModel) {
+    val context = LocalContext.current
     val conversations by chatViewModel.conversations.collectAsState()
+    val phoneContacts by chatViewModel.phoneContacts.collectAsState()
+    val isLoadingContacts by chatViewModel.isLoadingContacts.collectAsState()
+
     var selectedSubTab by remember { mutableStateOf(0) } // 0: Individual, 1: Groups, 2: Communities
     var searchQuery by remember { mutableStateOf("") }
     var showNewChatDialog by remember { mutableStateOf(false) }
+
+    var hasContactPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasContactPermission = isGranted
+        if (isGranted) {
+            chatViewModel.loadDeviceContacts(context)
+        }
+    }
+
+    LaunchedEffect(showNewChatDialog, hasContactPermission) {
+        if (showNewChatDialog && hasContactPermission) {
+            chatViewModel.loadDeviceContacts(context)
+        }
+    }
 
     val filteredConversations = conversations.filter {
         searchQuery.isBlank() || it.title.contains(searchQuery, ignoreCase = true)
@@ -621,7 +653,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search messages, groups...", color = Color.Gray, fontSize = 13.sp) },
+                placeholder = { Text("Search messages, contacts...", color = Color.Gray, fontSize = 13.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
@@ -673,7 +705,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Start an encrypted 1-on-1 or group chat with friends and colleagues.",
+                            text = "Start a 1-on-1 chat with your phonebook contacts or invite them to BharatConnect.",
                             color = Color.Gray,
                             fontSize = 13.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -684,9 +716,9 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                             colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Contacts, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Start New Chat")
+                            Text("Select from Contacts")
                         }
                     }
                 }
@@ -731,6 +763,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
             }
         }
 
+        // Floating Action Button
         FloatingActionButton(
             onClick = { showNewChatDialog = true },
             containerColor = ColorPrimary6367FF,
@@ -739,45 +772,295 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                 .align(Alignment.BottomEnd)
                 .padding(20.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = "New Chat")
+            Icon(Icons.Default.Add, contentDescription = "New Chat from Contacts")
         }
 
+        // ==================== PHONEBOOK CONTACT PICKER BOTTOM SHEET ====================
         if (showNewChatDialog) {
-            var directContactInput by remember { mutableStateOf("") }
-            AlertDialog(
+            var contactSearchQuery by remember { mutableStateOf("") }
+            val registeredContacts = remember(phoneContacts, contactSearchQuery) {
+                phoneContacts.filter {
+                    it.isRegistered && (contactSearchQuery.isBlank() || it.name.contains(contactSearchQuery, ignoreCase = true) || it.rawPhone.contains(contactSearchQuery))
+                }
+            }
+            val unregisteredContacts = remember(phoneContacts, contactSearchQuery) {
+                phoneContacts.filter {
+                    !it.isRegistered && (contactSearchQuery.isBlank() || it.name.contains(contactSearchQuery, ignoreCase = true) || it.rawPhone.contains(contactSearchQuery))
+                }
+            }
+
+            ModalBottomSheet(
                 onDismissRequest = { showNewChatDialog = false },
-                title = { Text("Start Direct Chat", color = Color.White, fontWeight = FontWeight.Bold) },
-                text = {
-                    OutlinedTextField(
-                        value = directContactInput,
-                        onValueChange = { directContactInput = it },
-                        placeholder = { Text("Enter Phone Number or @handle", color = Color.Gray) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        )
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (directContactInput.isNotBlank()) {
-                                showNewChatDialog = false
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF)
+                containerColor = Color(0xFF120F2A),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0xFF332F63)) }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.85f)
+                        .padding(horizontal = 16.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Start Chat")
+                        Column {
+                            Text("Select Contact", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text(
+                                text = if (hasContactPermission) "${phoneContacts.size} contacts found in phonebook" else "Contacts permission required",
+                                color = Color.Gray,
+                                fontSize = 12.sp
+                            )
+                        }
+                        IconButton(onClick = { showNewChatDialog = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.LightGray)
+                        }
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showNewChatDialog = false }) {
-                        Text("Cancel", color = Color.LightGray)
+
+                    if (!hasContactPermission) {
+                        // Permission Request Card
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1840)),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF2B255F)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Contacts, contentDescription = null, tint = ColorPrimary6367FF, modifier = Modifier.size(28.dp))
+                                }
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Text("Sync Device Phonebook", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Allow BharatConnect to find your friends on the app and send instant SMS invites with their phonebook names.",
+                                    color = Color.LightGray,
+                                    fontSize = 13.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(18.dp))
+                                Button(
+                                    onClick = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Allow Access", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    } else {
+                        // Search Bar
+                        OutlinedTextField(
+                            value = contactSearchQuery,
+                            onValueChange = { contactSearchQuery = it },
+                            placeholder = { Text("Search name or phone number...", color = Color.Gray, fontSize = 13.sp) },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF16142E),
+                                unfocusedContainerColor = Color(0xFF16142E),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = ColorPrimary6367FF,
+                                unfocusedBorderColor = Color(0xFF2C2856)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        )
+
+                        if (isLoadingContacts) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(color = ColorPrimary6367FF, modifier = Modifier.size(36.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text("Matching contacts with BharatConnect...", color = Color.LightGray, fontSize = 13.sp)
+                                }
+                            }
+                        } else if (phoneContacts.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("No contacts found in device phonebook.", color = Color.Gray, fontSize = 14.sp)
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                // 1. Registered Contacts Section
+                                if (registeredContacts.isNotEmpty()) {
+                                    item {
+                                        Text(
+                                            text = "REGISTERED ON BHARATCONNECT (${registeredContacts.size})",
+                                            color = Color(0xFF4EFEAA),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                        )
+                                    }
+                                    items(registeredContacts) { contact ->
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFF191638)),
+                                            shape = RoundedCornerShape(14.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(46.dp)
+                                                        .clip(CircleShape)
+                                                        .background(ColorPrimary6367FF),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = contact.name.take(1),
+                                                        color = Color.White,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 18.sp
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text(
+                                                            text = contact.name,
+                                                            color = Color.White,
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontSize = 15.sp
+                                                        )
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(8.dp)
+                                                                .clip(CircleShape)
+                                                                .background(Color(0xFF4EFEAA))
+                                                        )
+                                                    }
+                                                    Text(contact.rawPhone, color = Color.Gray, fontSize = 12.sp)
+                                                }
+                                                Button(
+                                                    onClick = {
+                                                        chatViewModel.startChatWithContact(contact) {
+                                                            showNewChatDialog = false
+                                                        }
+                                                    },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.ChatBubble, contentDescription = "Chat", modifier = Modifier.size(14.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Chat", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // 2. Unregistered Contacts Section (Invite via Native SMS)
+                                if (unregisteredContacts.isNotEmpty()) {
+                                    item {
+                                        Text(
+                                            text = "INVITE TO BHARATCONNECT (${unregisteredContacts.size})",
+                                            color = Color.Gray,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.padding(top = 14.dp, bottom = 4.dp)
+                                        )
+                                    }
+                                    items(unregisteredContacts) { contact ->
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFF14112E)),
+                                            shape = RoundedCornerShape(14.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(46.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFF25214E)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = contact.name.take(1),
+                                                        color = Color.LightGray,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 18.sp
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = contact.name,
+                                                        color = Color.White,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        fontSize = 14.sp
+                                                    )
+                                                    Text(contact.rawPhone, color = Color.Gray, fontSize = 12.sp)
+                                                }
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        ContactsManager.sendSmsInvite(context, contact.rawPhone)
+                                                    },
+                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF4EFEAA)),
+                                                    border = BorderStroke(1.dp, Color(0xFF4EFEAA)),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Sms, contentDescription = "Invite", modifier = Modifier.size(14.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Invite", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-                },
-                containerColor = Color(0xFF16142E)
-            )
+                }
+            }
         }
     }
 }

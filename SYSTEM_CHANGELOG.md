@@ -451,7 +451,30 @@
   - **Compilation & Test Pass**: Verified all **25 unit test suites** pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone `BharatConnect-Native.apk` (24.7 MB).
 
 ---
+
+### 🔹 Entry #023 — Device Phonebook Sync, Registration Matching & Native SMS Invite Flow
+- **Date & Time**: `2026-08-23 23:14:00 IST` (`2026-08-23T17:44:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/AndroidManifest.xml`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/AndroidManifest.xml)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/contacts/ContactsManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/contacts/ContactsManager.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/repository/ChatRepository.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/repository/ChatRepository.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/domain/ChatUseCasesTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/domain/ChatUseCasesTest.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Phonebook Contact Synchronization**: Integrated `ContactsManager` to read device contacts via `ContactsContract.CommonDataKinds.Phone` with runtime permission check (`READ_CONTACTS`).
+  - **Authoritative Phonebook Names**: Dynamic 1-on-1 chats use the contact's exact name as saved in the user's phonebook rather than remote database IDs.
+  - **Registered vs. Unregistered Matching**: Normalizes phone numbers (handles `+91`, spaces, hyphens) and queries Supabase PostgREST `profiles` to separate contacts into **"Registered on BharatConnect"** (with **"Chat"** action) and **"Invite to BharatConnect"** (with **"Invite"** action).
+  - **Native SMS Invite Intent**: Tapping "Invite" launches the Android device's native SMS application (`ACTION_SENDTO` / `smsto:`) pre-populated with recipient's number and a customized BharatConnect download invite.
+  - **Modern Compose Bottom Sheet**: Built `SelectContactBottomSheet` inside `HomeScreen.kt` featuring contact search, loading indicators, permission prompt cards, registered badges, and 1-tap chat initiation.
+  - **Compilation & Test Pass**: Verified all unit test suites pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone `BharatConnect-Native.apk` (24.6 MB).
+
+---
 *(Append all future system changes below this line)*
+
 
 
 

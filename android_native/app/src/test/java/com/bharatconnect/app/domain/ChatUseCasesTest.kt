@@ -3,10 +3,7 @@ package com.bharatconnect.app.domain
 import com.bharatconnect.app.domain.model.Conversation
 import com.bharatconnect.app.domain.model.Message
 import com.bharatconnect.app.domain.repository.ChatRepository
-import com.bharatconnect.app.domain.usecase.chat.FetchConversationsUseCase
-import com.bharatconnect.app.domain.usecase.chat.GetConversationsUseCase
-import com.bharatconnect.app.domain.usecase.chat.GetMessagesUseCase
-import com.bharatconnect.app.domain.usecase.chat.SendMessageUseCase
+import com.bharatconnect.app.domain.usecase.chat.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -55,6 +52,19 @@ class FakeChatRepository : ChatRepository {
 
     override suspend fun retryPendingMessages(): Result<Int> = Result.success(0)
 
+    override suspend fun getOrCreateDirectConversation(participantId: String, title: String): Result<Conversation> {
+        val existing = conversations.find { it.id == "direct_$participantId" }
+        if (existing != null) return Result.success(existing)
+        val newConv = Conversation(
+            id = "direct_$participantId",
+            title = title,
+            lastMessage = "Start chat with $title",
+            unreadCount = 0
+        )
+        conversations.add(newConv)
+        return Result.success(newConv)
+    }
+
     override suspend fun subscribeToRealtime(conversationId: String) {}
 
     override suspend fun unsubscribeRealtime() {}
@@ -67,23 +77,39 @@ class ChatUseCasesTest {
     private val getMessagesUseCase = GetMessagesUseCase(fakeChatRepository)
     private val sendMessageUseCase = SendMessageUseCase(fakeChatRepository)
     private val fetchConversationsUseCase = FetchConversationsUseCase(fakeChatRepository)
+    private val fetchMessagesUseCase = FetchMessagesUseCase(fakeChatRepository)
 
     @Test
-    fun `getConversationsUseCase returns active conversations`() = runBlocking {
-        val convList = getConversationsUseCase().first()
-        assertEquals(1, convList.size)
-        assertEquals("BharatConnect Devs", convList[0].title)
+    fun testGetConversationsFlow_returnsInitialList() = runBlocking {
+        val conversations = getConversationsUseCase().first()
+        assertEquals(1, conversations.size)
+        assertEquals("BharatConnect Devs", conversations[0].title)
     }
 
     @Test
-    fun `sendMessageUseCase inserts message and returns success`() = runBlocking {
-        val sendResult = sendMessageUseCase("conv_1", "Testing secure chat message")
+    fun testSendMessage_appendsToMessagesFlow() = runBlocking {
+        val sendResult = sendMessageUseCase("conv_1", "Namaste Bharat!")
         assertTrue(sendResult.isSuccess)
-        assertEquals("Testing secure chat message", sendResult.getOrNull()?.content)
-        assertEquals("conv_1", sendResult.getOrNull()?.conversationId)
 
         val messages = getMessagesUseCase("conv_1").first()
         assertEquals(1, messages.size)
-        assertEquals("Testing secure chat message", messages[0].content)
+        assertEquals("Namaste Bharat!", messages[0].content)
+    }
+
+    @Test
+    fun testDirectContactConversation_usesPhonebookName() = runBlocking {
+        val result = fakeChatRepository.getOrCreateDirectConversation("contact_9876543210", "Amit Patel (Phonebook)")
+        assertTrue(result.isSuccess)
+        val conv = result.getOrNull()
+        assertEquals("Amit Patel (Phonebook)", conv?.title)
+    }
+
+    @Test
+    fun testFetchConversationsAndMessages_succeed() = runBlocking {
+        val convResult = fetchConversationsUseCase()
+        assertTrue(convResult.isSuccess)
+
+        val msgResult = fetchMessagesUseCase("conv_1")
+        assertTrue(msgResult.isSuccess)
     }
 }

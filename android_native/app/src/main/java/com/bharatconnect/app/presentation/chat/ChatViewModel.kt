@@ -39,6 +39,12 @@ class ChatViewModel(
     private val _selectedConversation = MutableStateFlow<Conversation?>(null)
     val selectedConversation: StateFlow<Conversation?> = _selectedConversation.asStateFlow()
 
+    private val _phoneContacts = MutableStateFlow<List<com.bharatconnect.app.core.contacts.PhoneContact>>(emptyList())
+    val phoneContacts: StateFlow<List<com.bharatconnect.app.core.contacts.PhoneContact>> = _phoneContacts.asStateFlow()
+
+    private val _isLoadingContacts = MutableStateFlow(false)
+    val isLoadingContacts: StateFlow<Boolean> = _isLoadingContacts.asStateFlow()
+
     private var messageObservationJob: Job? = null
     private var realtimeJob: Job? = null
 
@@ -88,6 +94,37 @@ class ChatViewModel(
         if (text.isBlank()) return
         viewModelScope.launch {
             sendMessageUseCase(conversationId, text)
+        }
+    }
+
+    fun loadDeviceContacts(context: android.content.Context) {
+        viewModelScope.launch {
+            _isLoadingContacts.value = true
+            try {
+                val rawContacts = com.bharatconnect.app.core.contacts.ContactsManager.getDeviceContacts(context)
+                val matchedContacts = com.bharatconnect.app.core.contacts.ContactsManager.matchRegisteredContacts(rawContacts)
+                _phoneContacts.value = matchedContacts
+            } catch (_: Exception) {
+                _phoneContacts.value = emptyList()
+            } finally {
+                _isLoadingContacts.value = false
+            }
+        }
+    }
+
+    fun startChatWithContact(
+        contact: com.bharatconnect.app.core.contacts.PhoneContact,
+        chatRepository: ChatRepository = ChatRepositoryImpl(),
+        onSuccess: (Conversation) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val participantId = contact.registeredUserId ?: "contact_${contact.normalizedPhone}"
+            val contactName = contact.name // Authoritative name from user's phonebook
+            val result = chatRepository.getOrCreateDirectConversation(participantId, contactName)
+            result.getOrNull()?.let { conv ->
+                selectConversation(conv)
+                onSuccess(conv)
+            }
         }
     }
 

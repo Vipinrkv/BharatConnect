@@ -163,6 +163,42 @@ class ChatRepositoryImpl : ChatRepository {
         Result.success(successCount)
     }
 
+    override suspend fun getOrCreateDirectConversation(participantId: String, title: String): Result<Conversation> = withContext(Dispatchers.IO) {
+        val currentUserId = supabase.auth.currentUserOrNull()?.id ?: "local_user"
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        
+        // Generate deterministic conversation ID for 1-on-1 pairs
+        val sortedIds = listOf(currentUserId, participantId).sorted()
+        val convId = "direct_${sortedIds[0]}_${sortedIds[1]}"
+
+        val conversation = Conversation(
+            id = convId,
+            isGroup = false,
+            title = title,
+            createdBy = currentUserId,
+            lastMessage = "Start your conversation with $title",
+            lastMessageTime = timestamp,
+            unreadCount = 0
+        )
+
+        // 1. Immediately insert/update locally in Room
+        conversationDao.insertOrUpdateConversation(ConversationEntity.fromDomain(conversation))
+
+        // 2. Sync to Supabase remote
+        try {
+            val convDto = ConversationDto(
+                id = convId,
+                isGroup = false,
+                title = title,
+                createdBy = currentUserId,
+                createdAt = timestamp
+            )
+            supabase.postgrest["conversations"].upsert(convDto)
+        } catch (_: Exception) {}
+
+        Result.success(conversation)
+    }
+
     private var activeRealtimeChannel: RealtimeChannel? = null
 
     override suspend fun subscribeToRealtime(conversationId: String): Unit = withContext(Dispatchers.IO) {
