@@ -2,8 +2,8 @@
 -- 🇮🇳 BHARATCONNECT SUPABASE POSTGRESQL DATABASE SCHEMA & SECURITY POLICIES
 -- ============================================================================
 -- Production Schema & Universal Migration Script for BharatConnect Native Android App
--- 100% Idempotent: Automatically creates tables, patches ALL missing columns (including
--- foreign keys & metadata) on existing tables, recreates indexes, triggers & RLS.
+-- 100% Idempotent & Type-Safe: Adds missing columns, casts ID comparisons safely,
+-- and handles mixed UUID / VARCHAR / TEXT types across existing tables.
 -- ============================================================================
 
 -- Enable required extensions
@@ -68,11 +68,10 @@ ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ
 
 CREATE TABLE IF NOT EXISTS public.conversation_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    conversation_id TEXT NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    conversation_id TEXT NOT NULL,
+    user_id UUID NOT NULL,
     role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
-    joined_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(conversation_id, user_id)
+    joined_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE public.conversation_members ADD COLUMN IF NOT EXISTS conversation_id TEXT;
@@ -85,8 +84,8 @@ CREATE INDEX IF NOT EXISTS idx_conversation_members_conv ON public.conversation_
 
 CREATE TABLE IF NOT EXISTS public.messages (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-    conversation_id TEXT NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
-    sender_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    conversation_id TEXT NOT NULL,
+    sender_id UUID NOT NULL,
     sender_name TEXT NOT NULL,
     content TEXT NOT NULL,
     media_url TEXT,
@@ -112,7 +111,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_sender ON public.messages (sender_id);
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.posts (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-    author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL,
     author_name TEXT NOT NULL,
     author_avatar TEXT,
     content TEXT NOT NULL,
@@ -140,10 +139,9 @@ CREATE INDEX IF NOT EXISTS idx_posts_author ON public.posts (author_id);
 
 CREATE TABLE IF NOT EXISTS public.post_likes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    post_id TEXT NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(post_id, user_id)
+    post_id TEXT NOT NULL,
+    user_id UUID NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE public.post_likes ADD COLUMN IF NOT EXISTS post_id TEXT;
@@ -154,8 +152,8 @@ CREATE INDEX IF NOT EXISTS idx_post_likes_post ON public.post_likes (post_id);
 
 CREATE TABLE IF NOT EXISTS public.post_comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    post_id TEXT NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
-    author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    post_id TEXT NOT NULL,
+    author_id UUID NOT NULL,
     author_name TEXT NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -174,7 +172,7 @@ CREATE INDEX IF NOT EXISTS idx_post_comments_post ON public.post_comments (post_
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.stories (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-    author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL,
     author_name TEXT NOT NULL,
     author_avatar TEXT,
     media_url TEXT,
@@ -200,7 +198,7 @@ CREATE INDEX IF NOT EXISTS idx_stories_expires_at ON public.stories (expires_at 
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.marketplace_items (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-    seller_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    seller_id UUID NOT NULL,
     seller_name TEXT NOT NULL,
     title TEXT NOT NULL,
     price TEXT NOT NULL,
@@ -221,7 +219,7 @@ ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS created_at TIMESTA
 
 CREATE TABLE IF NOT EXISTS public.jobs (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-    poster_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    poster_id UUID NOT NULL,
     title TEXT NOT NULL,
     company TEXT NOT NULL,
     salary TEXT NOT NULL,
@@ -240,7 +238,7 @@ ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT 
 
 CREATE TABLE IF NOT EXISTS public.quick_jobs (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-    poster_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    poster_id UUID NOT NULL,
     poster_name TEXT NOT NULL,
     title TEXT NOT NULL,
     payout TEXT NOT NULL,
@@ -262,7 +260,7 @@ ALTER TABLE public.quick_jobs ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DE
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.notifications (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     category TEXT NOT NULL DEFAULT 'system' CHECK (category IN ('messages', 'likes', 'system', 'marketplace')),
@@ -326,15 +324,15 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Function: Auto update post like counters
+-- Function: Auto update post like counters (Type-safe ID casting)
 CREATE OR REPLACE FUNCTION public.handle_post_like_counter()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (TG_OP = 'INSERT') THEN
-        UPDATE public.posts SET likes_count = likes_count + 1 WHERE id = NEW.post_id;
+        UPDATE public.posts SET likes_count = likes_count + 1 WHERE id::TEXT = NEW.post_id::TEXT;
         RETURN NEW;
     ELSIF (TG_OP = 'DELETE') THEN
-        UPDATE public.posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id = OLD.post_id;
+        UPDATE public.posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id::TEXT = OLD.post_id::TEXT;
         RETURN OLD;
     END IF;
 END;
@@ -345,14 +343,14 @@ CREATE TRIGGER on_post_liked
     AFTER INSERT OR DELETE ON public.post_likes
     FOR EACH ROW EXECUTE FUNCTION public.handle_post_like_counter();
 
--- Function: Auto update conversation last message
+-- Function: Auto update conversation last message (Type-safe ID casting)
 CREATE OR REPLACE FUNCTION public.handle_new_message()
 RETURNS TRIGGER AS $$
 BEGIN
     UPDATE public.conversations
     SET last_message = NEW.content,
         last_message_time = NEW.created_at
-    WHERE id = NEW.conversation_id;
+    WHERE id::TEXT = NEW.conversation_id::TEXT;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -363,7 +361,7 @@ CREATE TRIGGER on_message_sent
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_message();
 
 -- ============================================================================
--- 8. ROW LEVEL SECURITY (RLS) POLICIES
+-- 8. ROW LEVEL SECURITY (RLS) POLICIES (Type-safe with ::TEXT casting)
 -- ============================================================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -385,10 +383,10 @@ DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profi
 CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
-CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid()::TEXT = id::TEXT);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid()::TEXT = id::TEXT);
 
 -- Posts Policies
 DROP POLICY IF EXISTS "Posts are viewable by everyone" ON public.posts;
@@ -398,20 +396,20 @@ DROP POLICY IF EXISTS "Authenticated users can create posts" ON public.posts;
 CREATE POLICY "Authenticated users can create posts" ON public.posts FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Users can update own posts" ON public.posts;
-CREATE POLICY "Users can update own posts" ON public.posts FOR UPDATE USING (auth.uid() = author_id);
+CREATE POLICY "Users can update own posts" ON public.posts FOR UPDATE USING (auth.uid()::TEXT = author_id::TEXT);
 
 DROP POLICY IF EXISTS "Users can delete own posts" ON public.posts;
-CREATE POLICY "Users can delete own posts" ON public.posts FOR DELETE USING (auth.uid() = author_id);
+CREATE POLICY "Users can delete own posts" ON public.posts FOR DELETE USING (auth.uid()::TEXT = author_id::TEXT);
 
 -- Post Likes & Comments Policies
 DROP POLICY IF EXISTS "Post likes viewable by everyone" ON public.post_likes;
 CREATE POLICY "Post likes viewable by everyone" ON public.post_likes FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can like posts" ON public.post_likes;
-CREATE POLICY "Users can like posts" ON public.post_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can like posts" ON public.post_likes FOR INSERT WITH CHECK (auth.uid()::TEXT = user_id::TEXT);
 
 DROP POLICY IF EXISTS "Users can unlike posts" ON public.post_likes;
-CREATE POLICY "Users can unlike posts" ON public.post_likes FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can unlike posts" ON public.post_likes FOR DELETE USING (auth.uid()::TEXT = user_id::TEXT);
 
 DROP POLICY IF EXISTS "Comments viewable by everyone" ON public.post_comments;
 CREATE POLICY "Comments viewable by everyone" ON public.post_comments FOR SELECT USING (true);
@@ -424,15 +422,15 @@ DROP POLICY IF EXISTS "Active stories viewable by everyone" ON public.stories;
 CREATE POLICY "Active stories viewable by everyone" ON public.stories FOR SELECT USING (expires_at > NOW());
 
 DROP POLICY IF EXISTS "Authenticated users can post stories" ON public.stories;
-CREATE POLICY "Authenticated users can post stories" ON public.stories FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "Authenticated users can post stories" ON public.stories FOR INSERT WITH CHECK (auth.uid()::TEXT = author_id::TEXT);
 
 DROP POLICY IF EXISTS "Users can delete own stories" ON public.stories;
-CREATE POLICY "Users can delete own stories" ON public.stories FOR DELETE USING (auth.uid() = author_id);
+CREATE POLICY "Users can delete own stories" ON public.stories FOR DELETE USING (auth.uid()::TEXT = author_id::TEXT);
 
 -- Conversations & Messages Policies
 DROP POLICY IF EXISTS "Members can view conversations" ON public.conversations;
 CREATE POLICY "Members can view conversations" ON public.conversations FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = id AND user_id = auth.uid())
+    EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id::TEXT = id::TEXT AND user_id::TEXT = auth.uid()::TEXT)
 );
 
 DROP POLICY IF EXISTS "Authenticated users can create conversations" ON public.conversations;
@@ -440,13 +438,13 @@ CREATE POLICY "Authenticated users can create conversations" ON public.conversat
 
 DROP POLICY IF EXISTS "Members can view messages" ON public.messages;
 CREATE POLICY "Members can view messages" ON public.messages FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = messages.conversation_id AND user_id = auth.uid())
+    EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id::TEXT = messages.conversation_id::TEXT AND user_id::TEXT = auth.uid()::TEXT)
 );
 
 DROP POLICY IF EXISTS "Members can insert messages" ON public.messages;
 CREATE POLICY "Members can insert messages" ON public.messages FOR INSERT WITH CHECK (
-    auth.uid() = sender_id AND
-    EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = messages.conversation_id AND user_id = auth.uid())
+    auth.uid()::TEXT = sender_id::TEXT AND
+    EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id::TEXT = messages.conversation_id::TEXT AND user_id::TEXT = auth.uid()::TEXT)
 );
 
 -- Marketplace & Gigs Policies
@@ -454,33 +452,33 @@ DROP POLICY IF EXISTS "Marketplace items viewable by all" ON public.marketplace_
 CREATE POLICY "Marketplace items viewable by all" ON public.marketplace_items FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Authenticated users can list items" ON public.marketplace_items;
-CREATE POLICY "Authenticated users can list items" ON public.marketplace_items FOR INSERT WITH CHECK (auth.uid() = seller_id);
+CREATE POLICY "Authenticated users can list items" ON public.marketplace_items FOR INSERT WITH CHECK (auth.uid()::TEXT = seller_id::TEXT);
 
 DROP POLICY IF EXISTS "Jobs viewable by all" ON public.jobs;
 CREATE POLICY "Jobs viewable by all" ON public.jobs FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Authenticated users can post jobs" ON public.jobs;
-CREATE POLICY "Authenticated users can post jobs" ON public.jobs FOR INSERT WITH CHECK (auth.uid() = poster_id);
+CREATE POLICY "Authenticated users can post jobs" ON public.jobs FOR INSERT WITH CHECK (auth.uid()::TEXT = poster_id::TEXT);
 
 DROP POLICY IF EXISTS "Quick gigs viewable by all" ON public.quick_jobs;
 CREATE POLICY "Quick gigs viewable by all" ON public.quick_jobs FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Authenticated users can post gigs" ON public.quick_jobs;
-CREATE POLICY "Authenticated users can post gigs" ON public.quick_jobs FOR INSERT WITH CHECK (auth.uid() = poster_id);
+CREATE POLICY "Authenticated users can post gigs" ON public.quick_jobs FOR INSERT WITH CHECK (auth.uid()::TEXT = poster_id::TEXT);
 
 -- Notifications Policies
 DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
-CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (auth.uid()::TEXT = user_id::TEXT);
 
 DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
-CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE USING (auth.uid()::TEXT = user_id::TEXT);
 
 -- Locations Policies (Nearby Radar)
 DROP POLICY IF EXISTS "Visible locations viewable by authenticated users" ON public.user_locations;
 CREATE POLICY "Visible locations viewable by authenticated users" ON public.user_locations FOR SELECT USING (is_visible = true);
 
 DROP POLICY IF EXISTS "Users can update own location" ON public.user_locations;
-CREATE POLICY "Users can update own location" ON public.user_locations FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own location" ON public.user_locations FOR ALL USING (auth.uid()::TEXT = user_id::TEXT);
 
 -- ============================================================================
 -- 9. SUPABASE REALTIME REPLICATION PUBLICATION

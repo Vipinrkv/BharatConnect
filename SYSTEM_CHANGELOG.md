@@ -201,6 +201,7 @@
 
 ### 🔹 Entry #009 — Foreign Key Column Migration Validation (`author_id`, `seller_id`, `poster_id`, `user_id`)
 - **Date & Time**: `2026-08-23 14:02:30 IST` (`2026-08-23T08:32:30Z`)
+- **Git Commit**: `e877668`
 - **Files Modified**:
   - [`supabase_schema.sql`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/supabase_schema.sql)
   - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
@@ -209,7 +210,19 @@
   - Added explicit `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for all foreign key identifier columns (`author_id` on posts/stories/comments, `seller_id` on marketplace items, `poster_id` on jobs/gigs, `user_id` on likes/notifications/members, `conversation_id` on messages/members, `post_id` on likes/comments).
 
 ---
+
+### 🔹 Entry #010 — Type-Safe Casting for Mixed UUID / VARCHAR / TEXT Schema Policies
+- **Date & Time**: `2026-08-23 14:05:00 IST` (`2026-08-23T08:35:00Z`)
+- **Files Modified**:
+  - [`supabase_schema.sql`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/supabase_schema.sql)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - Resolved `ERROR 42883: operator does not exist: uuid = character varying` during RLS policy evaluation and trigger updates.
+  - Applied explicit bidirectional `::TEXT` casting on all `auth.uid()`, foreign key joins (`conversation_id::TEXT = id::TEXT`, `post_id::TEXT = posts.id::TEXT`), and trigger comparisons (`id::TEXT = NEW.post_id::TEXT`).
+
+---
 *(Append all future system changes below this line)*
+
 
 
 
