@@ -159,12 +159,6 @@ fun SplashScreen(
                 ) {
                     Text("Create New Account", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                TextButton(onClick = onNavigateToHome) {
-                    Text("Explore Demo Mode →", color = Color(0xFFFF9933), fontSize = 14.sp)
-                }
             }
         }
     }

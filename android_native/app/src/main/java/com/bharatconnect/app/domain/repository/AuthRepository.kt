@@ -13,7 +13,15 @@ interface AuthRepository {
         username: String,
         fullName: String,
         phoneNumber: String? = null,
-        dob: String? = null
+        dob: String? = null,
+        avatarUrl: String? = null
+    ): Result<UserProfile>
+    suspend fun updateProfile(
+        fullName: String,
+        bio: String? = null,
+        phoneNumber: String? = null,
+        dob: String? = null,
+        avatarUrl: String? = null
     ): Result<UserProfile>
     suspend fun resetPassword(emailOrIdentifier: String): Result<Unit>
     suspend fun logout(): Result<Unit>

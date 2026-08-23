@@ -23,7 +23,8 @@ class FakeAuthRepository : AuthRepository {
                 username = "testuser",
                 fullName = "Test User",
                 phoneNumber = "+919876543210",
-                dob = "15/08/1997"
+                dob = "15/08/1997",
+                avatarUrl = "https://res.cloudinary.com/twiesyqj/image/upload/avatar.jpg"
             )
             currentUser = user
             Result.success(user)
@@ -38,7 +39,8 @@ class FakeAuthRepository : AuthRepository {
         username: String,
         fullName: String,
         phoneNumber: String?,
-        dob: String?
+        dob: String?,
+        avatarUrl: String?
     ): Result<UserProfile> {
         val user = UserProfile(
             id = "user_new",
@@ -46,10 +48,29 @@ class FakeAuthRepository : AuthRepository {
             username = username,
             fullName = fullName,
             phoneNumber = phoneNumber,
-            dob = dob
+            dob = dob,
+            avatarUrl = avatarUrl
         )
         currentUser = user
         return Result.success(user)
+    }
+
+    override suspend fun updateProfile(
+        fullName: String,
+        bio: String?,
+        phoneNumber: String?,
+        dob: String?,
+        avatarUrl: String?
+    ): Result<UserProfile> {
+        val updated = (currentUser ?: UserProfile(id = "user_123", email = "test@bharatconnect.in", username = "testuser", fullName = fullName)).copy(
+            fullName = fullName,
+            bio = bio,
+            phoneNumber = phoneNumber,
+            dob = dob,
+            avatarUrl = avatarUrl
+        )
+        currentUser = updated
+        return Result.success(updated)
     }
 
     override suspend fun resetPassword(emailOrIdentifier: String): Result<Unit> {
@@ -75,6 +96,7 @@ class AuthUseCasesTest {
     private val fakeAuthRepository = FakeAuthRepository()
     private val loginUseCase = LoginUseCase(fakeAuthRepository)
     private val registerUseCase = RegisterUseCase(fakeAuthRepository)
+    private val updateProfileUseCase = UpdateProfileUseCase(fakeAuthRepository)
     private val resetPasswordUseCase = ResetPasswordUseCase(fakeAuthRepository)
     private val logoutUseCase = LogoutUseCase(fakeAuthRepository)
     private val getCurrentUserUseCase = GetCurrentUserUseCase(fakeAuthRepository)
@@ -108,20 +130,38 @@ class AuthUseCasesTest {
     }
 
     @Test
-    fun `register creates new user profile with phone and dob successfully`() = runBlocking {
+    fun `register creates new user profile with phone dob and avatar successfully`() = runBlocking {
         val result = registerUseCase(
             email = "priya@bharatconnect.in",
             password = "pass123",
             username = "priya_p",
             fullName = "Priya Patel",
             phoneNumber = "+919876543210",
-            dob = "10/05/1998"
+            dob = "10/05/1998",
+            avatarUrl = "https://res.cloudinary.com/twiesyqj/image/upload/v1/avatar.jpg"
         )
         assertTrue(result.isSuccess)
         assertEquals("priya_p", result.getOrNull()?.username)
         assertEquals("Priya Patel", result.getOrNull()?.fullName)
         assertEquals("+919876543210", result.getOrNull()?.phoneNumber)
         assertEquals("10/05/1998", result.getOrNull()?.dob)
+        assertEquals("https://res.cloudinary.com/twiesyqj/image/upload/v1/avatar.jpg", result.getOrNull()?.avatarUrl)
+    }
+
+    @Test
+    fun `updateProfile modifies profile fields and avatar successfully`() = runBlocking {
+        loginUseCase("test@bharatconnect.in", "secure123")
+        val result = updateProfileUseCase(
+            fullName = "Updated User",
+            bio = "New bio",
+            phoneNumber = "+919999999999",
+            dob = "01/01/2000",
+            avatarUrl = "https://res.cloudinary.com/twiesyqj/image/upload/v2/new_avatar.jpg"
+        )
+        assertTrue(result.isSuccess)
+        assertEquals("Updated User", result.getOrNull()?.fullName)
+        assertEquals("New bio", result.getOrNull()?.bio)
+        assertEquals("https://res.cloudinary.com/twiesyqj/image/upload/v2/new_avatar.jpg", result.getOrNull()?.avatarUrl)
     }
 
     @Test

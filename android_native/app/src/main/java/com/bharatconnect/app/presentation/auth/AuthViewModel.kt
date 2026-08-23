@@ -11,6 +11,7 @@ import com.bharatconnect.app.domain.usecase.auth.LoginUseCase
 import com.bharatconnect.app.domain.usecase.auth.LogoutUseCase
 import com.bharatconnect.app.domain.usecase.auth.RegisterUseCase
 import com.bharatconnect.app.domain.usecase.auth.ResetPasswordUseCase
+import com.bharatconnect.app.domain.usecase.auth.UpdateProfileUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,7 @@ class AuthViewModel(
     authRepository: AuthRepository = AuthRepositoryImpl(),
     private val loginUseCase: LoginUseCase = LoginUseCase(authRepository),
     private val registerUseCase: RegisterUseCase = RegisterUseCase(authRepository),
+    private val updateProfileUseCase: UpdateProfileUseCase = UpdateProfileUseCase(authRepository),
     private val resetPasswordUseCase: ResetPasswordUseCase = ResetPasswordUseCase(authRepository),
     private val logoutUseCase: LogoutUseCase = LogoutUseCase(authRepository),
     private val getCurrentUserUseCase: GetCurrentUserUseCase = GetCurrentUserUseCase(authRepository)
@@ -36,6 +38,9 @@ class AuthViewModel(
 
     private val _isResettingPassword = MutableStateFlow(false)
     val isResettingPassword: StateFlow<Boolean> = _isResettingPassword.asStateFlow()
+
+    private val _isUpdatingProfile = MutableStateFlow(false)
+    val isUpdatingProfile: StateFlow<Boolean> = _isUpdatingProfile.asStateFlow()
 
     init {
         checkSession()
@@ -80,7 +85,8 @@ class AuthViewModel(
         email: String,
         phoneNumber: String,
         dob: String,
-        password: String
+        password: String,
+        avatarUrl: String? = null
     ) {
         if (name.isBlank() || username.isBlank() || email.isBlank() || phoneNumber.isBlank() || dob.isBlank() || password.isBlank()) {
             _authState.value = AuthState.Error("All fields are required for registration")
@@ -100,7 +106,8 @@ class AuthViewModel(
                 username = username,
                 fullName = name,
                 phoneNumber = phoneNumber,
-                dob = dob
+                dob = dob,
+                avatarUrl = avatarUrl
             )
             result.fold(
                 onSuccess = { user ->
@@ -109,6 +116,31 @@ class AuthViewModel(
                 },
                 onFailure = { error ->
                     _authState.value = AuthState.Error(error.message ?: "Registration failed")
+                }
+            )
+        }
+    }
+
+    fun updateProfile(
+        fullName: String,
+        bio: String? = null,
+        phoneNumber: String? = null,
+        dob: String? = null,
+        avatarUrl: String? = null,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isUpdatingProfile.value = true
+            val result = updateProfileUseCase(fullName, bio, phoneNumber, dob, avatarUrl)
+            _isUpdatingProfile.value = false
+            result.fold(
+                onSuccess = { updatedUser ->
+                    _currentUser.value = updatedUser
+                    _authState.value = AuthState.Authenticated(updatedUser)
+                    onResult(true, null)
+                },
+                onFailure = { error ->
+                    onResult(false, error.message ?: "Failed to update profile")
                 }
             )
         }

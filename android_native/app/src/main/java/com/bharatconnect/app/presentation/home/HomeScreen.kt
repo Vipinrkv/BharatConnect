@@ -43,6 +43,14 @@ import com.bharatconnect.app.presentation.story.StoriesRow
 import com.bharatconnect.app.presentation.story.StoryItem
 import com.bharatconnect.app.presentation.story.StoryViewerDialog
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import com.bharatconnect.app.core.storage.CloudinaryManager
+import kotlinx.coroutines.launch
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -235,6 +243,7 @@ fun HomeScreen(
                 )
                 4 -> ProfileTab(
                     user = currentUser,
+                    authViewModel = authViewModel,
                     onSignOut = {
                         authViewModel.logout {
                             onSignOut()
@@ -1016,16 +1025,53 @@ fun ChatDetailScreen(
 @Composable
 fun ProfileTab(
     user: UserProfile?,
+    authViewModel: AuthViewModel,
     onSignOut: () -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
 
-    var fullName by remember { mutableStateOf(user?.fullName ?: "Bharat User") }
-    var username by remember { mutableStateOf(user?.username ?: "user") }
-    var bio by remember { mutableStateOf("Welcome to BharatConnect. Ready to connect and explore!") }
-    var phone by remember { mutableStateOf("Not provided") }
-    var dob by remember { mutableStateOf("Not set") }
+    var fullName by remember(user) { mutableStateOf(user?.fullName ?: "Bharat User") }
+    var username by remember(user) { mutableStateOf(user?.username ?: "user") }
+    var bio by remember(user) { mutableStateOf(user?.bio ?: "Welcome to BharatConnect. Ready to connect and explore!") }
+    var phone by remember(user) { mutableStateOf(user?.phoneNumber ?: "Not provided") }
+    var dob by remember(user) { mutableStateOf(user?.dob ?: "Not set") }
+    var avatarUrl by remember(user) { mutableStateOf(user?.avatarUrl) }
+
+    var isUploadingAvatar by remember { mutableStateOf(false) }
+    var editStatusMessage by remember { mutableStateOf<String?>(null) }
+
+    val editAvatarLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                isUploadingAvatar = true
+                val result = CloudinaryManager.uploadProfilePicture(context, uri)
+                isUploadingAvatar = false
+                result.fold(
+                    onSuccess = { newUrl ->
+                        avatarUrl = newUrl
+                        authViewModel.updateProfile(
+                            fullName = fullName,
+                            bio = bio,
+                            phoneNumber = if (phone == "Not provided") null else phone,
+                            dob = if (dob == "Not set") null else dob,
+                            avatarUrl = newUrl
+                        ) { success, error ->
+                            if (!success) editStatusMessage = error
+                        }
+                    },
+                    onFailure = { error ->
+                        editStatusMessage = "Avatar upload failed: ${error.message}"
+                    }
+                )
+            }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -1054,7 +1100,8 @@ fun ProfileTab(
                                     listOf(Color(0xFFFF9933), ColorPrimary6367FF, Color(0xFF138808))
                                 )
                             )
-                            .padding(3.dp),
+                            .padding(3.dp)
+                            .clickable { editAvatarLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -1064,12 +1111,36 @@ fun ProfileTab(
                                 .background(Color(0xFF181535)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = fullName.take(1).uppercase(),
-                                color = Color.White,
-                                fontSize = 36.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            if (!avatarUrl.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = avatarUrl,
+                                    contentDescription = "User Avatar",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Text(
+                                    text = fullName.take(1).uppercase(),
+                                    color = Color.White,
+                                    fontSize = 36.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            if (isUploadingAvatar) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.65f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = Color(0xFFFF9933),
+                                        strokeWidth = 3.dp,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -1194,7 +1265,7 @@ fun ProfileTab(
                     Spacer(modifier = Modifier.height(6.dp))
                     Text("• Supabase Auth & PostgreSQL: Connected", color = Color(0xFF8CE99A), fontSize = 12.sp)
                     Text("• Room DB Local Offline Sync: Active", color = Color(0xFF8CE99A), fontSize = 12.sp)
-                    Text("• Cloudinary Media Store: Ready", color = Color(0xFF8CE99A), fontSize = 12.sp)
+                    Text("• Cloudinary Media Engine: Ready", color = Color(0xFF8CE99A), fontSize = 12.sp)
                     Text("• 7-Layer Sentinel E2E Encryption: Active 🔒", color = Color(0xFF4EFEAA), fontSize = 12.sp)
                 }
             }
@@ -1219,14 +1290,67 @@ fun ProfileTab(
     if (showEditProfileDialog) {
         var tempName by remember { mutableStateOf(fullName) }
         var tempBio by remember { mutableStateOf(bio) }
-        var tempPhone by remember { mutableStateOf(phone) }
-        var tempDob by remember { mutableStateOf(dob) }
+        var tempPhone by remember { mutableStateOf(if (phone == "Not provided") "" else phone) }
+        var tempDob by remember { mutableStateOf(if (dob == "Not set") "" else dob) }
+        var tempAvatarUrl by remember { mutableStateOf(avatarUrl) }
+        var isSaving by remember { mutableStateOf(false) }
+
+        val editDialogAvatarLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri ->
+            if (uri != null) {
+                coroutineScope.launch {
+                    isUploadingAvatar = true
+                    val result = CloudinaryManager.uploadProfilePicture(context, uri)
+                    isUploadingAvatar = false
+                    result.fold(
+                        onSuccess = { newUrl ->
+                            tempAvatarUrl = newUrl
+                        },
+                        onFailure = { error ->
+                            editStatusMessage = "Upload failed: ${error.message}"
+                        }
+                    )
+                }
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { showEditProfileDialog = false },
             title = { Text("Edit Profile", color = Color.White, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Avatar change button
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF262347))
+                            .clickable { editDialogAvatarLauncher.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!tempAvatarUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = tempAvatarUrl,
+                                contentDescription = "Avatar Preview",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(Icons.Default.CameraAlt, contentDescription = "Change Photo", tint = Color(0xFFFF9933))
+                        }
+                    }
+
+                    Text(
+                        text = "Tap to Change Profile Picture",
+                        color = Color(0xFFFF9933),
+                        fontSize = 12.sp,
+                        modifier = Modifier.clickable { editDialogAvatarLauncher.launch("image/*") }
+                    )
+
                     OutlinedTextField(
                         value = tempName,
                         onValueChange = { tempName = it },
@@ -1260,15 +1384,35 @@ fun ProfileTab(
             confirmButton = {
                 Button(
                     onClick = {
-                        fullName = tempName
-                        bio = tempBio
-                        phone = tempPhone
-                        dob = tempDob
-                        showEditProfileDialog = false
+                        isSaving = true
+                        authViewModel.updateProfile(
+                            fullName = tempName,
+                            bio = tempBio,
+                            phoneNumber = tempPhone.ifBlank { null },
+                            dob = tempDob.ifBlank { null },
+                            avatarUrl = tempAvatarUrl
+                        ) { success, error ->
+                            isSaving = false
+                            if (success) {
+                                fullName = tempName
+                                bio = tempBio
+                                phone = tempPhone.ifBlank { "Not provided" }
+                                dob = tempDob.ifBlank { "Not set" }
+                                avatarUrl = tempAvatarUrl
+                                showEditProfileDialog = false
+                            } else {
+                                editStatusMessage = error
+                            }
+                        }
                     },
+                    enabled = !isSaving,
                     colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF)
                 ) {
-                    Text("Save Changes")
+                    if (isSaving) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Save Changes")
+                    }
                 }
             },
             dismissButton = {

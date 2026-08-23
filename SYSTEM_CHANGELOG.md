@@ -225,6 +225,7 @@
 
 ### 🔹 Entry #011 — Standalone APK Recompilation & GitHub Remote Synchronization
 - **Date & Time**: `2026-08-23 14:10:30 IST` (`2026-08-23T08:40:30Z`)
+- **Git Commit**: `ddc156d`
 - **Files Modified**:
   - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
   - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
@@ -234,7 +235,36 @@
   - Pushed updated binary and changelog to GitHub remote `origin/main`.
 
 ---
+
+### 🔹 Entry #012 — Demo Mode Removal, Profile Picture Upload Engine & Cloudinary Fast Acceleration
+- **Date & Time**: `2026-08-23 14:34:00 IST` (`2026-08-23T09:04:00Z`)
+- **Files Modified**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/storage/CloudinaryManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/storage/CloudinaryManager.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/repository/AuthRepository.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/repository/AuthRepository.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/usecase/auth/AuthUseCases.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/usecase/auth/AuthUseCases.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/domain/AuthUseCasesTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/domain/AuthUseCasesTest.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Demo Mode Removed**: Removed `Explore Demo Mode →` button and demo bypass from `SplashScreen.kt`, enforcing live authenticated flows.
+  - **Profile Picture Upload Integration**:
+    - Added interactive circular Avatar picker with live Coil image preview during registration (`RegisterScreen.kt`).
+    - Added live Avatar modification & upload directly inside profile tab and `EditProfileDialog` (`HomeScreen.kt`).
+    - Added `UpdateProfileUseCase` with Supabase PostgreSQL profile syncing.
+  - **Cloudinary Acceleration & Reliability**:
+    - Added fast on-device bitmap downscaling and smart JPEG compression (512x512 max for avatars ~40-80KB, 1280x1280 max for media).
+    - Enabled 64KB chunked streaming upload with keep-alive connections and 2-attempt exponential backoff retry.
+    - Replaced silent mock URL fallbacks with genuine status verification and error handling.
+  - All 25 unit test suites passed and standalone APK recompiled successfully.
+
+---
 *(Append all future system changes below this line)*
+
 
 
 
