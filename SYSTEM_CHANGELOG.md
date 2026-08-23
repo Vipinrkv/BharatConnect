@@ -188,6 +188,7 @@
 
 ### 🔹 Entry #008 — Comprehensive Column Patching Across All 13 Database Tables
 - **Date & Time**: `2026-08-23 14:00:00 IST` (`2026-08-23T08:30:00Z`)
+- **Git Commit**: `5e275d5`
 - **Files Modified**:
   - [`supabase_schema.sql`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/supabase_schema.sql)
   - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
@@ -197,7 +198,19 @@
   - Guarantees seamless execution regardless of any previous schema state in Supabase.
 
 ---
+
+### 🔹 Entry #009 — Foreign Key Column Migration Validation (`author_id`, `seller_id`, `poster_id`, `user_id`)
+- **Date & Time**: `2026-08-23 14:02:30 IST` (`2026-08-23T08:32:30Z`)
+- **Files Modified**:
+  - [`supabase_schema.sql`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/supabase_schema.sql)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - Resolved `ERROR 42703: column "author_id" does not exist` on `public.posts`.
+  - Added explicit `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for all foreign key identifier columns (`author_id` on posts/stories/comments, `seller_id` on marketplace items, `poster_id` on jobs/gigs, `user_id` on likes/notifications/members, `conversation_id` on messages/members, `post_id` on likes/comments).
+
+---
 *(Append all future system changes below this line)*
+
 
 
 
