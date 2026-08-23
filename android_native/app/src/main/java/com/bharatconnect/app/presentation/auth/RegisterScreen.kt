@@ -290,7 +290,7 @@ fun RegisterScreen(
                     localError = null
                 },
                 label = { Text("Full Name") },
-                placeholder = { Text("e.g. Vipin Vishwakarma") },
+                placeholder = { Text("e.g. Rahul Sharma") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Person,
@@ -323,7 +323,7 @@ fun RegisterScreen(
                     localError = null
                 },
                 label = { Text("Username") },
-                placeholder = { Text("e.g. vipinrkv25") },
+                placeholder = { Text("e.g. rahul_99") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.AlternateEmail,
@@ -356,7 +356,7 @@ fun RegisterScreen(
                     localError = null
                 },
                 label = { Text("Email Address") },
-                placeholder = { Text("e.g. virrkv25@gmail.com") },
+                placeholder = { Text("e.g. rahul@example.com") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Email,
@@ -448,7 +448,7 @@ fun RegisterScreen(
                         localError = null
                     },
                     label = { Text("Mobile Number") },
-                    placeholder = { Text("8261867326") },
+                    placeholder = { Text("9876543210") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Phone,

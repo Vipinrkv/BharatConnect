@@ -60,7 +60,7 @@ fun OtpVerificationScreen(
         }
     }
 
-    // Email mask helper (e.g. virrkv25@gmail.com -> v***5@gmail.com)
+    // Email mask helper (e.g. rahul@example.com -> r***l@example.com)
     val maskedEmail = remember(email) {
         if (email.contains("@")) {
             val parts = email.split("@")

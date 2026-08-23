@@ -437,7 +437,22 @@
   - **Compilation & Test Pass**: Verified all **25 unit test suites** pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone `BharatConnect-Native.apk` (24.7 MB).
 
 ---
+
+### 🔹 Entry #022 — Placeholder Sanitization & Generic Mock Data Replacement
+- **Date & Time**: `2026-08-23 22:18:00 IST` (`2026-08-23T16:48:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/OtpVerificationScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/OtpVerificationScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Placeholder Privacy Sanitization**: Replaced all personal placeholder names, usernames, emails, and phone numbers in `RegisterScreen.kt` with clean, generic mock placeholders (`e.g. Rahul Sharma`, `e.g. rahul_99`, `e.g. rahul@example.com`, `9876543210`).
+  - **Comment Sanitization**: Updated inline developer comments in `OtpVerificationScreen.kt` to use generic mock email patterns.
+  - **Compilation & Test Pass**: Verified all **25 unit test suites** pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone `BharatConnect-Native.apk` (24.7 MB).
+
+---
 *(Append all future system changes below this line)*
+
 
 
 
