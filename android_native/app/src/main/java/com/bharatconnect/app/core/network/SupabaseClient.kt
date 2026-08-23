@@ -19,6 +19,7 @@ object SupabaseClient {
         private set
 
     @OptIn(SupabaseInternal::class)
+    @Suppress("UNUSED_PARAMETER")
     fun init(context: Context) {
         client = createSupabaseClient(
             supabaseUrl = SUPABASE_URL,

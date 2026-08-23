@@ -367,7 +367,25 @@
   - **Unit Testing & Standalone APK**: Expanded `AuthUseCasesTest.kt` with `HandleAuthCallbackUseCase` tests (all 25 test suites passing); compiled and updated root `BharatConnect-Native.apk` (24.5 MB).
 
 ---
+
+### 🔹 Entry #018 — Comprehensive Codebase Audit, Warning Elimination & Navigation Hardening
+- **Date & Time**: `2026-08-23 17:05:00 IST` (`2026-08-23T11:35:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/LoginScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/LoginScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/network/SupabaseClient.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/network/SupabaseClient.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Full Codebase Inspection**: Audited all 48 Kotlin source files across Core, Data, Domain, and Presentation layers for unhandled edge cases, resource leaks, compiler warnings, and navigation traps.
+  - **Top Bar Back Navigation**: Added native top bar back buttons to `LoginScreen.kt` and `RegisterScreen.kt` invoking `onNavigateBack()`, eliminating dead-end screens and unused callback warnings.
+  - **Clean Build Verification**: Suppressed unused parameter warning in `SupabaseClient.kt:init(context)` and validated full Compose icon references in `HomeScreen.kt`.
+  - **Zero-Error Compilation & Unit Tests**: Verified all **25 unit test suites** pass cleanly (`./gradlew testDebugUnitTest`); compiled and updated standalone `BharatConnect-Native.apk` (24.5 MB).
+
+---
 *(Append all future system changes below this line)*
+
 
 
 
