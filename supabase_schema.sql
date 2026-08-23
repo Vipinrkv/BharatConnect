@@ -1,0 +1,345 @@
+-- ============================================================================
+-- 🇮🇳 BHARATCONNECT SUPABASE POSTGRESQL DATABASE SCHEMA & SECURITY POLICIES
+-- ============================================================================
+-- Production Schema for BharatConnect Native Android App
+-- Includes: Authentication sync, Profiles, Encrypted Chat, Social Feed, Stories,
+-- Marketplace, Nearby Radar, Activity Notifications, Triggers, Indexes & RLS.
+-- ============================================================================
+
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ============================================================================
+-- 1. PROFILES TABLE (User Accounts & Metadata)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT,
+    username TEXT UNIQUE NOT NULL,
+    full_name TEXT NOT NULL,
+    avatar_url TEXT,
+    bio TEXT DEFAULT 'Welcome to BharatConnect. Ready to connect and explore!',
+    phone_number TEXT,
+    dob TEXT,
+    is_online BOOLEAN DEFAULT FALSE,
+    last_seen TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Case-insensitive lookup indexes for multi-identifier login
+CREATE INDEX IF NOT EXISTS idx_profiles_username_lower ON public.profiles (LOWER(username));
+CREATE INDEX IF NOT EXISTS idx_profiles_phone ON public.profiles (phone_number);
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles (email);
+
+-- ============================================================================
+-- 2. CONVERSATIONS & CHAT ENGINE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.conversations (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    type TEXT NOT NULL DEFAULT 'direct' CHECK (type IN ('direct', 'group', 'community')),
+    title TEXT,
+    avatar_url TEXT,
+    last_message TEXT,
+    last_message_time TIMESTAMPTZ DEFAULT NOW(),
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.conversation_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id TEXT NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    joined_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(conversation_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversation_members_user ON public.conversation_members (user_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_members_conv ON public.conversation_members (conversation_id);
+
+CREATE TABLE IF NOT EXISTS public.messages (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    conversation_id TEXT NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
+    sender_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    sender_name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    media_url TEXT,
+    media_type TEXT,
+    status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sending', 'sent', 'delivered', 'read')),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages (conversation_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_messages_sender ON public.messages (sender_id);
+
+-- ============================================================================
+-- 3. SOCIAL FEED (Posts, Likes & Comments)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.posts (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    author_name TEXT NOT NULL,
+    author_avatar TEXT,
+    content TEXT NOT NULL,
+    media_url TEXT,
+    media_type TEXT,
+    likes_count INT NOT NULL DEFAULT 0,
+    comments_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_posts_created_at ON public.posts (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_author ON public.posts (author_id);
+
+CREATE TABLE IF NOT EXISTS public.post_likes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id TEXT NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(post_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_likes_post ON public.post_likes (post_id);
+
+CREATE TABLE IF NOT EXISTS public.post_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id TEXT NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    author_name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_comments_post ON public.post_comments (post_id, created_at ASC);
+
+-- ============================================================================
+-- 4. 24-HOUR STORIES & STATUS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.stories (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    author_name TEXT NOT NULL,
+    author_avatar TEXT,
+    media_url TEXT,
+    text_content TEXT,
+    background_gradient TEXT,
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours'),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_stories_expires_at ON public.stories (expires_at DESC);
+
+-- ============================================================================
+-- 5. MARKETPLACE (Items, Jobs & Quick Gigs)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.marketplace_items (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    seller_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    seller_name TEXT NOT NULL,
+    title TEXT NOT NULL,
+    price TEXT NOT NULL,
+    category TEXT NOT NULL,
+    location TEXT NOT NULL,
+    image_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.jobs (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    poster_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    company TEXT NOT NULL,
+    salary TEXT NOT NULL,
+    type TEXT NOT NULL,
+    location TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.quick_jobs (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    poster_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    poster_name TEXT NOT NULL,
+    title TEXT NOT NULL,
+    payout TEXT NOT NULL,
+    duration TEXT NOT NULL,
+    urgency TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================================
+-- 6. NOTIFICATIONS & NEARBY RADAR
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'system' CHECK (category IN ('messages', 'likes', 'system', 'marketplace')),
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.user_locations (
+    user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    status TEXT,
+    is_visible BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================================
+-- 7. DATABASE TRIGGERS & AUTOMATION
+-- ============================================================================
+
+-- Function: Auto create profile on GoTrue Auth Sign Up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, email, username, full_name, phone_number, dob)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', 'Bharat Member'),
+        NEW.raw_user_meta_data->>'phone_number',
+        NEW.raw_user_meta_data->>'dob'
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        phone_number = COALESCE(EXCLUDED.phone_number, public.profiles.phone_number),
+        dob = COALESCE(EXCLUDED.dob, public.profiles.dob),
+        updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Function: Auto update post like counters
+CREATE OR REPLACE FUNCTION public.handle_post_like_counter()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        UPDATE public.posts SET likes_count = likes_count + 1 WHERE id = NEW.post_id;
+        RETURN NEW;
+    ELSIF (TG_OP = 'DELETE') THEN
+        UPDATE public.posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id = OLD.post_id;
+        RETURN OLD;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_post_liked ON public.post_likes;
+CREATE TRIGGER on_post_liked
+    AFTER INSERT OR DELETE ON public.post_likes
+    FOR EACH ROW EXECUTE FUNCTION public.handle_post_like_counter();
+
+-- Function: Auto update conversation last message
+CREATE OR REPLACE FUNCTION public.handle_new_message()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE public.conversations
+    SET last_message = NEW.content,
+        last_message_time = NEW.created_at
+    WHERE id = NEW.conversation_id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_message_sent ON public.messages;
+CREATE TRIGGER on_message_sent
+    AFTER INSERT ON public.messages
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_message();
+
+-- ============================================================================
+-- 8. ROW LEVEL SECURITY (RLS) POLICIES
+-- ============================================================================
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversation_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.post_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.post_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.marketplace_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quick_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_locations ENABLE ROW LEVEL SECURITY;
+
+-- Profiles: Public read, owner update
+CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+-- Posts: Public read, authenticated create, owner update/delete
+CREATE POLICY "Posts are viewable by everyone" ON public.posts FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can create posts" ON public.posts FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Users can update own posts" ON public.posts FOR UPDATE USING (auth.uid() = author_id);
+CREATE POLICY "Users can delete own posts" ON public.posts FOR DELETE USING (auth.uid() = author_id);
+
+-- Post Likes & Comments
+CREATE POLICY "Post likes viewable by everyone" ON public.post_likes FOR SELECT USING (true);
+CREATE POLICY "Users can like posts" ON public.post_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can unlike posts" ON public.post_likes FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY "Comments viewable by everyone" ON public.post_comments FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can comment" ON public.post_comments FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- Stories: Valid unexpired stories viewable by all
+CREATE POLICY "Active stories viewable by everyone" ON public.stories FOR SELECT USING (expires_at > NOW());
+CREATE POLICY "Authenticated users can post stories" ON public.stories FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "Users can delete own stories" ON public.stories FOR DELETE USING (auth.uid() = author_id);
+
+-- Conversations & Messages
+CREATE POLICY "Members can view conversations" ON public.conversations FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = id AND user_id = auth.uid())
+);
+CREATE POLICY "Authenticated users can create conversations" ON public.conversations FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Members can view messages" ON public.messages FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = messages.conversation_id AND user_id = auth.uid())
+);
+CREATE POLICY "Members can insert messages" ON public.messages FOR INSERT WITH CHECK (
+    auth.uid() = sender_id AND
+    EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = messages.conversation_id AND user_id = auth.uid())
+);
+
+-- Marketplace & Gigs
+CREATE POLICY "Marketplace items viewable by all" ON public.marketplace_items FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can list items" ON public.marketplace_items FOR INSERT WITH CHECK (auth.uid() = seller_id);
+
+CREATE POLICY "Jobs viewable by all" ON public.jobs FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can post jobs" ON public.jobs FOR INSERT WITH CHECK (auth.uid() = poster_id);
+
+CREATE POLICY "Quick gigs viewable by all" ON public.quick_jobs FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can post gigs" ON public.quick_jobs FOR INSERT WITH CHECK (auth.uid() = poster_id);
+
+-- Notifications
+CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
+
+-- Locations (Nearby Radar)
+CREATE POLICY "Visible locations viewable by authenticated users" ON public.user_locations FOR SELECT USING (is_visible = true);
+CREATE POLICY "Users can update own location" ON public.user_locations FOR ALL USING (auth.uid() = user_id);
+
+-- ============================================================================
+-- 9. SUPABASE REALTIME REPLICATION PUBLICATION
+-- ============================================================================
+-- Enable real-time updates for messages, conversations, posts, and notifications
+ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.posts;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.stories;
