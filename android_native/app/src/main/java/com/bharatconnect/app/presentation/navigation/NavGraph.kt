@@ -1,12 +1,16 @@
 package com.bharatconnect.app.presentation.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.bharatconnect.app.presentation.auth.AuthViewModel
 import com.bharatconnect.app.presentation.auth.LoginScreen
+import com.bharatconnect.app.presentation.auth.OtpVerificationScreen
 import com.bharatconnect.app.presentation.auth.RegisterScreen
 import com.bharatconnect.app.presentation.home.HomeScreen
 import com.bharatconnect.app.presentation.splash.SplashScreen
@@ -15,6 +19,9 @@ sealed class Screen(val route: String) {
     object Splash : Screen("splash")
     object Login : Screen("login")
     object Register : Screen("register")
+    object OtpVerification : Screen("otp_verification/{email}") {
+        fun createRoute(email: String): String = "otp_verification/${Uri.encode(email)}"
+    }
     object Home : Screen("home")
 }
 
@@ -59,7 +66,27 @@ fun BharatConnectNavGraph(
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 },
+                onNavigateToOtp = { targetEmail ->
+                    navController.navigate(Screen.OtpVerification.createRoute(targetEmail))
+                },
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Screen.OtpVerification.route,
+            arguments = listOf(navArgument("email") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val emailArg = backStackEntry.arguments?.getString("email") ?: ""
+            val decodedEmail = Uri.decode(emailArg)
+            OtpVerificationScreen(
+                email = decodedEmail,
+                authViewModel = authViewModel,
+                onVerificationSuccess = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Splash.route) { inclusive = true }
+                    }
+                },
                 onNavigateBack = { navController.popBackStack() }
             )
         }

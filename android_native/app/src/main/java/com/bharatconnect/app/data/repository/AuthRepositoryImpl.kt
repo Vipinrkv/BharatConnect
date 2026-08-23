@@ -5,6 +5,7 @@ import com.bharatconnect.app.core.network.SupabaseClient
 import com.bharatconnect.app.data.remote.dto.ProfileDto
 import com.bharatconnect.app.domain.model.UserProfile
 import com.bharatconnect.app.domain.repository.AuthRepository
+import io.github.jan.supabase.gotrue.OtpType
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
@@ -106,7 +107,7 @@ class AuthRepositoryImpl : AuthRepository {
                 _currentUserFlow.value = userProfile
                 Result.success(userProfile)
             } else {
-                // User account created in Supabase Auth; email verification required before session token is granted
+                // User account created in Supabase Auth; email OTP verification required
                 val pendingProfile = UserProfile(
                     id = "",
                     email = trimmedEmail,
@@ -118,6 +119,45 @@ class AuthRepositoryImpl : AuthRepository {
                 )
                 Result.success(pendingProfile)
             }
+        } catch (e: Exception) {
+            Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
+        }
+    }
+
+    override suspend fun verifyEmailOtp(email: String, token: String): Result<UserProfile> = withContext(Dispatchers.IO) {
+        try {
+            val trimmedEmail = email.trim()
+            val trimmedToken = token.trim()
+
+            supabase.auth.verifyEmailOtp(
+                type = OtpType.Email.EMAIL,
+                email = trimmedEmail,
+                token = trimmedToken
+            )
+
+            val user = supabase.auth.currentUserOrNull()
+                ?: return@withContext Result.failure(Exception("Verification succeeded but user session is unavailable"))
+
+            val userProfile = fetchOrCreateProfile(
+                userId = user.id,
+                email = user.email ?: trimmedEmail,
+                username = null,
+                fullName = null
+            )
+            _currentUserFlow.value = userProfile
+            Result.success(userProfile)
+        } catch (e: Exception) {
+            Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
+        }
+    }
+
+    override suspend fun resendEmailOtp(email: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            supabase.auth.resendEmail(
+                type = OtpType.Email.EMAIL,
+                email = email.trim()
+            )
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
         }

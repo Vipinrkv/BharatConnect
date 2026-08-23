@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -44,6 +45,7 @@ data class CountryCode(val code: String, val name: String, val flag: String)
 fun RegisterScreen(
     authViewModel: AuthViewModel,
     onRegisterSuccess: () -> Unit,
+    onNavigateToOtp: (String) -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -70,7 +72,7 @@ fun RegisterScreen(
     var localError by remember { mutableStateOf<String?>(null) }
 
     // Gallery Image Picker Launcher
-    val imagePickerLauncher = rememberLauncherForActivityResult(
+    val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
@@ -126,8 +128,10 @@ fun RegisterScreen(
     val authState by authViewModel.authState.collectAsState()
 
     LaunchedEffect(authState) {
-        if (authState is AuthState.Authenticated) {
-            onRegisterSuccess()
+        when (val state = authState) {
+            is AuthState.Authenticated -> onRegisterSuccess()
+            is AuthState.AwaitingOtp -> onNavigateToOtp(state.email)
+            else -> {}
         }
     }
 
@@ -151,112 +155,111 @@ fun RegisterScreen(
                 modifier = Modifier
                     .size(96.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(listOf(Color(0xFFFF9933), ColorPrimary6367FF, Color(0xFF138808)))
-                    )
-                    .padding(3.dp)
-                    .clickable { imagePickerLauncher.launch("image/*") },
+                    .background(Color(0xFF1E1838))
+                    .clickable { photoPickerLauncher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(Color(0xFF16142E)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (avatarUri != null) {
-                        AsyncImage(
-                            model = avatarUri,
-                            contentDescription = "Profile Picture Preview",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                if (avatarUrl != null || avatarUri != null) {
+                    AsyncImage(
+                        model = avatarUrl ?: avatarUri,
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddPhotoAlternate,
+                            contentDescription = "Upload Avatar",
+                            tint = Color(0xFF818CF8),
+                            modifier = Modifier.size(32.dp)
                         )
-                    } else {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AddAPhoto,
-                                contentDescription = "Add Avatar",
-                                tint = Color(0xFFFF9933),
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Photo",
+                            color = Color(0xFFA0A3BD),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
+                }
 
-                    if (isUploadingAvatar) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.65f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color = Color(0xFFFF9933),
-                                strokeWidth = 3.dp,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
+                if (isUploadingAvatar) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.55f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF818CF8),
+                            modifier = Modifier.size(28.dp),
+                            strokeWidth = 2.5.dp
+                        )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = if (avatarUrl != null) "✓ Profile Picture Uploaded" else "Tap to Add Profile Picture",
+                text = if (avatarUrl != null) "✓ Profile Picture Uploaded" else "Add Profile Photo (Optional)",
                 fontSize = 12.sp,
-                color = if (avatarUrl != null) Color(0xFF4EFEAA) else Color(0xFFFF9933),
+                color = if (avatarUrl != null) Color(0xFF4ADE80) else Color(0xFF818CF8),
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
+                modifier = Modifier.clickable { photoPickerLauncher.launch("image/*") }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
                 text = "Join BharatConnect",
-                fontSize = 24.sp,
+                fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
 
             Text(
                 text = "Fast, secure & encrypted network",
-                fontSize = 12.sp,
-                color = Color(0xFF9E9EB8),
-                modifier = Modifier.padding(top = 2.dp)
+                fontSize = 13.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Error Banner
+            // Local or Server Error Banner
             val errorMessage = localError ?: (authState as? AuthState.Error)?.message
-            if (errorMessage != null) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF3B1520)),
+            if (!errorMessage.isNullOrBlank()) {
+                Surface(
+                    color = Color(0xFF3B1219),
                     shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = Color(0xFFFF6B6B))
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = Color(0xFFFF6B6B),
+                            modifier = Modifier.size(20.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = errorMessage,
-                            color = Color(0xFFFFD1D1),
+                            color = Color(0xFFFF6B6B),
                             fontSize = 13.sp
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(14.dp))
             }
 
-            // 1. Full Name
+            // 1. Full Name Field
             OutlinedTextField(
                 value = fullName,
                 onValueChange = {
@@ -264,12 +267,20 @@ fun RegisterScreen(
                     localError = null
                 },
                 label = { Text("Full Name") },
-                placeholder = { Text("e.g. Rahul Sharma") },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = ColorPrimary6367FF) },
+                placeholder = { Text("e.g. Vipin Vishwakarma") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color(0xFF818CF8)
+                    )
+                },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF140F26),
+                    unfocusedContainerColor = Color(0xFF0F0B1E),
                     focusedBorderColor = ColorPrimary6367FF,
                     unfocusedBorderColor = Color(0xFF262347),
                     focusedTextColor = Color.White,
@@ -279,22 +290,30 @@ fun RegisterScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // 2. Username
+            // 2. Username Field
             OutlinedTextField(
                 value = username,
                 onValueChange = {
-                    username = it.filter { ch -> ch.isLetterOrDigit() || ch == '_' }.lowercase()
+                    username = it.lowercase().filter { char -> char.isLetterOrDigit() || char == '_' }
                     localError = null
                 },
                 label = { Text("Username") },
-                placeholder = { Text("e.g. rahul_sharma99") },
-                leadingIcon = { Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = ColorPrimary6367FF) },
+                placeholder = { Text("e.g. vipinrkv25") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.AlternateEmail,
+                        contentDescription = null,
+                        tint = Color(0xFF818CF8)
+                    )
+                },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF140F26),
+                    unfocusedContainerColor = Color(0xFF0F0B1E),
                     focusedBorderColor = ColorPrimary6367FF,
                     unfocusedBorderColor = Color(0xFF262347),
                     focusedTextColor = Color.White,
@@ -304,23 +323,31 @@ fun RegisterScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // 3. Email Address
+            // 3. Email Field
             OutlinedTextField(
                 value = email,
                 onValueChange = {
-                    email = it.trim()
+                    email = it
                     localError = null
                 },
                 label = { Text("Email Address") },
-                placeholder = { Text("e.g. rahul@example.com") },
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = ColorPrimary6367FF) },
+                placeholder = { Text("e.g. virrkv25@gmail.com") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Email,
+                        contentDescription = null,
+                        tint = Color(0xFF818CF8)
+                    )
+                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF140F26),
+                    unfocusedContainerColor = Color(0xFF0F0B1E),
                     focusedBorderColor = ColorPrimary6367FF,
                     unfocusedBorderColor = Color(0xFF262347),
                     focusedTextColor = Color.White,
@@ -330,7 +357,7 @@ fun RegisterScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // 4. Phone Number with Country Code Dropdown
             Row(
@@ -338,36 +365,51 @@ fun RegisterScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Country Code Selector
-                ExposedDropdownMenuBox(
-                    expanded = showCountryDropdown,
-                    onExpandedChange = { showCountryDropdown = !showCountryDropdown },
-                    modifier = Modifier.width(110.dp)
+                // Country Code Selector Box
+                Box(
+                    modifier = Modifier
+                        .width(105.dp)
+                        .height(56.dp)
+                        .background(Color(0xFF0F0B1E), shape = RoundedCornerShape(14.dp))
+                        .border(1.dp, Color(0xFF262347), shape = RoundedCornerShape(14.dp))
+                        .clickable { showCountryDropdown = true }
+                        .padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    OutlinedTextField(
-                        value = selectedCountryCode,
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showCountryDropdown) },
-                        modifier = Modifier.menuAnchor(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ColorPrimary6367FF,
-                            unfocusedBorderColor = Color(0xFF262347),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = selectedCountryCode,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
-                    )
-                    ExposedDropdownMenu(
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Select Country Code",
+                            tint = Color(0xFF818CF8)
+                        )
+                    }
+
+                    DropdownMenu(
                         expanded = showCountryDropdown,
                         onDismissRequest = { showCountryDropdown = false },
-                        modifier = Modifier.background(Color(0xFF16142E))
+                        modifier = Modifier.background(Color(0xFF15102A))
                     ) {
-                        countryCodes.forEach { item ->
+                        countryCodes.forEach { country ->
                             DropdownMenuItem(
-                                text = { Text("${item.flag} ${item.code} (${item.name})", color = Color.White, fontSize = 13.sp) },
+                                text = {
+                                    Text(
+                                        text = "${country.flag} ${country.name} (${country.code})",
+                                        color = Color.White,
+                                        fontSize = 13.sp
+                                    )
+                                },
                                 onClick = {
-                                    selectedCountryCode = item.code
+                                    selectedCountryCode = country.code
                                     showCountryDropdown = false
                                 }
                             )
@@ -375,21 +417,29 @@ fun RegisterScreen(
                     }
                 }
 
-                // Phone Number field
+                // Phone Input Field
                 OutlinedTextField(
                     value = phoneNumber,
                     onValueChange = {
-                        phoneNumber = it.filter { ch -> ch.isDigit() }
+                        phoneNumber = it.filter { char -> char.isDigit() }
                         localError = null
                     },
                     label = { Text("Mobile Number") },
-                    placeholder = { Text("9876543210") },
-                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = ColorPrimary6367FF) },
+                    placeholder = { Text("8261867326") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Phone,
+                            contentDescription = null,
+                            tint = Color(0xFF818CF8)
+                        )
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFF140F26),
+                        unfocusedContainerColor = Color(0xFF0F0B1E),
                         focusedBorderColor = ColorPrimary6367FF,
                         unfocusedBorderColor = Color(0xFF262347),
                         focusedTextColor = Color.White,
@@ -400,33 +450,38 @@ fun RegisterScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // 5. Date of Birth (DOB) Picker
+            // 5. Date of Birth (DOB) Field with Calendar Picker
             OutlinedTextField(
                 value = dob,
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Date of Birth (DOB)") },
-                placeholder = { Text("Select your birth date") },
+                placeholder = { Text("DD/MM/YYYY") },
                 leadingIcon = {
                     Icon(
-                        Icons.Default.CalendarMonth,
-                        contentDescription = "Pick Date",
-                        tint = Color(0xFFFF9933),
-                        modifier = Modifier.clickable { datePickerDialog.show() }
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        tint = Color(0xFFFFA500)
                     )
                 },
                 trailingIcon = {
                     IconButton(onClick = { datePickerDialog.show() }) {
-                        Icon(Icons.Default.EditCalendar, contentDescription = "Open Calendar", tint = Color.LightGray)
+                        Icon(
+                            imageVector = Icons.Default.EditCalendar,
+                            contentDescription = "Pick Date",
+                            tint = Color(0xFF818CF8)
+                        )
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { datePickerDialog.show() },
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF140F26),
+                    unfocusedContainerColor = Color(0xFF0F0B1E),
                     focusedBorderColor = ColorPrimary6367FF,
                     unfocusedBorderColor = Color(0xFF262347),
                     focusedTextColor = Color.White,
@@ -436,9 +491,9 @@ fun RegisterScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // 6. Password
+            // 6. Password Field
             OutlinedTextField(
                 value = password,
                 onValueChange = {
@@ -446,13 +501,19 @@ fun RegisterScreen(
                     localError = null
                 },
                 label = { Text("Password (min 6 chars)") },
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = ColorPrimary6367FF) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = Color(0xFF818CF8)
+                    )
+                },
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
                             imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = "Toggle password visibility",
-                            tint = Color.LightGray
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                            tint = Color.Gray
                         )
                     }
                 },
@@ -460,8 +521,10 @@ fun RegisterScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF140F26),
+                    unfocusedContainerColor = Color(0xFF0F0B1E),
                     focusedBorderColor = ColorPrimary6367FF,
                     unfocusedBorderColor = Color(0xFF262347),
                     focusedTextColor = Color.White,
@@ -471,9 +534,9 @@ fun RegisterScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // 7. Confirm Password
+            // 7. Confirm Password Field
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = {
@@ -481,13 +544,19 @@ fun RegisterScreen(
                     localError = null
                 },
                 label = { Text("Confirm Password") },
-                leadingIcon = { Icon(Icons.Default.LockClock, contentDescription = null, tint = ColorPrimary6367FF) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.EnhancedEncryption,
+                        contentDescription = null,
+                        tint = Color(0xFF818CF8)
+                    )
+                },
                 trailingIcon = {
                     IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                         Icon(
                             imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = "Toggle confirm password visibility",
-                            tint = Color.LightGray
+                            contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password",
+                            tint = Color.Gray
                         )
                     }
                 },
@@ -495,8 +564,10 @@ fun RegisterScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF140F26),
+                    unfocusedContainerColor = Color(0xFF0F0B1E),
                     focusedBorderColor = ColorPrimary6367FF,
                     unfocusedBorderColor = Color(0xFF262347),
                     focusedTextColor = Color.White,
@@ -580,67 +651,6 @@ fun RegisterScreen(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        // Verification Email Sent Dialog
-        if (authState is AuthState.VerificationEmailSent) {
-            val targetEmail = (authState as AuthState.VerificationEmailSent).email
-            AlertDialog(
-                onDismissRequest = {
-                    authViewModel.clearError()
-                    onNavigateToLogin()
-                },
-                containerColor = Color(0xFF15102A),
-                titleContentColor = Color.White,
-                textContentColor = Color(0xFFA0A3BD),
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.MarkEmailRead,
-                        contentDescription = null,
-                        tint = Color(0xFF4ADE80),
-                        modifier = Modifier.size(44.dp)
-                    )
-                },
-                title = {
-                    Text(
-                        text = "Account Created!",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "We have sent a verification email to:",
-                            fontSize = 14.sp,
-                            color = Color.White
-                        )
-                        Text(
-                            text = targetEmail,
-                            color = Color(0xFF60A5FA),
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        )
-                        Text(
-                            text = "Please check your inbox (or spam folder) to confirm your email, then proceed to sign in.",
-                            fontSize = 13.sp,
-                            color = Color.LightGray
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            authViewModel.clearError()
-                            onNavigateToLogin()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Proceed to Sign In", color = Color.White, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            )
         }
     }
 }

@@ -16,6 +16,8 @@ interface AuthRepository {
         dob: String? = null,
         avatarUrl: String? = null
     ): Result<UserProfile>
+    suspend fun verifyEmailOtp(email: String, token: String): Result<UserProfile>
+    suspend fun resendEmailOtp(email: String): Result<Unit>
     suspend fun updateProfile(
         fullName: String,
         bio: String? = null,

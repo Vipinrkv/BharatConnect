@@ -320,7 +320,31 @@
   - **APK & Tests**: All 25 unit tests passed and fresh standalone binary compiled to `BharatConnect-Native.apk`.
 
 ---
+
+### 🔹 Entry #016 — Native In-App 6-Digit Email OTP Verification & Complete Localhost/Tool De-Coupling
+- **Date & Time**: `2026-08-23 16:15:00 IST` (`2026-08-23T10:45:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/model/User.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/model/User.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/repository/AuthRepository.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/repository/AuthRepository.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/usecase/auth/AuthUseCases.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/usecase/auth/AuthUseCases.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/OtpVerificationScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/OtpVerificationScreen.kt) *(NEW)*
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/RegisterScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/navigation/NavGraph.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/navigation/NavGraph.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/domain/AuthUseCasesTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/domain/AuthUseCasesTest.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **In-App Email OTP Flow**: Replaced external browser verification link and broken `localhost:3000` redirect flow with 100% native in-app 6-digit email OTP verification using `supabase.auth.verifyEmailOtp(type = OtpType.Email.EMAIL, email, token)`.
+  - **New Jetpack Compose UI**: Built `OtpVerificationScreen.kt` featuring 6 individual auto-advancing OTP digit boxes, masked email banner (`v***@g***`), error handling, and 60-second cooldown resend countdown timer.
+  - **Auth Domain Contracts & State**: Added `VerifyEmailOtpUseCase`, `ResendEmailOtpUseCase`, and `AuthState.AwaitingOtp` with reactive state transitions.
+  - **Navigation Integration**: Wired `Screen.OtpVerification(email)` in `NavGraph.kt` with URL-safe argument decoding and atomic backstack pruning on successful auth.
+  - **Unit Testing & Standalone APK**: Expanded `AuthUseCasesTest.kt` with tests for OTP verification and resend logic (all 25 test suites passing); compiled and updated root `BharatConnect-Native.apk` (24.5 MB).
+
+---
 *(Append all future system changes below this line)*
+
 
 
 

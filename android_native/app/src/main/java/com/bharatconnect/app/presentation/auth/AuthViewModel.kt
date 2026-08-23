@@ -11,8 +11,12 @@ import com.bharatconnect.app.domain.usecase.auth.GetCurrentUserUseCase
 import com.bharatconnect.app.domain.usecase.auth.LoginUseCase
 import com.bharatconnect.app.domain.usecase.auth.LogoutUseCase
 import com.bharatconnect.app.domain.usecase.auth.RegisterUseCase
+import com.bharatconnect.app.domain.usecase.auth.ResendEmailOtpUseCase
 import com.bharatconnect.app.domain.usecase.auth.ResetPasswordUseCase
 import com.bharatconnect.app.domain.usecase.auth.UpdateProfileUseCase
+import com.bharatconnect.app.domain.usecase.auth.VerifyEmailOtpUseCase
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +26,8 @@ class AuthViewModel(
     authRepository: AuthRepository = AuthRepositoryImpl(),
     private val loginUseCase: LoginUseCase = LoginUseCase(authRepository),
     private val registerUseCase: RegisterUseCase = RegisterUseCase(authRepository),
+    private val verifyEmailOtpUseCase: VerifyEmailOtpUseCase = VerifyEmailOtpUseCase(authRepository),
+    private val resendEmailOtpUseCase: ResendEmailOtpUseCase = ResendEmailOtpUseCase(authRepository),
     private val updateProfileUseCase: UpdateProfileUseCase = UpdateProfileUseCase(authRepository),
     private val resetPasswordUseCase: ResetPasswordUseCase = ResetPasswordUseCase(authRepository),
     private val logoutUseCase: LogoutUseCase = LogoutUseCase(authRepository),
@@ -42,6 +48,14 @@ class AuthViewModel(
 
     private val _isUpdatingProfile = MutableStateFlow(false)
     val isUpdatingProfile: StateFlow<Boolean> = _isUpdatingProfile.asStateFlow()
+
+    private val _isVerifyingOtp = MutableStateFlow(false)
+    val isVerifyingOtp: StateFlow<Boolean> = _isVerifyingOtp.asStateFlow()
+
+    private val _resendCooldownSeconds = MutableStateFlow(0)
+    val resendCooldownSeconds: StateFlow<Int> = _resendCooldownSeconds.asStateFlow()
+
+    private var cooldownJob: Job? = null
 
     init {
         checkSession()
@@ -113,7 +127,16 @@ class AuthViewModel(
             result.fold(
                 onSuccess = { user ->
                     if (user.id.isBlank()) {
-                        _authState.value = AuthState.VerificationEmailSent(user.email ?: email.trim())
+                        // Needs Email OTP verification
+                        _authState.value = AuthState.AwaitingOtp(
+                            email = user.email ?: email.trim(),
+                            username = username.trim(),
+                            fullName = name.trim(),
+                            phoneNumber = phoneNumber.trim(),
+                            dob = dob.trim(),
+                            avatarUrl = avatarUrl?.trim()
+                        )
+                        startResendCooldown(60)
                     } else {
                         _currentUser.value = user
                         _authState.value = AuthState.Authenticated(user)
@@ -123,6 +146,65 @@ class AuthViewModel(
                     _authState.value = AuthState.Error(NetworkErrorSanitizer.sanitize(error))
                 }
             )
+        }
+    }
+
+    fun verifyEmailOtp(email: String, token: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+        if (token.isBlank() || token.trim().length < 6) {
+            val errorMsg = "Please enter the complete 6-digit verification code"
+            _authState.value = AuthState.Error(errorMsg)
+            onResult(false, errorMsg)
+            return
+        }
+
+        viewModelScope.launch {
+            _isVerifyingOtp.value = true
+            val result = verifyEmailOtpUseCase(email, token)
+            _isVerifyingOtp.value = false
+            result.fold(
+                onSuccess = { verifiedUser ->
+                    _currentUser.value = verifiedUser
+                    _authState.value = AuthState.Authenticated(verifiedUser)
+                    onResult(true, null)
+                },
+                onFailure = { error ->
+                    val errorMsg = NetworkErrorSanitizer.sanitize(error)
+                    _authState.value = AuthState.Error(errorMsg)
+                    onResult(false, errorMsg)
+                }
+            )
+        }
+    }
+
+    fun resendEmailOtp(email: String, onResult: (Boolean, String) -> Unit) {
+        if (_resendCooldownSeconds.value > 0) {
+            onResult(false, "Please wait ${_resendCooldownSeconds.value}s before requesting a new code")
+            return
+        }
+
+        viewModelScope.launch {
+            val result = resendEmailOtpUseCase(email)
+            result.fold(
+                onSuccess = {
+                    startResendCooldown(60)
+                    onResult(true, "A fresh verification code has been sent to your email!")
+                },
+                onFailure = { error ->
+                    val msg = NetworkErrorSanitizer.sanitize(error)
+                    onResult(false, msg)
+                }
+            )
+        }
+    }
+
+    private fun startResendCooldown(seconds: Int) {
+        cooldownJob?.cancel()
+        cooldownJob = viewModelScope.launch {
+            _resendCooldownSeconds.value = seconds
+            while (_resendCooldownSeconds.value > 0) {
+                delay(1000)
+                _resendCooldownSeconds.value -= 1
+            }
         }
     }
 
@@ -190,5 +272,10 @@ class AuthViewModel(
             _authState.value = AuthState.Idle
         }
         _resetPasswordMessage.value = null
+    }
+
+    fun setAwaitingOtp(email: String) {
+        _authState.value = AuthState.AwaitingOtp(email = email)
+        startResendCooldown(60)
     }
 }

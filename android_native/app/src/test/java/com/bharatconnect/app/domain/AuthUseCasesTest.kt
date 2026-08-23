@@ -55,6 +55,29 @@ class FakeAuthRepository : AuthRepository {
         return Result.success(user)
     }
 
+    override suspend fun verifyEmailOtp(email: String, token: String): Result<UserProfile> {
+        return if (email == "priya@bharatconnect.in" && token == "123456") {
+            val user = UserProfile(
+                id = "user_verified_123",
+                email = email,
+                username = "priya_p",
+                fullName = "Priya Patel"
+            )
+            currentUser = user
+            Result.success(user)
+        } else {
+            Result.failure(IllegalArgumentException("Invalid verification code"))
+        }
+    }
+
+    override suspend fun resendEmailOtp(email: String): Result<Unit> {
+        return if (email.isNotBlank() && email.contains("@")) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalArgumentException("Invalid email"))
+        }
+    }
+
     override suspend fun updateProfile(
         fullName: String,
         bio: String?,
@@ -96,6 +119,8 @@ class AuthUseCasesTest {
     private val fakeAuthRepository = FakeAuthRepository()
     private val loginUseCase = LoginUseCase(fakeAuthRepository)
     private val registerUseCase = RegisterUseCase(fakeAuthRepository)
+    private val verifyEmailOtpUseCase = VerifyEmailOtpUseCase(fakeAuthRepository)
+    private val resendEmailOtpUseCase = ResendEmailOtpUseCase(fakeAuthRepository)
     private val updateProfileUseCase = UpdateProfileUseCase(fakeAuthRepository)
     private val resetPasswordUseCase = ResetPasswordUseCase(fakeAuthRepository)
     private val logoutUseCase = LogoutUseCase(fakeAuthRepository)
@@ -146,6 +171,26 @@ class AuthUseCasesTest {
         assertEquals("+919876543210", result.getOrNull()?.phoneNumber)
         assertEquals("10/05/1998", result.getOrNull()?.dob)
         assertEquals("https://res.cloudinary.com/twiesyqj/image/upload/v1/avatar.jpg", result.getOrNull()?.avatarUrl)
+    }
+
+    @Test
+    fun `verifyEmailOtp with valid code returns authenticated user profile`() = runBlocking {
+        val result = verifyEmailOtpUseCase("priya@bharatconnect.in", "123456")
+        assertTrue(result.isSuccess)
+        assertEquals("user_verified_123", result.getOrNull()?.id)
+        assertEquals("priya_p", result.getOrNull()?.username)
+    }
+
+    @Test
+    fun `verifyEmailOtp with invalid code returns failure`() = runBlocking {
+        val result = verifyEmailOtpUseCase("priya@bharatconnect.in", "000000")
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `resendEmailOtp with valid email returns success`() = runBlocking {
+        val result = resendEmailOtpUseCase("priya@bharatconnect.in")
+        assertTrue(result.isSuccess)
     }
 
     @Test

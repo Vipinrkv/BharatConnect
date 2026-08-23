@@ -31,6 +31,22 @@ class RegisterUseCase(private val repository: AuthRepository) {
     }
 }
 
+class VerifyEmailOtpUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(email: String, token: String): Result<UserProfile> {
+        if (email.isBlank()) return Result.failure(IllegalArgumentException("Email cannot be blank"))
+        if (token.isBlank()) return Result.failure(IllegalArgumentException("Please enter the verification code"))
+        if (token.trim().length < 6) return Result.failure(IllegalArgumentException("Verification code must be 6 digits"))
+        return repository.verifyEmailOtp(email, token)
+    }
+}
+
+class ResendEmailOtpUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(email: String): Result<Unit> {
+        if (email.isBlank()) return Result.failure(IllegalArgumentException("Email cannot be blank"))
+        return repository.resendEmailOtp(email)
+    }
+}
+
 class UpdateProfileUseCase(private val repository: AuthRepository) {
     suspend operator fun invoke(
         fullName: String,
@@ -66,6 +82,8 @@ class ObserveAuthStateUseCase(private val repository: AuthRepository) {
 data class AuthUseCases(
     val login: LoginUseCase,
     val register: RegisterUseCase,
+    val verifyEmailOtp: VerifyEmailOtpUseCase,
+    val resendEmailOtp: ResendEmailOtpUseCase,
     val updateProfile: UpdateProfileUseCase,
     val resetPassword: ResetPasswordUseCase,
     val logout: LogoutUseCase,

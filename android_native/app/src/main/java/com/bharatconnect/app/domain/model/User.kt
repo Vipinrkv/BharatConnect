@@ -19,7 +19,14 @@ data class UserProfile(
 sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
+    data class AwaitingOtp(
+        val email: String,
+        val username: String = "",
+        val fullName: String = "",
+        val phoneNumber: String? = null,
+        val dob: String? = null,
+        val avatarUrl: String? = null
+    ) : AuthState()
     data class Authenticated(val user: UserProfile) : AuthState()
-    data class VerificationEmailSent(val email: String) : AuthState()
     data class Error(val message: String) : AuthState()
 }
