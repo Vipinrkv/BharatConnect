@@ -125,7 +125,7 @@ object CloudinaryManager {
         if (uploadResult.isFailure) {
             emit(task.copy(
                 status = UploadStatus.FAILED,
-                errorMessage = uploadResult.exceptionOrNull()?.message ?: "Upload to Cloudinary failed"
+                errorMessage = uploadResult.exceptionOrNull()?.message ?: "Media upload failed. Please try again."
             ))
             return@flow
         }
@@ -198,7 +198,7 @@ object CloudinaryManager {
                     }
                 } else {
                     val errorText = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "HTTP $responseCode"
-                    lastException = Exception("Cloudinary Error ($responseCode): $errorText")
+                    lastException = Exception("Media upload service error ($responseCode)")
                 }
             } catch (e: Exception) {
                 lastException = e

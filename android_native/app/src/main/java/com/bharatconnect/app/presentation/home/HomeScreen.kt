@@ -783,7 +783,7 @@ fun ChatDetailScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(conversation.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("● Online • Sentinel Encrypted", color = Color(0xFF4EFEAA), fontSize = 11.sp)
+                            Text("● Online • Encrypted", color = Color(0xFF4EFEAA), fontSize = 11.sp)
                         }
                     }
                 },
@@ -1007,7 +1007,7 @@ fun ChatDetailScreen(
     if (showCallNoticeDialog != null) {
         AlertDialog(
             onDismissRequest = { showCallNoticeDialog = null },
-            title = { Text("Sentinel Call Engine", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Voice & Video Call", color = Color.White, fontWeight = FontWeight.Bold) },
             text = { Text(showCallNoticeDialog!!, color = Color.LightGray) },
             confirmButton = {
                 Button(
@@ -1261,12 +1261,12 @@ fun ProfileTab(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Sentinel Architecture Status", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Text("Network & Security Status", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("• Supabase Auth & PostgreSQL: Connected", color = Color(0xFF8CE99A), fontSize = 12.sp)
-                    Text("• Room DB Local Offline Sync: Active", color = Color(0xFF8CE99A), fontSize = 12.sp)
-                    Text("• Cloudinary Media Engine: Ready", color = Color(0xFF8CE99A), fontSize = 12.sp)
-                    Text("• 7-Layer Sentinel E2E Encryption: Active 🔒", color = Color(0xFF4EFEAA), fontSize = 12.sp)
+                    Text("• Cloud Account & Data Sync: Active", color = Color(0xFF8CE99A), fontSize = 12.sp)
+                    Text("• Local Offline Storage: Active", color = Color(0xFF8CE99A), fontSize = 12.sp)
+                    Text("• Media & Attachment Service: Ready", color = Color(0xFF8CE99A), fontSize = 12.sp)
+                    Text("• End-to-End Encryption: Active 🔒", color = Color(0xFF4EFEAA), fontSize = 12.sp)
                 }
             }
         }
@@ -1430,7 +1430,7 @@ fun ProfileTab(
             title = { Text("BharatConnect Settings", color = Color.White, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("🔒 Sentinel 7-Layer End-to-End Encryption: Enabled", color = Color(0xFF4EFEAA), fontSize = 13.sp)
+                    Text("🔒 End-to-End Encryption: Enabled", color = Color(0xFF4EFEAA), fontSize = 13.sp)
                     Text("🌙 Theme: Dark Modern Aesthetic", color = Color.White, fontSize = 13.sp)
                     Text("🌐 Language: English (Default) / Hindi", color = Color.White, fontSize = 13.sp)
                     Text("ℹ️ App Version: BharatConnect Native v2.0.0", color = Color.LightGray, fontSize = 12.sp)

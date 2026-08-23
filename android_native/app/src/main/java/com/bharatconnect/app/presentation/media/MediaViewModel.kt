@@ -17,30 +17,7 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentTask = MutableStateFlow<MediaUploadTask?>(null)
     val currentTask: StateFlow<MediaUploadTask?> = _currentTask.asStateFlow()
 
-    private val _uploadedGallery = MutableStateFlow<List<MediaUploadTask>>(
-        listOf(
-            MediaUploadTask(
-                id = "sample_1",
-                fileName = "gateway_of_india.jpg",
-                mimeType = "image/jpeg",
-                status = UploadStatus.READY,
-                progress = 1.0f,
-                compressedSizeBytes = 450 * 1024,
-                originalSizeBytes = 2400 * 1024,
-                secureUrl = "https://res.cloudinary.com/twiesyqj/image/upload/v1/bharatconnect/gateway.jpg"
-            ),
-            MediaUploadTask(
-                id = "sample_2",
-                fileName = "tech_meetup_bangalore.jpg",
-                mimeType = "image/jpeg",
-                status = UploadStatus.READY,
-                progress = 1.0f,
-                compressedSizeBytes = 620 * 1024,
-                originalSizeBytes = 3100 * 1024,
-                secureUrl = "https://res.cloudinary.com/twiesyqj/image/upload/v1/bharatconnect/meetup.jpg"
-            )
-        )
-    )
+    private val _uploadedGallery = MutableStateFlow<List<MediaUploadTask>>(emptyList())
     val uploadedGallery: StateFlow<List<MediaUploadTask>> = _uploadedGallery.asStateFlow()
 
     fun uploadMedia(uri: Uri, mimeType: String = "image/jpeg") {

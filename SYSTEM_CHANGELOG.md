@@ -238,6 +238,7 @@
 
 ### 🔹 Entry #012 — Demo Mode Removal, Profile Picture Upload Engine & Cloudinary Fast Acceleration
 - **Date & Time**: `2026-08-23 14:34:00 IST` (`2026-08-23T09:04:00Z`)
+- **Git Commit**: `4141609`
 - **Files Modified**:
   - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt)
   - [`android_native/app/src/main/java/com/bharatconnect/app/core/storage/CloudinaryManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/storage/CloudinaryManager.kt)
@@ -263,7 +264,28 @@
   - All 25 unit test suites passed and standalone APK recompiled successfully.
 
 ---
+
+### 🔹 Entry #013 — Tool Mentions Sanitization & Infrastructure Info Masking
+- **Date & Time**: `2026-08-23 14:53:00 IST` (`2026-08-23T09:23:00Z`)
+- **Files Modified**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/storage/CloudinaryManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/storage/CloudinaryManager.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/media/MediaViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/media/MediaViewModel.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Branding & Privacy Sanitization**:
+    - Replaced "Sign In with Supabase" and "Connecting to Supabase..." with consumer-facing "Sign In to BharatConnect" and "Connecting to BharatConnect..." in `SplashScreen.kt`.
+    - Sanitized internal architecture badges in `HomeScreen.kt` (replaced backend infrastructure labels with clean "Cloud Account & Data Sync", "Local Offline Storage", and "Media & Attachment Service").
+    - Cleaned chat header encryption indicator and call dialog title.
+    - Sanitized all user-facing media upload error messages in `CloudinaryManager.kt`.
+    - Removed hardcoded sample demo media tasks from `MediaViewModel.kt`.
+  - All 25 unit tests verified and updated standalone APK binary compiled and pushed to GitHub `origin/main`.
+
+---
 *(Append all future system changes below this line)*
+
 
 
 

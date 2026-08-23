@@ -131,7 +131,7 @@ fun SplashScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Connecting to Supabase...",
+                    text = "Connecting to BharatConnect...",
                     color = Color.LightGray,
                     fontSize = 12.sp
                 )
@@ -144,7 +144,7 @@ fun SplashScreen(
                         .fillMaxWidth()
                         .height(52.dp)
                 ) {
-                    Text("Sign In with Supabase", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text("Sign In to BharatConnect", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
