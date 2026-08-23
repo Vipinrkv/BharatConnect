@@ -1,9 +1,9 @@
 -- ============================================================================
 -- 🇮🇳 BHARATCONNECT SUPABASE POSTGRESQL DATABASE SCHEMA & SECURITY POLICIES
 -- ============================================================================
--- Production Schema for BharatConnect Native Android App
--- Includes: Authentication sync, Profiles, Encrypted Chat, Social Feed, Stories,
--- Marketplace, Nearby Radar, Activity Notifications, Triggers, Indexes & RLS.
+-- Production Schema & Migration Script for BharatConnect Native Android App
+-- Safe & Idempotent: Handles existing tables, adds missing columns automatically,
+-- recreates triggers, policies & realtime publications without conflicts.
 -- ============================================================================
 
 -- Enable required extensions
@@ -28,6 +28,19 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure newly added columns exist if table was previously created
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT 'Welcome to BharatConnect. Ready to connect and explore!';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone_number TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS dob TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
 -- Case-insensitive lookup indexes for multi-identifier login
 CREATE INDEX IF NOT EXISTS idx_profiles_username_lower ON public.profiles (LOWER(username));
 CREATE INDEX IF NOT EXISTS idx_profiles_phone ON public.profiles (phone_number);
@@ -46,6 +59,14 @@ CREATE TABLE IF NOT EXISTS public.conversations (
     created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'direct';
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS last_message TEXT;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS last_message_time TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS created_by UUID;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
 CREATE TABLE IF NOT EXISTS public.conversation_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -71,6 +92,10 @@ CREATE TABLE IF NOT EXISTS public.messages (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS media_url TEXT;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS media_type TEXT;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
+
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages (conversation_id, created_at ASC);
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON public.messages (sender_id);
 
@@ -90,6 +115,13 @@ CREATE TABLE IF NOT EXISTS public.posts (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS author_name TEXT;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS author_avatar TEXT;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS media_url TEXT;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS media_type TEXT;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS comments_count INT DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON public.posts (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_author ON public.posts (author_id);
@@ -197,7 +229,7 @@ CREATE TABLE IF NOT EXISTS public.user_locations (
 -- 7. DATABASE TRIGGERS & AUTOMATION
 -- ============================================================================
 
--- Function: Auto create profile on GoTrue Auth Sign Up
+-- Function: Auto create / sync profile on GoTrue Auth Sign Up
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -278,68 +310,131 @@ ALTER TABLE public.quick_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_locations ENABLE ROW LEVEL SECURITY;
 
--- Profiles: Public read, owner update
+-- Profiles Policies
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
--- Posts: Public read, authenticated create, owner update/delete
+-- Posts Policies
+DROP POLICY IF EXISTS "Posts are viewable by everyone" ON public.posts;
 CREATE POLICY "Posts are viewable by everyone" ON public.posts FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can create posts" ON public.posts;
 CREATE POLICY "Authenticated users can create posts" ON public.posts FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Users can update own posts" ON public.posts;
 CREATE POLICY "Users can update own posts" ON public.posts FOR UPDATE USING (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS "Users can delete own posts" ON public.posts;
 CREATE POLICY "Users can delete own posts" ON public.posts FOR DELETE USING (auth.uid() = author_id);
 
--- Post Likes & Comments
+-- Post Likes & Comments Policies
+DROP POLICY IF EXISTS "Post likes viewable by everyone" ON public.post_likes;
 CREATE POLICY "Post likes viewable by everyone" ON public.post_likes FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can like posts" ON public.post_likes;
 CREATE POLICY "Users can like posts" ON public.post_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can unlike posts" ON public.post_likes;
 CREATE POLICY "Users can unlike posts" ON public.post_likes FOR DELETE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Comments viewable by everyone" ON public.post_comments;
 CREATE POLICY "Comments viewable by everyone" ON public.post_comments FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can comment" ON public.post_comments;
 CREATE POLICY "Authenticated users can comment" ON public.post_comments FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
--- Stories: Valid unexpired stories viewable by all
+-- Stories Policies
+DROP POLICY IF EXISTS "Active stories viewable by everyone" ON public.stories;
 CREATE POLICY "Active stories viewable by everyone" ON public.stories FOR SELECT USING (expires_at > NOW());
+
+DROP POLICY IF EXISTS "Authenticated users can post stories" ON public.stories;
 CREATE POLICY "Authenticated users can post stories" ON public.stories FOR INSERT WITH CHECK (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS "Users can delete own stories" ON public.stories;
 CREATE POLICY "Users can delete own stories" ON public.stories FOR DELETE USING (auth.uid() = author_id);
 
--- Conversations & Messages
+-- Conversations & Messages Policies
+DROP POLICY IF EXISTS "Members can view conversations" ON public.conversations;
 CREATE POLICY "Members can view conversations" ON public.conversations FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = id AND user_id = auth.uid())
 );
+
+DROP POLICY IF EXISTS "Authenticated users can create conversations" ON public.conversations;
 CREATE POLICY "Authenticated users can create conversations" ON public.conversations FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Members can view messages" ON public.messages;
 CREATE POLICY "Members can view messages" ON public.messages FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = messages.conversation_id AND user_id = auth.uid())
 );
+
+DROP POLICY IF EXISTS "Members can insert messages" ON public.messages;
 CREATE POLICY "Members can insert messages" ON public.messages FOR INSERT WITH CHECK (
     auth.uid() = sender_id AND
     EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = messages.conversation_id AND user_id = auth.uid())
 );
 
--- Marketplace & Gigs
+-- Marketplace & Gigs Policies
+DROP POLICY IF EXISTS "Marketplace items viewable by all" ON public.marketplace_items;
 CREATE POLICY "Marketplace items viewable by all" ON public.marketplace_items FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can list items" ON public.marketplace_items;
 CREATE POLICY "Authenticated users can list items" ON public.marketplace_items FOR INSERT WITH CHECK (auth.uid() = seller_id);
 
+DROP POLICY IF EXISTS "Jobs viewable by all" ON public.jobs;
 CREATE POLICY "Jobs viewable by all" ON public.jobs FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can post jobs" ON public.jobs;
 CREATE POLICY "Authenticated users can post jobs" ON public.jobs FOR INSERT WITH CHECK (auth.uid() = poster_id);
 
+DROP POLICY IF EXISTS "Quick gigs viewable by all" ON public.quick_jobs;
 CREATE POLICY "Quick gigs viewable by all" ON public.quick_jobs FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can post gigs" ON public.quick_jobs;
 CREATE POLICY "Authenticated users can post gigs" ON public.quick_jobs FOR INSERT WITH CHECK (auth.uid() = poster_id);
 
--- Notifications
+-- Notifications Policies
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
 CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
 CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
 
--- Locations (Nearby Radar)
+-- Locations Policies (Nearby Radar)
+DROP POLICY IF EXISTS "Visible locations viewable by authenticated users" ON public.user_locations;
 CREATE POLICY "Visible locations viewable by authenticated users" ON public.user_locations FOR SELECT USING (is_visible = true);
+
+DROP POLICY IF EXISTS "Users can update own location" ON public.user_locations;
 CREATE POLICY "Users can update own location" ON public.user_locations FOR ALL USING (auth.uid() = user_id);
 
 -- ============================================================================
 -- 9. SUPABASE REALTIME REPLICATION PUBLICATION
 -- ============================================================================
--- Enable real-time updates for messages, conversations, posts, and notifications
-ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.posts;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.stories;
+DO $$
+BEGIN
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.posts;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.stories;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+END $$;

@@ -161,6 +161,7 @@
 
 ### 🔹 Entry #006 — Complete Standalone APK Recompilation & GitHub Remote Sync
 - **Date & Time**: `2026-08-23 13:51:30 IST` (`2026-08-23T08:21:30Z`)
+- **Git Commit**: `50ea133`
 - **Files Modified**:
   - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk) (Updated compiled standalone binary)
   - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
@@ -170,5 +171,19 @@
   - Synced fresh binary [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk) with root directory and pushed changes to GitHub `origin/main`.
 
 ---
+
+### 🔹 Entry #007 — Supabase Schema Idempotency & Missing Column Migration Fix
+- **Date & Time**: `2026-08-23 13:57:00 IST` (`2026-08-23T08:27:00Z`)
+- **Files Modified**:
+  - [`supabase_schema.sql`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/supabase_schema.sql)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - Resolved `ERROR 42703: column "email" does not exist` occurring when executing schema on pre-existing Supabase databases.
+  - Added explicit `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements for all columns across `profiles`, `conversations`, `messages`, and `posts`.
+  - Added `DROP POLICY IF EXISTS` prior to every policy creation to avoid duplicate policy creation errors.
+  - Wrapped `ALTER PUBLICATION supabase_realtime ADD TABLE` in exception-handling `DO $$ ... $$` blocks to guarantee 100% idempotent migrations.
+
+---
 *(Append all future system changes below this line)*
+
 
