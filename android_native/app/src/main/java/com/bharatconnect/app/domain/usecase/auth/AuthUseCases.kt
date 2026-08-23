@@ -1,5 +1,6 @@
 package com.bharatconnect.app.domain.usecase.auth
 
+import android.net.Uri
 import com.bharatconnect.app.domain.model.UserProfile
 import com.bharatconnect.app.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +29,12 @@ class RegisterUseCase(private val repository: AuthRepository) {
         if (username.isBlank()) return Result.failure(IllegalArgumentException("Username cannot be blank"))
         if (fullName.isBlank()) return Result.failure(IllegalArgumentException("Full name cannot be blank"))
         return repository.register(email, password, username, fullName, phoneNumber, dob, avatarUrl)
+    }
+}
+
+class HandleAuthCallbackUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(uri: Uri): Result<UserProfile> {
+        return repository.handleAuthCallback(uri)
     }
 }
 
@@ -82,6 +89,7 @@ class ObserveAuthStateUseCase(private val repository: AuthRepository) {
 data class AuthUseCases(
     val login: LoginUseCase,
     val register: RegisterUseCase,
+    val handleAuthCallback: HandleAuthCallbackUseCase,
     val verifyEmailOtp: VerifyEmailOtpUseCase,
     val resendEmailOtp: ResendEmailOtpUseCase,
     val updateProfile: UpdateProfileUseCase,

@@ -1,5 +1,6 @@
 package com.bharatconnect.app.domain
 
+import android.net.Uri
 import com.bharatconnect.app.domain.model.UserProfile
 import com.bharatconnect.app.domain.repository.AuthRepository
 import com.bharatconnect.app.domain.usecase.auth.*
@@ -50,6 +51,17 @@ class FakeAuthRepository : AuthRepository {
             phoneNumber = phoneNumber,
             dob = dob,
             avatarUrl = avatarUrl
+        )
+        currentUser = user
+        return Result.success(user)
+    }
+
+    override suspend fun handleAuthCallback(uri: Uri): Result<UserProfile> {
+        val user = UserProfile(
+            id = "user_callback_123",
+            email = "confirmed@bharatconnect.in",
+            username = "confirmed_user",
+            fullName = "Confirmed User"
         )
         currentUser = user
         return Result.success(user)
@@ -119,6 +131,7 @@ class AuthUseCasesTest {
     private val fakeAuthRepository = FakeAuthRepository()
     private val loginUseCase = LoginUseCase(fakeAuthRepository)
     private val registerUseCase = RegisterUseCase(fakeAuthRepository)
+    private val handleAuthCallbackUseCase = HandleAuthCallbackUseCase(fakeAuthRepository)
     private val verifyEmailOtpUseCase = VerifyEmailOtpUseCase(fakeAuthRepository)
     private val resendEmailOtpUseCase = ResendEmailOtpUseCase(fakeAuthRepository)
     private val updateProfileUseCase = UpdateProfileUseCase(fakeAuthRepository)

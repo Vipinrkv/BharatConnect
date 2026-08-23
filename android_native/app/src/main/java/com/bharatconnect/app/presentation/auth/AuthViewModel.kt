@@ -1,5 +1,6 @@
 package com.bharatconnect.app.presentation.auth
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bharatconnect.app.core.network.NetworkErrorSanitizer
@@ -8,6 +9,7 @@ import com.bharatconnect.app.domain.model.AuthState
 import com.bharatconnect.app.domain.model.UserProfile
 import com.bharatconnect.app.domain.repository.AuthRepository
 import com.bharatconnect.app.domain.usecase.auth.GetCurrentUserUseCase
+import com.bharatconnect.app.domain.usecase.auth.HandleAuthCallbackUseCase
 import com.bharatconnect.app.domain.usecase.auth.LoginUseCase
 import com.bharatconnect.app.domain.usecase.auth.LogoutUseCase
 import com.bharatconnect.app.domain.usecase.auth.RegisterUseCase
@@ -26,6 +28,7 @@ class AuthViewModel(
     authRepository: AuthRepository = AuthRepositoryImpl(),
     private val loginUseCase: LoginUseCase = LoginUseCase(authRepository),
     private val registerUseCase: RegisterUseCase = RegisterUseCase(authRepository),
+    private val handleAuthCallbackUseCase: HandleAuthCallbackUseCase = HandleAuthCallbackUseCase(authRepository),
     private val verifyEmailOtpUseCase: VerifyEmailOtpUseCase = VerifyEmailOtpUseCase(authRepository),
     private val resendEmailOtpUseCase: ResendEmailOtpUseCase = ResendEmailOtpUseCase(authRepository),
     private val updateProfileUseCase: UpdateProfileUseCase = UpdateProfileUseCase(authRepository),
@@ -127,7 +130,7 @@ class AuthViewModel(
             result.fold(
                 onSuccess = { user ->
                     if (user.id.isBlank()) {
-                        // Needs Email OTP verification
+                        // User created; awaiting email confirmation via deep link
                         _authState.value = AuthState.AwaitingOtp(
                             email = user.email ?: email.trim(),
                             username = username.trim(),
@@ -141,6 +144,22 @@ class AuthViewModel(
                         _currentUser.value = user
                         _authState.value = AuthState.Authenticated(user)
                     }
+                },
+                onFailure = { error ->
+                    _authState.value = AuthState.Error(NetworkErrorSanitizer.sanitize(error))
+                }
+            )
+        }
+    }
+
+    fun handleAuthCallback(uri: Uri) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            val result = handleAuthCallbackUseCase(uri)
+            result.fold(
+                onSuccess = { user ->
+                    _currentUser.value = user
+                    _authState.value = AuthState.Authenticated(user)
                 },
                 onFailure = { error ->
                     _authState.value = AuthState.Error(NetworkErrorSanitizer.sanitize(error))
@@ -178,7 +197,7 @@ class AuthViewModel(
 
     fun resendEmailOtp(email: String, onResult: (Boolean, String) -> Unit) {
         if (_resendCooldownSeconds.value > 0) {
-            onResult(false, "Please wait ${_resendCooldownSeconds.value}s before requesting a new code")
+            onResult(false, "Please wait ${_resendCooldownSeconds.value}s before requesting a new email")
             return
         }
 
@@ -187,7 +206,7 @@ class AuthViewModel(
             result.fold(
                 onSuccess = {
                     startResendCooldown(60)
-                    onResult(true, "A fresh verification code has been sent to your email!")
+                    onResult(true, "A confirmation email has been sent! Please check your inbox.")
                 },
                 onFailure = { error ->
                     val msg = NetworkErrorSanitizer.sanitize(error)

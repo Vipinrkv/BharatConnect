@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -12,12 +13,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.MarkEmailRead
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -55,10 +58,6 @@ fun OtpVerificationScreen(
         if (authState is AuthState.Authenticated) {
             onVerificationSuccess()
         }
-    }
-
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
     }
 
     // Email mask helper (e.g. virrkv25@gmail.com -> v***5@gmail.com)
@@ -112,27 +111,27 @@ fun OtpVerificationScreen(
                 Spacer(modifier = Modifier.weight(1f))
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Security Shield Icon
+            // Email Confirmation Icon
             Box(
                 modifier = Modifier
-                    .size(72.dp)
-                    .background(Color(0xFF1E1B4B), shape = RoundedCornerShape(20.dp)),
+                    .size(80.dp)
+                    .background(Color(0xFF1E1B4B), shape = RoundedCornerShape(22.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Security,
+                    imageVector = Icons.Default.MarkEmailRead,
                     contentDescription = null,
                     tint = Color(0xFF818CF8),
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(44.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "Enter Verification Code",
+                text = "Check Your Email",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -141,7 +140,7 @@ fun OtpVerificationScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "We sent a 6-digit verification code to",
+                text = "We have sent a confirmation email to",
                 fontSize = 14.sp,
                 color = Color(0xFFA0A3BD),
                 textAlign = TextAlign.Center
@@ -155,7 +154,67 @@ fun OtpVerificationScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Deep link direct action card
+            Surface(
+                color = Color(0xFF15102A),
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF262347)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF818CF8),
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Waiting for email confirmation...",
+                            color = Color(0xFFC7D2FE),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "Open your email app and tap 'Confirm your email' to instantly activate your BharatConnect account.",
+                        color = Color(0xFFA0A3BD),
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 17.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Divider or Option
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFF262347))
+                Text(
+                    text = "  OR ENTER 6-DIGIT CODE  ",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray
+                )
+                HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFF262347))
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 6-Digit Interactive OTP Box UI
             BasicTextField(
@@ -198,7 +257,7 @@ fun OtpVerificationScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(58.dp)
+                                    .height(54.dp)
                                     .background(
                                         color = if (hasChar) Color(0xFF1E1838) else Color(0xFF140F26),
                                         shape = RoundedCornerShape(12.dp)
@@ -212,7 +271,7 @@ fun OtpVerificationScreen(
                             ) {
                                 Text(
                                     text = char,
-                                    fontSize = 22.sp,
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
                                     textAlign = TextAlign.Center
@@ -223,7 +282,7 @@ fun OtpVerificationScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Error Display Banner
             val errorMessage = localError ?: (authState as? AuthState.Error)?.message
@@ -241,10 +300,10 @@ fun OtpVerificationScreen(
                         textAlign = TextAlign.Center
                     )
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
             }
 
-            // Resend Feedback
+            // Resend Feedback Banner
             if (!resendFeedback.isNullOrBlank()) {
                 Surface(
                     color = Color(0xFF0F3822),
@@ -259,51 +318,53 @@ fun OtpVerificationScreen(
                         textAlign = TextAlign.Center
                     )
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
             }
 
             // Verify Submit Button
-            Button(
-                onClick = {
-                    focusManager.clearFocus()
-                    if (otpCode.length == 6) {
-                        authViewModel.verifyEmailOtp(email, otpCode)
+            if (otpCode.isNotEmpty()) {
+                Button(
+                    onClick = {
+                        focusManager.clearFocus()
+                        if (otpCode.length == 6) {
+                            authViewModel.verifyEmailOtp(email, otpCode)
+                        } else {
+                            localError = "Please enter all 6 digits of the verification code"
+                        }
+                    },
+                    enabled = !isVerifying,
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    if (isVerifying) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.5.dp
+                        )
                     } else {
-                        localError = "Please enter all 6 digits of the verification code"
+                        Text(
+                            text = "Verify Code",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
                     }
-                },
-                enabled = !isVerifying,
-                colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-            ) {
-                if (isVerifying) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.5.dp
-                    )
-                } else {
-                    Text(
-                        text = "Verify & Complete Registration",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Resend OTP Section
+            // Resend Email Section
             Row(
                 modifier = Modifier.padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Didn't receive the code? ",
+                    text = "Didn't receive email? ",
                     color = Color(0xFFA0A3BD),
                     fontSize = 13.sp
                 )
@@ -316,7 +377,7 @@ fun OtpVerificationScreen(
                     )
                 } else {
                     Text(
-                        text = "Resend Code",
+                        text = "Resend Email",
                         color = Color(0xFFFF9933),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,

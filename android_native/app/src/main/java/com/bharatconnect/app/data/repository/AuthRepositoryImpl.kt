@@ -1,5 +1,6 @@
 package com.bharatconnect.app.data.repository
 
+import android.net.Uri
 import com.bharatconnect.app.core.network.NetworkErrorSanitizer
 import com.bharatconnect.app.core.network.SupabaseClient
 import com.bharatconnect.app.data.remote.dto.ProfileDto
@@ -9,10 +10,10 @@ import io.github.jan.supabase.gotrue.OtpType
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -81,7 +82,7 @@ class AuthRepositoryImpl : AuthRepository {
             val trimmedDob = dob?.trim()
             val trimmedAvatar = avatarUrl?.trim()
 
-            supabase.auth.signUpWith(Email) {
+            supabase.auth.signUpWith(Email, redirectUrl = SupabaseClient.AUTH_REDIRECT_URL) {
                 this.email = trimmedEmail
                 this.password = password
                 this.data = buildJsonObject {
@@ -107,7 +108,7 @@ class AuthRepositoryImpl : AuthRepository {
                 _currentUserFlow.value = userProfile
                 Result.success(userProfile)
             } else {
-                // User account created in Supabase Auth; email OTP verification required
+                // User account created in Supabase Auth; email verification required
                 val pendingProfile = UserProfile(
                     id = "",
                     email = trimmedEmail,
@@ -119,6 +120,56 @@ class AuthRepositoryImpl : AuthRepository {
                 )
                 Result.success(pendingProfile)
             }
+        } catch (e: Exception) {
+            Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
+        }
+    }
+
+    override suspend fun handleAuthCallback(uri: Uri): Result<UserProfile> = withContext(Dispatchers.IO) {
+        try {
+            // Check for error parameters in query or fragment
+            val errorDescription = uri.getQueryParameter("error_description")
+                ?: uri.getQueryParameter("error")
+                ?: extractFragmentParam(uri.fragment, "error_description")
+                ?: extractFragmentParam(uri.fragment, "error")
+
+            if (!errorDescription.isNullOrBlank()) {
+                return@withContext Result.failure(Exception(NetworkErrorSanitizer.sanitize(Exception(errorDescription))))
+            }
+
+            // Check for PKCE authorization code in query
+            val code = uri.getQueryParameter("code")
+            if (!code.isNullOrBlank()) {
+                try {
+                    supabase.auth.exchangeCodeForSession(code)
+                } catch (e: Exception) {
+                    // Fallback continue to check session
+                }
+            }
+
+            // Check for implicit access_token and refresh_token in fragment
+            val fragment = uri.fragment
+            if (!fragment.isNullOrBlank()) {
+                val accessToken = extractFragmentParam(fragment, "access_token")
+                val refreshToken = extractFragmentParam(fragment, "refresh_token")
+                if (!accessToken.isNullOrBlank() && !refreshToken.isNullOrBlank()) {
+                    try {
+                        supabase.auth.importAuthToken(accessToken = accessToken, refreshToken = refreshToken)
+                    } catch (_: Exception) {}
+                }
+            }
+
+            val user = supabase.auth.currentUserOrNull()
+                ?: return@withContext Result.failure(Exception("Could not establish user session from verification link"))
+
+            val userProfile = fetchOrCreateProfile(
+                userId = user.id,
+                email = user.email,
+                username = null,
+                fullName = null
+            )
+            _currentUserFlow.value = userProfile
+            Result.success(userProfile)
         } catch (e: Exception) {
             Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))
         }
@@ -249,6 +300,14 @@ class AuthRepositoryImpl : AuthRepository {
 
     override fun isUserLoggedIn(): Boolean {
         return supabase.auth.currentUserOrNull() != null
+    }
+
+    private fun extractFragmentParam(fragment: String?, key: String): String? {
+        if (fragment.isNullOrBlank()) return null
+        return fragment.split("&")
+            .map { it.split("=") }
+            .firstOrNull { it.size == 2 && it[0] == key }
+            ?.get(1)
     }
 
     private suspend fun fetchOrCreateProfile(

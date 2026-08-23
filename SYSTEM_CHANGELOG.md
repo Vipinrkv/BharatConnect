@@ -343,7 +343,32 @@
   - **Unit Testing & Standalone APK**: Expanded `AuthUseCasesTest.kt` with tests for OTP verification and resend logic (all 25 test suites passing); compiled and updated root `BharatConnect-Native.apk` (24.5 MB).
 
 ---
+
+### 🔹 Entry #017 — Native Deep Link Authentication Engine & Supabase Email Confirmation Sync
+- **Date & Time**: `2026-08-23 16:54:00 IST` (`2026-08-23T11:24:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/AndroidManifest.xml`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/AndroidManifest.xml)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/MainActivity.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/MainActivity.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/network/SupabaseClient.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/network/SupabaseClient.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/repository/AuthRepository.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/repository/AuthRepository.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/usecase/auth/AuthUseCases.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/usecase/auth/AuthUseCases.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/OtpVerificationScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/OtpVerificationScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/domain/AuthUseCasesTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/domain/AuthUseCasesTest.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Zero-Cost Native Deep Linking**: Configured native deep link scheme `bharatconnect://auth/callback` in `AndroidManifest.xml` and `SupabaseClient.kt` (`Auth { scheme = "bharatconnect", host = "auth" }`), completely eliminating `localhost:3000` failures without requiring paid SMTP or custom auth servers.
+  - **Redirect URL in SignUp**: Attached `redirectUrl = "bharatconnect://auth/callback"` to `supabase.auth.signUpWith(Email)`.
+  - **Deep Link Callback Interception**: Implemented `handleAuthCallback(uri)` in `AuthRepositoryImpl.kt` and `AuthViewModel.kt` with support for fragment tokens (`access_token`, `refresh_token`), PKCE codes, error filtering, and automatic profile synchronization.
+  - **SingleTask MainActivity Integration**: Enabled `launchMode="singleTask"` on `MainActivity` and wired `onNewIntent` to seamlessly intercept and authenticate users when clicking the email confirmation link in Gmail/Mail apps.
+  - **Dual-Verification UI**: Updated `OtpVerificationScreen.kt` with live "Waiting for email confirmation..." state, dual OTP fallback, and 60-second resend cooldown timer.
+  - **Unit Testing & Standalone APK**: Expanded `AuthUseCasesTest.kt` with `HandleAuthCallbackUseCase` tests (all 25 test suites passing); compiled and updated root `BharatConnect-Native.apk` (24.5 MB).
+
+---
 *(Append all future system changes below this line)*
+
 
 
 

@@ -1,5 +1,6 @@
 package com.bharatconnect.app.domain.repository
 
+import android.net.Uri
 import com.bharatconnect.app.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 
@@ -16,6 +17,7 @@ interface AuthRepository {
         dob: String? = null,
         avatarUrl: String? = null
     ): Result<UserProfile>
+    suspend fun handleAuthCallback(uri: Uri): Result<UserProfile>
     suspend fun verifyEmailOtp(email: String, token: String): Result<UserProfile>
     suspend fun resendEmailOtp(email: String): Result<Unit>
     suspend fun updateProfile(
