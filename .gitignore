@@ -26,6 +26,7 @@ wheels/
 .buildozer/
 bin/
 *.apk
+!BharatConnect-Native.apk
 *.aab
 **/build/
 android_native/.gradle/

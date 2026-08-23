@@ -28,8 +28,14 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo.
 echo [3/3] Build Successful!
-echo APK Generated at:
-echo %~dp0android_native\app\build\outputs\apk\debug\app-debug.apk
+if exist "%~dp0android_native\app\build\outputs\apk\debug\app-debug.apk" (
+    copy /Y "%~dp0android_native\app\build\outputs\apk\debug\app-debug.apk" "%~dp0BharatConnect-Native.apk" >nul
+    echo Standalone Native APK Updated at:
+    echo %~dp0BharatConnect-Native.apk
+) else (
+    echo APK Generated at:
+    echo %~dp0android_native\app\build\outputs\apk\debug\app-debug.apk
+)
 echo.
 
 if exist "%ANDROID_HOME%\platform-tools\adb.exe" (
