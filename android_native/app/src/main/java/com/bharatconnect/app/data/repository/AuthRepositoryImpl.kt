@@ -178,11 +178,24 @@ class AuthRepositoryImpl : AuthRepository {
             val trimmedEmail = email.trim()
             val trimmedToken = token.trim()
 
-            supabase.auth.verifyEmailOtp(
-                type = OtpType.Email.EMAIL,
-                email = trimmedEmail,
-                token = trimmedToken
-            )
+            try {
+                supabase.auth.verifyEmailOtp(
+                    type = OtpType.Email.SIGNUP,
+                    email = trimmedEmail,
+                    token = trimmedToken
+                )
+            } catch (signupEx: Exception) {
+                // If SIGNUP type fails, try fallback with EMAIL / RECOVERY
+                try {
+                    supabase.auth.verifyEmailOtp(
+                        type = OtpType.Email.EMAIL,
+                        email = trimmedEmail,
+                        token = trimmedToken
+                    )
+                } catch (_: Exception) {
+                    throw signupEx
+                }
+            }
 
             val user = supabase.auth.currentUserOrNull()
                 ?: return@withContext Result.failure(Exception("Verification succeeded but user session is unavailable"))
@@ -202,10 +215,22 @@ class AuthRepositoryImpl : AuthRepository {
 
     override suspend fun resendEmailOtp(email: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            supabase.auth.resendEmail(
-                type = OtpType.Email.EMAIL,
-                email = email.trim()
-            )
+            val trimmedEmail = email.trim()
+            try {
+                supabase.auth.resendEmail(
+                    type = OtpType.Email.SIGNUP,
+                    email = trimmedEmail
+                )
+            } catch (signupEx: Exception) {
+                try {
+                    supabase.auth.resendEmail(
+                        type = OtpType.Email.EMAIL,
+                        email = trimmedEmail
+                    )
+                } catch (_: Exception) {
+                    throw signupEx
+                }
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(Exception(NetworkErrorSanitizer.sanitize(e)))

@@ -27,6 +27,24 @@ object NetworkErrorSanitizer {
                 "Unable to connect to the network. Please check your internet connection."
             }
 
+            // OTP / Verification Code errors
+            rawMessage.contains("Token has expired", ignoreCase = true) ||
+            rawMessage.contains("Token is invalid", ignoreCase = true) ||
+            rawMessage.contains("otp_expired", ignoreCase = true) ||
+            rawMessage.contains("invalid token", ignoreCase = true) ||
+            rawMessage.contains("token not found", ignoreCase = true) -> {
+                "The 6-digit verification code is invalid or has expired. Please check and try again or click Resend."
+            }
+
+            rawMessage.contains("Email change request not found", ignoreCase = true) ||
+            rawMessage.contains("signup request not found", ignoreCase = true) -> {
+                "No pending verification request found. Please request a new code or try signing in."
+            }
+
+            rawMessage.contains("security purposes", ignoreCase = true) -> {
+                "For security purposes, please wait 60 seconds before requesting another email."
+            }
+
             // User already registered
             rawMessage.contains("already registered", ignoreCase = true) ||
             rawMessage.contains("already exists", ignoreCase = true) ||
@@ -53,12 +71,18 @@ object NetworkErrorSanitizer {
             rawMessage.contains("429", ignoreCase = true) ||
             rawMessage.contains("too many requests", ignoreCase = true) ||
             rawMessage.contains("over_email_send_rate_limit", ignoreCase = true) -> {
-                "Too many attempts. Please wait a few moments and try again."
+                "Email send limit reached (Supabase limits signup emails to 3-4 per hour on free tier). Please check your spam folder or wait a few minutes."
             }
 
             // Email not confirmed
             rawMessage.contains("Email not confirmed", ignoreCase = true) -> {
-                "Please verify your email address to sign in."
+                "Please verify your email address with the 6-digit code to sign in."
+            }
+
+            // Invalid email format
+            rawMessage.contains("Unable to validate email", ignoreCase = true) ||
+            rawMessage.contains("invalid email", ignoreCase = true) -> {
+                "Please enter a valid email address."
             }
 
             // Default fallback if message leaks internal URLs or tool names
@@ -72,13 +96,13 @@ object NetworkErrorSanitizer {
             rawMessage.contains("postgres", ignoreCase = true) ||
             rawMessage.contains("cio", ignoreCase = true) ||
             rawMessage.contains("ktor", ignoreCase = true) -> {
-                "Unable to complete request. Please check your internet connection and try again."
+                "Unable to complete authentication request. Please check your details and try again."
             }
 
             // Clean custom messages without internal technical keywords
             rawMessage.isNotBlank() && rawMessage.length < 120 -> rawMessage
 
-            else -> "Unable to complete request. Please check your internet connection and try again."
+            else -> "Unable to complete request. Please try again."
         }
     }
 }

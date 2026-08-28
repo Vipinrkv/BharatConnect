@@ -333,6 +333,22 @@ fun FeedTab(
 ) {
     val posts by feedViewModel.posts.collectAsState()
     var showCreatePostDialog by remember { mutableStateOf(false) }
+    var viewingCommentsForPost by remember { mutableStateOf<Post?>(null) }
+    var viewingAuthorProfile by remember { mutableStateOf<String?>(null) }
+    val followedAuthors = remember { mutableStateListOf<String>() }
+
+    // In-memory comments map for posts
+    val postComments = remember {
+        mutableStateMapOf<String, MutableList<Pair<String, String>>>().apply {
+            put("demo_1", mutableListOf(
+                "Priya Verma" to "Amazing update! Proud of Indian innovation 🇮🇳",
+                "Amit Patel" to "Completely agree, loving the speed and privacy features!"
+            ))
+            put("demo_2", mutableListOf(
+                "Rajesh Kumar" to "Count me in for the meetup! 🔥"
+            ))
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -409,9 +425,20 @@ fun FeedTab(
                 }
             } else {
                 items(posts) { post ->
+                    val isFollowing = followedAuthors.contains(post.authorName)
                     PostCard(
                         post = post,
-                        onLikeClick = { feedViewModel.toggleLike(post.id) }
+                        isFollowing = isFollowing,
+                        onLikeClick = { feedViewModel.toggleLike(post.id) },
+                        onFollowClick = {
+                            if (isFollowing) {
+                                followedAuthors.remove(post.authorName)
+                            } else {
+                                followedAuthors.add(post.authorName)
+                            }
+                        },
+                        onCommentClick = { viewingCommentsForPost = post },
+                        onProfileClick = { viewingAuthorProfile = post.authorName }
                     )
                 }
             }
@@ -427,6 +454,171 @@ fun FeedTab(
         ) {
             Icon(Icons.Default.Add, contentDescription = "Create Post")
         }
+    }
+
+    // ==================== COMMENTS BOTTOM SHEET / DIALOG ====================
+    if (viewingCommentsForPost != null) {
+        val targetPost = viewingCommentsForPost!!
+        var newCommentText by remember { mutableStateOf("") }
+        val commentsList = postComments.getOrPut(targetPost.id) { mutableListOf() }
+
+        AlertDialog(
+            onDismissRequest = { viewingCommentsForPost = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.ChatBubbleOutline, contentDescription = null, tint = ColorPrimary6367FF)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Comments (${commentsList.size})", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 350.dp)
+                ) {
+                    if (commentsList.isEmpty()) {
+                        Text(
+                            text = "No comments yet. Be the first to start the conversation!",
+                            color = Color.Gray,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .padding(bottom = 12.dp)
+                        ) {
+                            items(commentsList) { (author, text) ->
+                                Surface(
+                                    color = Color(0xFF1B1838),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text(text = author, color = Color(0xFF60A5FA), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(text = text, color = Color.White, fontSize = 13.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = newCommentText,
+                            onValueChange = { newCommentText = it },
+                            placeholder = { Text("Write a comment...", color = Color.Gray, fontSize = 12.sp) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = ColorPrimary6367FF,
+                                unfocusedBorderColor = Color(0xFF2C2856)
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                if (newCommentText.isNotBlank()) {
+                                    commentsList.add((currentUser?.fullName ?: currentUser?.username ?: "You") to newCommentText.trim())
+                                    newCommentText = ""
+                                }
+                            },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(ColorPrimary6367FF, CircleShape)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = Color.White, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewingCommentsForPost = null }) {
+                    Text("Close", color = Color.LightGray)
+                }
+            },
+            containerColor = Color(0xFF16142E),
+            shape = RoundedCornerShape(18.dp)
+        )
+    }
+
+    // ==================== PROFILE VIEW DIALOG ====================
+    if (viewingAuthorProfile != null) {
+        val author = viewingAuthorProfile!!
+        AlertDialog(
+            onDismissRequest = { viewingAuthorProfile = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(ColorPrimary6367FF),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(author.take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(author, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Verified BharatConnect Member 🛡️", color = Color(0xFF4EFEAA), fontSize = 11.sp)
+                    }
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Connect with $author while keeping your phone number private.",
+                        color = Color.LightGray,
+                        fontSize = 13.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("142", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Followers", color = Color.Gray, fontSize = 11.sp)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("89", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Following", color = Color.Gray, fontSize = 11.sp)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("18", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Posts", color = Color.Gray, fontSize = 11.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewingAuthorProfile = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Send Friend Request / Chat")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewingAuthorProfile = null }) {
+                    Text("Close", color = Color.LightGray)
+                }
+            },
+            containerColor = Color(0xFF16142E),
+            shape = RoundedCornerShape(18.dp)
+        )
     }
 
     if (showCreatePostDialog) {
@@ -523,37 +715,71 @@ fun FeedTab(
 }
 
 @Composable
-fun PostCard(post: Post, onLikeClick: () -> Unit) {
+fun PostCard(
+    post: Post,
+    isFollowing: Boolean = false,
+    onLikeClick: () -> Unit,
+    onFollowClick: () -> Unit = {},
+    onCommentClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {}
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(ColorPrimary6367FF),
-                    contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onProfileClick() }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(ColorPrimary6367FF),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = post.authorName.take(1),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(text = post.authorName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text(text = post.createdAt, color = Color.Gray, fontSize = 12.sp)
+                    }
+                }
+
+                // Follow / Following Button
+                Surface(
+                    color = if (isFollowing) Color(0xFF1E1838) else ColorPrimary6367FF,
+                    shape = RoundedCornerShape(8.dp),
+                    border = if (isFollowing) BorderStroke(1.dp, ColorPrimary6367FF) else null,
+                    modifier = Modifier.clickable { onFollowClick() }
                 ) {
                     Text(
-                        text = post.authorName.take(1),
+                        text = if (isFollowing) "Following" else "+ Follow",
                         color = Color.White,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(text = post.authorName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text(text = post.createdAt, color = Color.Gray, fontSize = 12.sp)
-                }
             }
+
             Spacer(modifier = Modifier.height(12.dp))
             Text(text = post.content, color = Color(0xFFE2E2F0), fontSize = 14.sp, lineHeight = 20.sp)
             Spacer(modifier = Modifier.height(14.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -571,12 +797,17 @@ fun PostCard(post: Post, onLikeClick: () -> Unit) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("${post.likesCount} Likes", color = Color.Gray, fontSize = 12.sp)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onCommentClick() }
+                ) {
                     Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comments", tint = Color.LightGray, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("${post.commentsCount} Comments", color = Color.Gray, fontSize = 12.sp)
                 }
-                Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                IconButton(onClick = {}, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                }
             }
         }
     }
@@ -593,6 +824,35 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
     var selectedSubTab by remember { mutableStateOf(0) } // 0: Individual, 1: Groups, 2: Communities
     var searchQuery by remember { mutableStateOf("") }
     var showNewChatDialog by remember { mutableStateOf(false) }
+
+    // Long press context menu states
+    var selectedConversationForMenu by remember { mutableStateOf<Conversation?>(null) }
+    var conversationForNicknameDialog by remember { mutableStateOf<Conversation?>(null) }
+    var customNicknameInput by remember { mutableStateOf("") }
+    val customNicknames = remember { mutableStateMapOf<String, String>() }
+    val pinnedConvIds = remember { mutableStateListOf<String>() }
+    val archivedConvIds = remember { mutableStateListOf<String>() }
+    val unreadConvIds = remember { mutableStateListOf<String>() }
+    var showThreeDotMenu by remember { mutableStateOf(false) }
+    var headerNoticeMessage by remember { mutableStateOf<String?>(null) }
+
+    // Mock Groups state
+    val groupChats = remember {
+        mutableStateListOf(
+            "Tech Innovators Delhi" to "142 members • Rajesh: Next meetup on Saturday!",
+            "Bengaluru Developers Club" to "530 members • Priya: APK released on repo",
+            "Mumbai Founders & Creators" to "280 members • Rohan: Who is attending tomorrow?"
+        )
+    }
+
+    // Mock Communities state
+    val communities = remember {
+        mutableStateListOf(
+            "Bharat Tech Hub" to "Official community for developers, engineers & builders across India",
+            "Indian Freelancers & Designers" to "Connect, share gigs, collaborate on projects",
+            "Campus Connect India" to "College networks, university clubs, study circles"
+        )
+    }
 
     var hasContactPermission by remember {
         mutableStateOf(
@@ -615,35 +875,120 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
         }
     }
 
-    val filteredConversations = conversations.filter {
-        searchQuery.isBlank() || it.title.contains(searchQuery, ignoreCase = true)
-    }
+    val filteredConversations = conversations.filter { conv ->
+        !archivedConvIds.contains(conv.id) &&
+        (searchQuery.isBlank() ||
+         (customNicknames[conv.id] ?: conv.title).contains(searchQuery, ignoreCase = true) ||
+         (conv.lastMessage ?: "").contains(searchQuery, ignoreCase = true))
+    }.sortedByDescending { pinnedConvIds.contains(it.id) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Sub-Tabs Header (Individual / Groups / Communities)
+            // Sub-Tabs Header (Individual / Groups / Communities) + Three Dot Menu
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                listOf("Individual", "Groups", "Communities").forEachIndexed { index, title ->
-                    val isSelected = selectedSubTab == index
-                    Surface(
-                        color = if (isSelected) ColorPrimary6367FF else Color(0xFF16142E),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { selectedSubTab = index }
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf("Individual", "Groups", "Communities").forEachIndexed { index, title ->
+                        val isSelected = selectedSubTab == index
+                        Surface(
+                            color = if (isSelected) ColorPrimary6367FF else Color(0xFF16142E),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { selectedSubTab = index }
+                        ) {
+                            Text(
+                                text = title,
+                                color = if (isSelected) Color.White else Color.LightGray,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 11.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Three-dot Options Menu
+                Box {
+                    IconButton(onClick = { showThreeDotMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = Color.LightGray)
+                    }
+
+                    DropdownMenu(
+                        expanded = showThreeDotMenu,
+                        onDismissRequest = { showThreeDotMenu = false },
+                        modifier = Modifier.background(Color(0xFF1A1638))
                     ) {
-                        Text(
-                            text = title,
-                            color = if (isSelected) Color.White else Color.LightGray,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 12.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                        DropdownMenuItem(
+                            text = { Text("Mark all as read", color = Color.White, fontSize = 13.sp) },
+                            onClick = {
+                                unreadConvIds.clear()
+                                showThreeDotMenu = false
+                                headerNoticeMessage = "All chats marked as read"
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Select all", color = Color.White, fontSize = 13.sp) },
+                            onClick = {
+                                showThreeDotMenu = false
+                                headerNoticeMessage = "Selected all conversations"
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Add to favourites", color = Color.White, fontSize = 13.sp) },
+                            onClick = {
+                                showThreeDotMenu = false
+                                headerNoticeMessage = "Added to favourites"
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Add to list", color = Color.White, fontSize = 13.sp) },
+                            onClick = {
+                                showThreeDotMenu = false
+                                headerNoticeMessage = "Added to custom list"
+                            }
+                        )
+                        HorizontalDivider(color = Color(0xFF2C2856))
+                        DropdownMenuItem(
+                            text = { Text("Clear all chats", color = Color(0xFFFF6B6B), fontSize = 13.sp) },
+                            onClick = {
+                                showThreeDotMenu = false
+                                headerNoticeMessage = "Chats cleared"
+                            }
+                        )
+                    }
+                }
+            }
+
+            if (headerNoticeMessage != null) {
+                Surface(
+                    color = Color(0xFF142E1F),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(headerNoticeMessage!!, color = Color(0xFF4EFEAA), fontSize = 12.sp)
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = Color.LightGray,
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable { headerNoticeMessage = null }
                         )
                     }
                 }
@@ -653,7 +998,17 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search messages, contacts...", color = Color.Gray, fontSize = 13.sp) },
+                placeholder = {
+                    Text(
+                        when (selectedSubTab) {
+                            0 -> "Search chats, contacts, nicknames..."
+                            1 -> "Search groups & channels..."
+                            else -> "Search community hubs..."
+                        },
+                        color = Color.Gray,
+                        fontSize = 13.sp
+                    )
+                },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
@@ -670,94 +1025,214 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                     .padding(horizontal = 16.dp, vertical = 4.dp)
             )
 
-            // Conversations List
-            if (filteredConversations.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
+            when (selectedSubTab) {
+                0 -> {
+                    // ==================== INDIVIDUAL CHATS ====================
+                    if (filteredConversations.isEmpty()) {
                         Box(
                             modifier = Modifier
-                                .size(68.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF1F1C3F)),
+                                .fillMaxSize()
+                                .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.ChatBubbleOutline,
-                                contentDescription = null,
-                                tint = ColorPrimary6367FF,
-                                modifier = Modifier.size(32.dp)
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(68.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF1F1C3F)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ChatBubbleOutline,
+                                        contentDescription = null,
+                                        tint = ColorPrimary6367FF,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "No Conversations Yet",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Start a 1-on-1 chat with your phonebook contacts or invite them to BharatConnect.",
+                                    color = Color.Gray,
+                                    fontSize = 13.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(18.dp))
+                                Button(
+                                    onClick = { showNewChatDialog = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.Contacts, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Select from Contacts")
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No Conversations Yet",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Start a 1-on-1 chat with your phonebook contacts or invite them to BharatConnect.",
-                            color = Color.Gray,
-                            fontSize = 13.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Button(
-                            onClick = { showNewChatDialog = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
-                            shape = RoundedCornerShape(12.dp)
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
-                            Icon(Icons.Default.Contacts, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Select from Contacts")
+                            items(filteredConversations) { conv ->
+                                val isPinned = pinnedConvIds.contains(conv.id)
+                                val displayName = customNicknames[conv.id] ?: conv.title
+
+                                Surface(
+                                    color = if (isPinned) Color(0xFF171333) else Color.Transparent,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { chatViewModel.selectConversation(conv) }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(50.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF2C2856)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(displayName.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                        }
+                                        Spacer(modifier = Modifier.width(14.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = displayName,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 15.sp,
+                                                    maxLines = 1,
+                                                    modifier = Modifier.weight(1f, fill = false)
+                                                )
+                                                if (customNicknames.containsKey(conv.id)) {
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("(${conv.title})", color = Color.Gray, fontSize = 11.sp)
+                                                }
+                                                if (isPinned) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Icon(Icons.Default.PushPin, contentDescription = "Pinned", tint = Color(0xFFFF9933), modifier = Modifier.size(14.dp))
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = conv.lastMessage ?: "Tap to start conversation",
+                                                    color = Color.Gray,
+                                                    fontSize = 13.sp,
+                                                    maxLines = 1,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Text("• Online", color = Color(0xFF4EFEAA), fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        IconButton(
+                                            onClick = { selectedConversationForMenu = conv },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(Icons.Default.MoreHoriz, contentDescription = "Hold options", tint = Color.Gray, modifier = Modifier.size(20.dp))
+                                        }
+                                    }
+                                }
+                                HorizontalDivider(color = Color(0xFF1B1933), thickness = 0.8.dp)
+                            }
                         }
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 6.dp)
-                ) {
-                    items(filteredConversations) { conv ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { chatViewModel.selectConversation(conv) }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF2C2856)),
-                                contentAlignment = Alignment.Center
+
+                1 -> {
+                    // ==================== GROUPS TAB ====================
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(groupChats) { (name, details) ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(conv.title.take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(46.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF2C2856)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.Group, contentDescription = null, tint = ColorPrimary6367FF)
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        Text(details, color = Color.Gray, fontSize = 12.sp, maxLines = 1)
+                                    }
+                                }
                             }
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(conv.title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(conv.lastMessage ?: "", color = Color.Gray, fontSize = 13.sp, maxLines = 1)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF138808))
-                            )
                         }
-                        HorizontalDivider(color = Color(0xFF1B1933), thickness = 0.8.dp)
+                    }
+                }
+
+                2 -> {
+                    // ==================== COMMUNITIES TAB ====================
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(communities) { (name, desc) ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        Surface(
+                                            color = Color(0xFF1E1B45),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "Verified Hub",
+                                                color = Color(0xFF4EFEAA),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(desc, color = Color.LightGray, fontSize = 12.sp)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -773,6 +1248,163 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                 .padding(20.dp)
         ) {
             Icon(Icons.Default.Add, contentDescription = "New Chat from Contacts")
+        }
+
+        // ==================== HOLD / LONG-PRESS OPTIONS DIALOG ====================
+        if (selectedConversationForMenu != null) {
+            val conv = selectedConversationForMenu!!
+            val isPinned = pinnedConvIds.contains(conv.id)
+
+            AlertDialog(
+                onDismissRequest = { selectedConversationForMenu = null },
+                title = {
+                    Text(
+                        text = "Chat Options: ${customNicknames[conv.id] ?: conv.title}",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        // Pin / Unpin
+                        Surface(
+                            color = Color(0xFF1A1638),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (isPinned) pinnedConvIds.remove(conv.id) else pinnedConvIds.add(conv.id)
+                                    selectedConversationForMenu = null
+                                }
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.PushPin, contentDescription = null, tint = Color(0xFFFF9933), modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(if (isPinned) "Unpin Chat" else "Pin Chat to Top", color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+
+                        // Set Custom Nickname
+                        Surface(
+                            color = Color(0xFF1A1638),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    customNicknameInput = customNicknames[conv.id] ?: ""
+                                    conversationForNicknameDialog = conv
+                                    selectedConversationForMenu = null
+                                }
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF60A5FA), modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Set Custom Nickname for Contact", color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+
+                        // Archive
+                        Surface(
+                            color = Color(0xFF1A1638),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    archivedConvIds.add(conv.id)
+                                    selectedConversationForMenu = null
+                                    headerNoticeMessage = "Chat archived"
+                                }
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Archive, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Archive Chat", color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+
+                        // Delete
+                        Surface(
+                            color = Color(0xFF381419),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    archivedConvIds.add(conv.id)
+                                    selectedConversationForMenu = null
+                                    headerNoticeMessage = "Chat deleted"
+                                }
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Delete Chat", color = Color(0xFFFF6B6B), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedConversationForMenu = null }) {
+                        Text("Close", color = Color.LightGray)
+                    }
+                },
+                containerColor = Color(0xFF15112E),
+                shape = RoundedCornerShape(18.dp)
+            )
+        }
+
+        // ==================== SET CUSTOM NICKNAME DIALOG ====================
+        if (conversationForNicknameDialog != null) {
+            val targetConv = conversationForNicknameDialog!!
+            AlertDialog(
+                onDismissRequest = { conversationForNicknameDialog = null },
+                title = {
+                    Text("Custom Nickname", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "Set a personal nickname for ${targetConv.title}. Only you will see this name.",
+                            color = Color.LightGray,
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = customNicknameInput,
+                            onValueChange = { customNicknameInput = it },
+                            placeholder = { Text("e.g. Rahul Work / Brother", color = Color.Gray) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            )
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (customNicknameInput.isNotBlank()) {
+                                customNicknames[targetConv.id] = customNicknameInput.trim()
+                            } else {
+                                customNicknames.remove(targetConv.id)
+                            }
+                            conversationForNicknameDialog = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF)
+                    ) {
+                        Text("Save Nickname")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { conversationForNicknameDialog = null }) {
+                        Text("Cancel", color = Color.LightGray)
+                    }
+                },
+                containerColor = Color(0xFF16142E),
+                shape = RoundedCornerShape(18.dp)
+            )
         }
 
         // ==================== PHONEBOOK CONTACT PICKER BOTTOM SHEET ====================

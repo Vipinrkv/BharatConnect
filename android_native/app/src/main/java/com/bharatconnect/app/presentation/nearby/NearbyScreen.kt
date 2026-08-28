@@ -1,6 +1,7 @@
 package com.bharatconnect.app.presentation.nearby
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +24,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
+
+data class LiveBroadcast(
+    val id: String,
+    val authorName: String,
+    val username: String,
+    val location: String,
+    val distanceKm: Double,
+    val content: String,
+    val timeAgo: String,
+    val isPinnedToTop: Boolean = false,
+    val pinnedRegion: String? = null,
+    val likesCount: Int = 0,
+    val isLiked: Boolean = false
+)
 
 data class BharatHub(
     val id: String,
@@ -52,10 +67,54 @@ fun NearbyScreen(
     onStartChat: (userName: String) -> Unit = {},
     onViewProfile: (userName: String) -> Unit = {}
 ) {
-    var selectedMainTab by remember { mutableStateOf(0) } // 0: Bharat Hubs, 1: Nearby Radar
+    var selectedMainTab by remember { mutableStateOf(0) } // 0: Live Broadcasts, 1: Bharat Hubs, 2: Nearby Radar
     var selectedRadius by remember { mutableStateOf(5) } // 1km, 5km, 10km
     var isGhostModeActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var showCreateBroadcastDialog by remember { mutableStateOf(false) }
+    var showPayToPinDialogForBroadcast by remember { mutableStateOf<LiveBroadcast?>(null) }
+    var selectedPinRegion by remember { mutableStateOf("Delhi NCR & North") }
+    var pinSuccessMessage by remember { mutableStateOf<String?>(null) }
+
+    val liveBroadcasts = remember {
+        mutableStateListOf(
+            LiveBroadcast(
+                id = "bc_1",
+                authorName = "Aarav Sharma",
+                username = "@aarav_tech",
+                location = "Connaught Place, New Delhi",
+                distanceKm = 1.2,
+                content = "🚀 Live Hackathon happening at Central Park Plaza! Come check out projects and connect with developers.",
+                timeAgo = "10m ago",
+                isPinnedToTop = true,
+                pinnedRegion = "Delhi NCR",
+                likesCount = 42
+            ),
+            LiveBroadcast(
+                id = "bc_2",
+                authorName = "Ananya Iyer",
+                username = "@ananya_iyer",
+                location = "Indiranagar 100ft Rd, Bengaluru",
+                distanceKm = 2.8,
+                content = "☕ Startup & Indie Creators open coffee meetup at 4 PM today. All builders welcome!",
+                timeAgo = "25m ago",
+                isPinnedToTop = true,
+                pinnedRegion = "Bengaluru Urban",
+                likesCount = 29
+            ),
+            LiveBroadcast(
+                id = "bc_3",
+                authorName = "Rohan Mehta",
+                username = "@rohan_m",
+                location = "Bandra West, Mumbai",
+                distanceKm = 3.5,
+                content = "📸 Sunset photography and live vlog walk by Bandstand. Join the photowalk group!",
+                timeAgo = "45m ago",
+                isPinnedToTop = false,
+                likesCount = 18
+            )
+        )
+    }
 
     val defaultHubs = remember {
         listOf(
@@ -142,14 +201,14 @@ fun NearbyScreen(
             .fillMaxSize()
             .background(Color(0xFF080616))
     ) {
-        // Main Tab Switcher (Bharat Hubs vs Discovery Radar)
+        // Main Tab Switcher (Live Broadcasts vs Bharat Hubs vs Discovery Radar)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            listOf("Bharat Hubs 🇮🇳", "Discovery Radar 📡").forEachIndexed { index, label ->
+            listOf("Broadcasts 📍", "Bharat Hubs 🇮🇳", "Radar 📡").forEachIndexed { index, label ->
                 val isSelected = selectedMainTab == index
                 Surface(
                     color = if (isSelected) ColorPrimary6367FF else Color(0xFF16142E),
@@ -162,9 +221,40 @@ fun NearbyScreen(
                         text = label,
                         color = if (isSelected) Color.White else Color.LightGray,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         modifier = Modifier.padding(vertical = 10.dp)
+                    )
+                }
+            }
+        }
+
+        // Success Notification Banner
+        if (pinSuccessMessage != null) {
+            Surface(
+                color = Color(0xFF142E1F),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Stars, contentDescription = null, tint = Color(0xFFFF9933), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(pinSuccessMessage!!, color = Color(0xFF4EFEAA), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = Color.LightGray,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { pinSuccessMessage = null }
                     )
                 }
             }
@@ -176,7 +266,11 @@ fun NearbyScreen(
             onValueChange = { searchQuery = it },
             placeholder = {
                 Text(
-                    text = if (selectedMainTab == 0) "Search city hubs, campus circles, topics..." else "Search nearby members or interests...",
+                    text = when (selectedMainTab) {
+                        0 -> "Search broadcasts by location or topic..."
+                        1 -> "Search city hubs, campus circles, topics..."
+                        else -> "Search nearby members or interests..."
+                    },
                     color = Color.Gray,
                     fontSize = 13.sp
                 )
@@ -198,6 +292,172 @@ fun NearbyScreen(
         )
 
         if (selectedMainTab == 0) {
+            // ==================== LIVE BROADCASTS TAB ====================
+            Box(modifier = Modifier.fillMaxSize()) {
+                val filteredBroadcasts = liveBroadcasts.filter {
+                    searchQuery.isBlank() || it.content.contains(searchQuery, ignoreCase = true) || it.location.contains(searchQuery, ignoreCase = true)
+                }.sortedByDescending { it.isPinnedToTop }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
+                            shape = RoundedCornerShape(18.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(Brush.linearGradient(listOf(Color(0xFFFF9933), Color(0xFFFF5E93)))),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Podcasts, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Hyperlocal Live Broadcasts", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("Post real-time updates with geotags or Pin your broadcast to the top in selected regions.", color = Color.LightGray, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    items(filteredBroadcasts) { broadcast ->
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (broadcast.isPinnedToTop) Color(0xFF1A1538) else Color(0xFF14122A)
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            border = if (broadcast.isPinnedToTop) BorderStroke(1.5.dp, Color(0xFFFF9933)) else null,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                if (broadcast.isPinnedToTop) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    ) {
+                                        Surface(
+                                            color = Color(0xFF382310),
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Text(
+                                                text = "📌 TOP PINNED • ${broadcast.pinnedRegion ?: "Selected Region"}",
+                                                color = Color(0xFFFF9933),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 10.sp,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(ColorPrimary6367FF),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(broadcast.authorName.take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(broadcast.authorName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(broadcast.username, color = Color.Gray, fontSize = 12.sp)
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("• ${broadcast.timeAgo}", color = Color.Gray, fontSize = 11.sp)
+                                        }
+                                    }
+                                    Surface(
+                                        color = Color(0xFF1E1B45),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "📍 ${broadcast.location} (~${broadcast.distanceKm} km)",
+                                            color = Color(0xFF4EFEAA),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(broadcast.content, color = Color(0xFFE2E2F0), fontSize = 13.sp, lineHeight = 18.sp)
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFFF5E93), modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("${broadcast.likesCount}", color = Color.LightGray, fontSize = 12.sp)
+                                    }
+
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        if (!broadcast.isPinnedToTop) {
+                                            OutlinedButton(
+                                                onClick = { showPayToPinDialogForBroadcast = broadcast },
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF9933)),
+                                                border = BorderStroke(1.dp, Color(0xFFFF9933)),
+                                                shape = RoundedCornerShape(10.dp),
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                            ) {
+                                                Icon(Icons.Default.PushPin, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Pay to Pin", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+
+                                        Button(
+                                            onClick = { onStartChat(broadcast.authorName) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                                        ) {
+                                            Icon(Icons.Default.ChatBubble, contentDescription = null, modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Connect", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                FloatingActionButton(
+                    onClick = { showCreateBroadcastDialog = true },
+                    containerColor = ColorPrimary6367FF,
+                    contentColor = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(20.dp)
+                ) {
+                    Icon(Icons.Default.Podcasts, contentDescription = "Broadcast")
+                }
+            }
+        } else if (selectedMainTab == 1) {
             // ==================== BHARAT HUBS & CIRCLES TAB ====================
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -549,5 +809,189 @@ fun NearbyScreen(
                 }
             }
         }
+    }
+
+    // ==================== CREATE BROADCAST DIALOG ====================
+    if (showCreateBroadcastDialog) {
+        var broadcastContent by remember { mutableStateOf("") }
+        var broadcastLocation by remember { mutableStateOf("Connaught Place, New Delhi") }
+
+        AlertDialog(
+            onDismissRequest = { showCreateBroadcastDialog = false },
+            title = {
+                Text(
+                    text = "📢 Post Live Broadcast",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Broadcast instantly to nearby BharatConnect users with your live geo-tag.",
+                        color = Color.LightGray,
+                        fontSize = 12.sp
+                    )
+
+                    OutlinedTextField(
+                        value = broadcastContent,
+                        onValueChange = { broadcastContent = it },
+                        placeholder = { Text("What's happening nearby? Announce meetup, event, or alert...", color = Color.Gray, fontSize = 13.sp) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = broadcastLocation,
+                        onValueChange = { broadcastLocation = it },
+                        label = { Text("Geo Location Tag") },
+                        leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFF4EFEAA)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (broadcastContent.isNotBlank()) {
+                            liveBroadcasts.add(
+                                0,
+                                LiveBroadcast(
+                                    id = "bc_${System.currentTimeMillis()}",
+                                    authorName = "You",
+                                    username = "@you",
+                                    location = broadcastLocation,
+                                    distanceKm = 0.1,
+                                    content = broadcastContent,
+                                    timeAgo = "Just now",
+                                    isPinnedToTop = false,
+                                    likesCount = 0
+                                )
+                            )
+                            showCreateBroadcastDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF)
+                ) {
+                    Text("Broadcast Now")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateBroadcastDialog = false }) {
+                    Text("Cancel", color = Color.LightGray)
+                }
+            },
+            containerColor = Color(0xFF16142E),
+            shape = RoundedCornerShape(18.dp)
+        )
+    }
+
+    // ==================== PAY TO PIN BROADCAST TO TOP DIALOG ====================
+    if (showPayToPinDialogForBroadcast != null) {
+        val targetBroadcast = showPayToPinDialogForBroadcast!!
+        val regions = listOf("Delhi NCR & North", "Mumbai & West", "Bengaluru & South", "Kolkata & East", "Pan-India Top Pin")
+        var selectedPlan by remember { mutableStateOf("₹99 / 24 Hours") }
+
+        AlertDialog(
+            onDismissRequest = { showPayToPinDialogForBroadcast = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Stars, contentDescription = null, tint = Color(0xFFFF9933))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Pin Broadcast to Top",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Promote this broadcast to the #1 spot for all users in the selected region.",
+                        color = Color.LightGray,
+                        fontSize = 13.sp
+                    )
+
+                    Surface(
+                        color = Color(0xFF1B1838),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Target Region:", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            regions.forEach { region ->
+                                val isSelected = selectedPinRegion == region
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { selectedPinRegion = region }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = { selectedPinRegion = region },
+                                        colors = RadioButtonDefaults.colors(selectedColor = Color(0xFFFF9933))
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(region, color = if (isSelected) Color.White else Color.LightGray, fontSize = 13.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Promote Duration: 24h", color = Color.Gray, fontSize = 12.sp)
+                        Text("Fee: $selectedPlan", color = Color(0xFF4EFEAA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val index = liveBroadcasts.indexOfFirst { it.id == targetBroadcast.id }
+                        if (index != -1) {
+                            val updated = targetBroadcast.copy(
+                                isPinnedToTop = true,
+                                pinnedRegion = selectedPinRegion
+                            )
+                            liveBroadcasts.removeAt(index)
+                            liveBroadcasts.add(0, updated)
+                        }
+                        pinSuccessMessage = "Broadcast successfully pinned to top in $selectedPinRegion! ⭐"
+                        showPayToPinDialogForBroadcast = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9933)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Confirm & Pin to Top (₹99)", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPayToPinDialogForBroadcast = null }) {
+                    Text("Cancel", color = Color.LightGray)
+                }
+            },
+            containerColor = Color(0xFF16142E),
+            shape = RoundedCornerShape(18.dp)
+        )
     }
 }
