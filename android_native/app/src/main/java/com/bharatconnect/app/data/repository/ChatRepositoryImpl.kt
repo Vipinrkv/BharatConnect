@@ -64,25 +64,23 @@ class ChatRepositoryImpl : ChatRepository {
             }
 
             // 2. Fetch user's conversation memberships
-            val memberConvIds = try {
+            val allMembers = try {
                 supabase.postgrest["conversation_members"]
-                    .select {
-                        filter {
-                            eq("user_id", currentUserId)
-                        }
-                    }
+                    .select()
                     .decodeList<ConversationMemberDto>()
-                    .map { it.conversationId }
-                    .toSet()
             } catch (_: Exception) {
-                emptySet()
+                emptyList()
             }
+            val memberConvIds = allMembers.filter { it.userId == currentUserId }.map { it.conversationId }.toSet()
+            val counterpartByConvId = allMembers
+                .filter { it.userId != currentUserId }
+                .associate { it.conversationId to it.userId }
 
             // Filter for conversations relevant to this user
             val myConversations = remoteConversations.filter { conv ->
                 conv.createdBy == currentUserId ||
-                conv.id.contains(currentUserId) ||
-                memberConvIds.contains(conv.id)
+                memberConvIds.contains(conv.id) ||
+                conv.id.contains(currentUserId)
             }
 
             // Fetch profiles to resolve the other participant's name for direct chats
@@ -93,12 +91,10 @@ class ChatRepositoryImpl : ChatRepository {
             }.associateBy { it.id }
 
             val entities = myConversations.map { conv ->
-                val resolvedTitle = if (conv.id.startsWith("direct_")) {
-                    val parts = conv.id.removePrefix("direct_").split("_")
-                    val otherId = if (parts.size == 2) {
-                        if (parts[0] == currentUserId) parts[1] else parts[0]
-                    } else null
-                    val otherProfile = otherId?.let { allProfiles[it] }
+                val otherId = counterpartByConvId[conv.id] ?: if (conv.createdBy != currentUserId) conv.createdBy else null
+                val otherProfile = otherId?.let { allProfiles[it] }
+
+                val resolvedTitle = if (conv.type == "direct" || conv.id.startsWith("direct_")) {
                     otherProfile?.fullName?.takeIf { it.isNotBlank() }
                         ?: otherProfile?.username?.takeIf { it.isNotBlank() }
                         ?: conv.title
@@ -195,33 +191,41 @@ class ChatRepositoryImpl : ChatRepository {
             } catch (_: Exception) {}
 
             // 5. Notify recipient in public.notifications
-            if (conversationId.startsWith("direct_")) {
-                val parts = conversationId.removePrefix("direct_").split("_")
-                val recipientId = if (parts.size == 2) {
-                    if (parts[0] == currentUserId) parts[1] else parts[0]
+            val recipientId = try {
+                supabase.postgrest["conversation_members"].select {
+                    filter {
+                        eq("conversation_id", conversationId)
+                        neq("user_id", currentUserId)
+                    }
+                }.decodeList<ConversationMemberDto>().firstOrNull()?.userId
+            } catch (_: Exception) { null }
+                ?: if (conversationId.startsWith("direct_")) {
+                    val parts = conversationId.removePrefix("direct_").split("_")
+                    if (parts.size == 2) {
+                        if (parts[0] == currentUserId) parts[1] else parts[0]
+                    } else null
                 } else null
 
-                if (recipientId != null && recipientId != currentUserId) {
-                    try {
-                        val senderProfile = supabase.postgrest["profiles"].select {
-                            filter { eq("id", currentUserId) }
-                        }.decodeSingleOrNull<ProfileDto>()
-                        val senderName = senderProfile?.fullName?.takeIf { it.isNotBlank() }
-                            ?: senderProfile?.username?.takeIf { it.isNotBlank() }
-                            ?: "BharatConnect Member"
+            if (recipientId != null && recipientId != currentUserId) {
+                try {
+                    val senderProfile = supabase.postgrest["profiles"].select {
+                        filter { eq("id", currentUserId) }
+                    }.decodeSingleOrNull<ProfileDto>()
+                    val senderName = senderProfile?.fullName?.takeIf { it.isNotBlank() }
+                        ?: senderProfile?.username?.takeIf { it.isNotBlank() }
+                        ?: "BharatConnect Member"
 
-                        supabase.postgrest["notifications"].insert(
-                            NotificationDto(
-                                userId = recipientId,
-                                title = senderName,
-                                description = content,
-                                category = "messages",
-                                isRead = false,
-                                createdAt = timestamp
-                            )
+                    supabase.postgrest["notifications"].insert(
+                        NotificationDto(
+                            userId = recipientId,
+                            title = senderName,
+                            description = content,
+                            category = "messages",
+                            isRead = false,
+                            createdAt = timestamp
                         )
-                    } catch (_: Exception) {}
-                }
+                    )
+                } catch (_: Exception) {}
             }
 
             Result.success(finalMessage)
@@ -262,7 +266,8 @@ class ChatRepositoryImpl : ChatRepository {
         
         // Generate deterministic conversation ID for 1-on-1 pairs
         val sortedIds = listOf(currentUserId, participantId).sorted()
-        val convId = "direct_${sortedIds[0]}_${sortedIds[1]}"
+        val deterministicKey = "${sortedIds[0]}_${sortedIds[1]}"
+        val convId = java.util.UUID.nameUUIDFromBytes(deterministicKey.toByteArray()).toString()
 
         val conversation = Conversation(
             id = convId,
@@ -290,9 +295,18 @@ class ChatRepositoryImpl : ChatRepository {
             )
             supabase.postgrest["conversations"].upsert(convDto)
 
-            // 3. Register both users as members
+            // 3. Register both users as members in remote Supabase
+            val validParticipantUuid = try {
+                java.util.UUID.fromString(participantId)
+                participantId
+            } catch (_: Exception) {
+                java.util.UUID.nameUUIDFromBytes(participantId.toByteArray()).toString()
+            }
+            val member1Id = java.util.UUID.nameUUIDFromBytes("${convId}_${currentUserId}".toByteArray()).toString()
+            val member2Id = java.util.UUID.nameUUIDFromBytes("${convId}_${validParticipantUuid}".toByteArray()).toString()
             supabase.postgrest["conversation_members"].upsert(
                 ConversationMemberDto(
+                    id = member1Id,
                     conversationId = convId,
                     userId = currentUserId,
                     role = "member",
@@ -301,8 +315,9 @@ class ChatRepositoryImpl : ChatRepository {
             )
             supabase.postgrest["conversation_members"].upsert(
                 ConversationMemberDto(
+                    id = member2Id,
                     conversationId = convId,
-                    userId = participantId,
+                    userId = validParticipantUuid,
                     role = "member",
                     joinedAt = timestamp
                 )
@@ -388,51 +403,64 @@ class ChatRepositoryImpl : ChatRepository {
                     is PostgresAction.Insert -> {
                         try {
                             val record = action.decodeRecord<MessageDto>()
-                            if (record.senderId != currentUserId && record.conversationId.contains(currentUserId)) {
-                                val domainMsg = record.toDomain()
-                                messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(domainMsg))
+                            if (record.senderId != currentUserId) {
+                                val isMyConv = conversationDao.getConversationById(record.conversationId) != null ||
+                                    record.conversationId.contains(currentUserId) ||
+                                    try {
+                                        supabase.postgrest["conversation_members"].select {
+                                            filter {
+                                                eq("conversation_id", record.conversationId)
+                                                eq("user_id", currentUserId)
+                                            }
+                                        }.decodeList<ConversationMemberDto>().isNotEmpty()
+                                    } catch (_: Exception) { true }
 
-                                // Resolve sender name
-                                val senderProfile = try {
-                                    supabase.postgrest["profiles"].select {
-                                        filter { eq("id", record.senderId) }
-                                    }.decodeSingleOrNull<ProfileDto>()
-                                } catch (_: Exception) { null }
-                                val senderName = senderProfile?.fullName?.takeIf { it.isNotBlank() }
-                                    ?: senderProfile?.username?.takeIf { it.isNotBlank() }
-                                    ?: "BharatConnect Member"
+                                if (isMyConv) {
+                                    val domainMsg = record.toDomain()
+                                    messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(domainMsg))
 
-                                // Ensure conversation exists in local Room DB
-                                val existingConv = conversationDao.getConversationById(record.conversationId)
-                                if (existingConv == null) {
-                                    val newConv = Conversation(
-                                        id = record.conversationId,
-                                        isGroup = false,
+                                    // Resolve sender name
+                                    val senderProfile = try {
+                                        supabase.postgrest["profiles"].select {
+                                            filter { eq("id", record.senderId) }
+                                        }.decodeSingleOrNull<ProfileDto>()
+                                    } catch (_: Exception) { null }
+                                    val senderName = senderProfile?.fullName?.takeIf { it.isNotBlank() }
+                                        ?: senderProfile?.username?.takeIf { it.isNotBlank() }
+                                        ?: "BharatConnect Member"
+
+                                    // Ensure conversation exists in local Room DB
+                                    val existingConv = conversationDao.getConversationById(record.conversationId)
+                                    if (existingConv == null) {
+                                        val newConv = Conversation(
+                                            id = record.conversationId,
+                                            isGroup = false,
+                                            title = senderName,
+                                            createdBy = record.senderId,
+                                            lastMessage = record.content,
+                                            lastMessageTime = record.createdAt,
+                                            unreadCount = 1
+                                        )
+                                        conversationDao.insertOrUpdateConversation(ConversationEntity.fromDomain(newConv))
+                                    } else {
+                                        conversationDao.updateLastMessage(
+                                            record.conversationId,
+                                            record.content,
+                                            senderName,
+                                            record.createdAt ?: ""
+                                        )
+                                    }
+
+                                    onNewMessage?.invoke(domainMsg, senderName)
+
+                                    // Trigger native heads-up system alert
+                                    NotificationHelper.showMessageNotification(
+                                        context = BharatConnectApp.appContext,
                                         title = senderName,
-                                        createdBy = record.senderId,
-                                        lastMessage = record.content,
-                                        lastMessageTime = record.createdAt,
-                                        unreadCount = 1
-                                    )
-                                    conversationDao.insertOrUpdateConversation(ConversationEntity.fromDomain(newConv))
-                                } else {
-                                    conversationDao.updateLastMessage(
-                                        record.conversationId,
-                                        record.content,
-                                        senderName,
-                                        record.createdAt ?: ""
+                                        body = record.content,
+                                        conversationId = record.conversationId
                                     )
                                 }
-
-                                onNewMessage?.invoke(domainMsg, senderName)
-
-                                // Trigger native heads-up system alert
-                                NotificationHelper.showMessageNotification(
-                                    context = BharatConnectApp.appContext,
-                                    title = senderName,
-                                    body = record.content,
-                                    conversationId = record.conversationId
-                                )
                             }
                         } catch (_: Exception) {}
                     }

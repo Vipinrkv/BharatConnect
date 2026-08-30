@@ -567,6 +567,24 @@
   - **Compilation & Test Pass**: Verified all 25 unit test suites pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone binary in root and web distribution directories (26.1 MB).
 
 ---
+
+### 🔹 Entry #029 — UUID Type Compliance, Trigger Casting & Global Realtime Listener Fix
+- **Date & Time**: `2026-08-30 21:34:00 IST` (`2026-08-30T16:04:00Z`)
+- **Files Modified**:
+  - [`fix_chat_and_notifications.sql`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/fix_chat_and_notifications.sql)
+  - [`supabase_schema.sql`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/supabase_schema.sql)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Deterministic UUID Compliance**: `conversations.id` and `conversation_members.id` in PostgreSQL are strictly typed as `UUID`. Updated `getOrCreateDirectConversation` in `ChatRepositoryImpl.kt` to generate standard RFC 4122 Version 3 UUIDs via `UUID.nameUUIDFromBytes(...)`, eliminating PostgreSQL error `22P02 invalid input syntax for type uuid: "direct_..."`.
+  - **PostgreSQL Trigger Operator Cast (`42883`)**: Resolved `operator does not exist: uuid ~~ unknown` in `handle_new_message()` by casting `NEW.conversation_id::TEXT` and checking `conversations.type = 'direct'`.
+  - **Dynamic Counterpart Resolution**: Updated `fetchConversations()` to resolve counterpart user profile names directly from `conversation_members`, ensuring direct chat headers display the actual counterpart user's full name.
+  - **Global Realtime Listener Unblocking**: Fixed `subscribeToGlobalUserMessages` which previously checked `record.conversationId.contains(currentUserId)`. Now evaluates whether incoming messages belong to conversations the user is a member of, guaranteeing instant Room insertion, UI reactivity, and heads-up banner alerts.
+  - **Verification & Rebuild**: Successfully passed all 25 unit test suites; rebuilt APK binary (26.1 MB) and synced to root and web.
+
+---
 *(Append all future system changes below this line)*
 
 
