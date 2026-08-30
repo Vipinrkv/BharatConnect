@@ -9,26 +9,57 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ConversationDto(
     val id: String,
-    @SerialName("is_group")
-    val isGroup: Boolean = false,
+    val type: String = "direct",
     val title: String? = null,
+    @SerialName("avatar_url")
+    val avatarUrl: String? = null,
+    @SerialName("last_message")
+    val lastMessage: String? = null,
+    @SerialName("last_message_time")
+    val lastMessageTime: String? = null,
     @SerialName("created_by")
     val createdBy: String? = null,
     @SerialName("created_at")
     val createdAt: String? = null
 ) {
-    fun toDomain(): Conversation {
+    fun toDomain(overrideTitle: String? = null): Conversation {
         return Conversation(
             id = id,
-            isGroup = isGroup,
-            title = title ?: "Conversation",
+            isGroup = type != "direct",
+            title = overrideTitle ?: title ?: "Conversation",
             createdBy = createdBy,
-            lastMessage = "Tap to open chat",
-            lastMessageTime = createdAt,
+            lastMessage = lastMessage ?: "Tap to open chat",
+            lastMessageTime = lastMessageTime ?: createdAt,
             unreadCount = 0
         )
     }
 }
+
+@Serializable
+data class ConversationMemberDto(
+    val id: String? = null,
+    @SerialName("conversation_id")
+    val conversationId: String,
+    @SerialName("user_id")
+    val userId: String,
+    val role: String = "member",
+    @SerialName("joined_at")
+    val joinedAt: String? = null
+)
+
+@Serializable
+data class NotificationDto(
+    val id: String? = null,
+    @SerialName("user_id")
+    val userId: String,
+    val title: String,
+    val description: String,
+    val category: String = "messages",
+    @SerialName("is_read")
+    val isRead: Boolean = false,
+    @SerialName("created_at")
+    val createdAt: String? = null
+)
 
 @Serializable
 data class MessageDto(

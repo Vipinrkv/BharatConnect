@@ -7,8 +7,15 @@ import com.bharatconnect.app.core.notifications.NotificationHelper
 import com.bharatconnect.app.core.sync.SyncManager
 
 class BharatConnectApp : Application() {
+
+    companion object {
+        lateinit var appContext: Application
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
+        appContext = this
         // Initialize Supabase Kotlin SDK
         SupabaseClient.init(this)
         // Initialize Local Room Database

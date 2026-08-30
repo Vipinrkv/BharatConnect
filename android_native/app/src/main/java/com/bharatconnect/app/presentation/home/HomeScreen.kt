@@ -79,8 +79,14 @@ fun HomeScreen(
     var activeViewingStory by remember { mutableStateOf<StoryItem?>(null) }
     var showCreateStoryDialog by remember { mutableStateOf(false) }
 
+    val notificationsList by chatViewModel.notifications.collectAsState()
+    val unreadNotifCount = remember(notificationsList) { notificationsList.count { !it.isRead } }
+
     if (showNotificationsScreen) {
-        NotificationsScreen(onBack = { showNotificationsScreen = false })
+        NotificationsScreen(
+            chatViewModel = chatViewModel,
+            onBack = { showNotificationsScreen = false }
+        )
         return
     }
 
@@ -133,13 +139,21 @@ fun HomeScreen(
                 },
                 actions = {
                     IconButton(onClick = { showNotificationsScreen = true }) {
-                        BadgedBox(
-                            badge = {
-                                Badge(containerColor = Color(0xFFFF3B30)) {
-                                    Text("3", color = Color.White)
+                        if (unreadNotifCount > 0) {
+                            BadgedBox(
+                                badge = {
+                                    Badge(containerColor = Color(0xFFFF3B30)) {
+                                        Text(if (unreadNotifCount > 99) "99+" else "$unreadNotifCount", color = Color.White)
+                                    }
                                 }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = Color.LightGray
+                                )
                             }
-                        ) {
+                        } else {
                             Icon(
                                 imageVector = Icons.Default.Notifications,
                                 contentDescription = "Notifications",
@@ -870,8 +884,12 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
     }
 
     LaunchedEffect(showNewChatDialog, hasContactPermission) {
-        if (showNewChatDialog && hasContactPermission) {
-            chatViewModel.loadDeviceContacts(context)
+        if (showNewChatDialog) {
+            if (hasContactPermission) {
+                chatViewModel.loadDeviceContacts(context)
+            } else {
+                chatViewModel.loadDeviceContacts(null)
+            }
         }
     }
 

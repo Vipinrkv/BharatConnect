@@ -99,8 +99,12 @@ object ContactsManager {
                 if (p.id == currentUserId) continue // Skip self
                 p.phoneNumber?.let { num ->
                     val norm = normalizePhoneNumber(num)
+                    val fullDigits = num.filter { it.isDigit() }
                     if (norm.length >= 10) {
                         registeredPhoneMap[norm] = p
+                    }
+                    if (fullDigits.isNotEmpty()) {
+                        registeredPhoneMap[fullDigits] = p
                     }
                 }
             }
@@ -108,9 +112,11 @@ object ContactsManager {
             val matchedDevicePhones = mutableSetOf<String>()
             val updatedContacts = deviceContacts.map { contact ->
                 val norm = normalizePhoneNumber(contact.rawPhone)
-                val match = registeredPhoneMap[norm]
+                val fullDigits = contact.rawPhone.filter { it.isDigit() }
+                val match = registeredPhoneMap[norm] ?: registeredPhoneMap[fullDigits]
                 if (match != null) {
                     matchedDevicePhones.add(norm)
+                    if (fullDigits.isNotEmpty()) matchedDevicePhones.add(fullDigits)
                     registeredIdMap.add(match.id)
                     contact.copy(
                         isRegistered = true,

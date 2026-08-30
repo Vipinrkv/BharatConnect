@@ -15,4 +15,7 @@ interface ChatRepository {
     suspend fun getOrCreateDirectConversation(participantId: String, title: String): Result<Conversation>
     suspend fun subscribeToRealtime(conversationId: String)
     suspend fun unsubscribeRealtime()
+    suspend fun subscribeToGlobalUserMessages(onNewMessage: ((Message, String) -> Unit)? = null)
+    suspend fun fetchNotifications(): Result<List<com.bharatconnect.app.data.remote.dto.NotificationDto>>
+    suspend fun markNotificationsRead(): Result<Unit>
 }

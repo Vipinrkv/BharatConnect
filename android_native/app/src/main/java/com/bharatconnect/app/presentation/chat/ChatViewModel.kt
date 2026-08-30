@@ -45,12 +45,45 @@ class ChatViewModel(
     private val _isLoadingContacts = MutableStateFlow(false)
     val isLoadingContacts: StateFlow<Boolean> = _isLoadingContacts.asStateFlow()
 
+    private val _notifications = MutableStateFlow<List<com.bharatconnect.app.data.remote.dto.NotificationDto>>(emptyList())
+    val notifications: StateFlow<List<com.bharatconnect.app.data.remote.dto.NotificationDto>> = _notifications.asStateFlow()
+
     private var messageObservationJob: Job? = null
     private var realtimeJob: Job? = null
+    private var globalRealtimeJob: Job? = null
+    private val chatRepo = chatRepository
 
     init {
         observeConversations()
         refreshConversations()
+        startGlobalRealtimeListener()
+        fetchNotifications()
+    }
+
+    private fun startGlobalRealtimeListener() {
+        globalRealtimeJob?.cancel()
+        globalRealtimeJob = viewModelScope.launch {
+            chatRepo.subscribeToGlobalUserMessages { _, _ ->
+                refreshConversations()
+                fetchNotifications()
+            }
+        }
+    }
+
+    fun fetchNotifications() {
+        viewModelScope.launch {
+            val res = chatRepo.fetchNotifications()
+            res.getOrNull()?.let {
+                _notifications.value = it
+            }
+        }
+    }
+
+    fun markNotificationsRead() {
+        viewModelScope.launch {
+            chatRepo.markNotificationsRead()
+            _notifications.value = _notifications.value.map { it.copy(isRead = true) }
+        }
     }
 
     private fun observeConversations() {
@@ -94,14 +127,19 @@ class ChatViewModel(
         if (text.isBlank()) return
         viewModelScope.launch {
             sendMessageUseCase(conversationId, text)
+            refreshConversations()
         }
     }
 
-    fun loadDeviceContacts(context: android.content.Context) {
+    fun loadDeviceContacts(context: android.content.Context? = null) {
         viewModelScope.launch {
             _isLoadingContacts.value = true
             try {
-                val rawContacts = com.bharatconnect.app.core.contacts.ContactsManager.getDeviceContacts(context)
+                val rawContacts = if (context != null) {
+                    com.bharatconnect.app.core.contacts.ContactsManager.getDeviceContacts(context)
+                } else {
+                    emptyList()
+                }
                 val matchedContacts = com.bharatconnect.app.core.contacts.ContactsManager.matchRegisteredContacts(rawContacts)
                 _phoneContacts.value = matchedContacts
             } catch (_: Exception) {
@@ -123,6 +161,7 @@ class ChatViewModel(
             val result = chatRepository.getOrCreateDirectConversation(participantId, contactName)
             result.getOrNull()?.let { conv ->
                 selectConversation(conv)
+                refreshConversations()
                 onSuccess(conv)
             }
         }

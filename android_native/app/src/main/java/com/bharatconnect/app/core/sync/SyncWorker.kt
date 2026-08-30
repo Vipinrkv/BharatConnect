@@ -13,13 +13,10 @@ class SyncWorker(
     override suspend fun doWork(): Result {
         return try {
             val chatRepo = ChatRepositoryImpl()
-            val result = chatRepo.retryPendingMessages()
-
-            if (result.isSuccess) {
-                Result.success()
-            } else {
-                Result.retry()
-            }
+            chatRepo.retryPendingMessages()
+            chatRepo.fetchConversations()
+            chatRepo.fetchNotifications()
+            Result.success()
         } catch (e: Exception) {
             Result.retry()
         }

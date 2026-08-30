@@ -518,6 +518,33 @@
   - **Compilation & Test Pass**: Verified all 25 unit test suites pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone binary `BharatConnect-Native.apk` (26 MB).
 
 ---
+
+### 🔹 Entry #027 — Real-Time 1-on-1 Chat Sync, Activity Notifications & Contact Drawer Hardening
+- **Date & Time**: `2026-08-30 20:44:00 IST` (`2026-08-30T15:14:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/BharatConnectApp.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/BharatConnectApp.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/MainActivity.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/MainActivity.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/contacts/ContactsManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/contacts/ContactsManager.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/sync/SyncWorker.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/sync/SyncWorker.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/remote/dto/ChatDtos.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/remote/dto/ChatDtos.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/repository/ChatRepository.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/repository/ChatRepository.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/notifications/NotificationsScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/notifications/NotificationsScreen.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/domain/ChatUseCasesTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/domain/ChatUseCasesTest.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Real-Time 1-on-1 Chat Delivery**: Connected global Realtime listener on Supabase in `ChatRepositoryImpl.kt` and `ChatViewModel.kt`. Incoming messages for the authenticated user instantly populate Room DB (`messages` and `conversations`), reactively updating the "Individual" chats tab without manual refresh.
+  - **Bidirectional Membership & Dynamic Title Resolution**: Registered both sender and recipient in `public.conversation_members` on direct chat creation. Resolves the counterpart user's actual profile name dynamically so each user sees the other person's name as the conversation title.
+  - **Activity & Notification Pipeline**: Outgoing direct messages automatically create an entry in `public.notifications` for the recipient. Wired `NotificationsScreen.kt` and top-bar Bell icon badge with real unread counts and 1-tap "Mark Read".
+  - **Native Android Heads-Up Notifications**: Dispatches high-priority system alerts with sender name and message content via `NotificationHelper.showMessageNotification(...)`. Added Android 13+ `POST_NOTIFICATIONS` runtime permission request in `MainActivity.kt`.
+  - **Contact Drawer Hardening**: Enabled dual-key matching (10-digit standard tail and full E.164 digits) and ensured registered community members load and display at the top under "REGISTERED ON BHARATCONNECT" even when device contact permissions are not granted.
+  - **Compilation & Test Pass**: Verified all 25 unit test suites pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone binary in root and web distribution directories.
+
+---
 *(Append all future system changes below this line)*
 
 

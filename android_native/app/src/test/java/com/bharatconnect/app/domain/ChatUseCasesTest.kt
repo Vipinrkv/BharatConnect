@@ -68,6 +68,12 @@ class FakeChatRepository : ChatRepository {
     override suspend fun subscribeToRealtime(conversationId: String) {}
 
     override suspend fun unsubscribeRealtime() {}
+
+    override suspend fun subscribeToGlobalUserMessages(onNewMessage: ((Message, String) -> Unit)?) {}
+
+    override suspend fun fetchNotifications(): Result<List<com.bharatconnect.app.data.remote.dto.NotificationDto>> = Result.success(emptyList())
+
+    override suspend fun markNotificationsRead(): Result<Unit> = Result.success(Unit)
 }
 
 class ChatUseCasesTest {

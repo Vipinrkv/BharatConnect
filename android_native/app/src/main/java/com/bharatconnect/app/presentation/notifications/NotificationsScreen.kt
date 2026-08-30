@@ -37,12 +37,39 @@ data class NotificationItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(
+    chatViewModel: com.bharatconnect.app.presentation.chat.ChatViewModel,
     onBack: () -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf("all") }
+    val rawNotifications by chatViewModel.notifications.collectAsState()
 
-    val notifications = remember {
-        mutableStateListOf<NotificationItem>()
+    LaunchedEffect(Unit) {
+        chatViewModel.fetchNotifications()
+    }
+
+    val notifications = remember(rawNotifications) {
+        rawNotifications.map { dto ->
+            val icon = when (dto.category) {
+                "messages" -> Icons.Default.ChatBubble
+                "likes" -> Icons.Default.Favorite
+                else -> Icons.Default.Notifications
+            }
+            val iconBg = when (dto.category) {
+                "messages" -> ColorPrimary6367FF
+                "likes" -> Color(0xFFFF2D55)
+                else -> Color(0xFF007AFF)
+            }
+            NotificationItem(
+                id = dto.id ?: "",
+                title = dto.title,
+                description = dto.description,
+                timeAgo = dto.createdAt?.take(16) ?: "Just now",
+                category = dto.category,
+                icon = icon,
+                iconBg = iconBg,
+                isRead = dto.isRead
+            )
+        }
     }
 
     val filteredNotifications = notifications.filter {
@@ -59,10 +86,10 @@ fun NotificationsScreen(
                     }
                 },
                 actions = {
-                    if (notifications.isNotEmpty()) {
+                    if (notifications.any { !it.isRead }) {
                         TextButton(
                             onClick = {
-                                notifications.forEach { it.isRead = true }
+                                chatViewModel.markNotificationsRead()
                             }
                         ) {
                             Text("Mark Read", color = ColorPrimary6367FF, fontSize = 13.sp, fontWeight = FontWeight.Bold)
