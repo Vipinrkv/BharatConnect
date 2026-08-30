@@ -1,0 +1,18 @@
+{
+  "name": "bharatconnect-web",
+  "version": "1.0.0",
+  "description": "Minimalist landing page & APK distribution portal for BharatConnect",
+  "scripts": {
+    "deploy": "vercel --prod",
+    "preview": "npx serve ."
+  },
+  "keywords": [
+    "bharatconnect",
+    "android",
+    "jetpack-compose",
+    "social-mesh",
+    "landing-page"
+  ],
+  "author": "BharatConnect Team",
+  "license": "MIT"
+}

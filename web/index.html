@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BharatConnect — Sovereign Next-Gen Indian Social & Mesh Network</title>
+  <meta name="description" content="BharatConnect Native Android Edition: 60/120 FPS Fluid Jetpack Compose UI, 100% Offline-First Room SQLite, Supabase Realtime WebSocket engine, 7-Layer Sentinel E2E encryption, and Nearby Pulse Radar.">
+  <meta name="theme-color" content="#080a0f">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/app_logo.png">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Ambient Light Orbs -->
+  <div class="bg-ambient" aria-hidden="true">
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+    <div class="ambient-orb orb-3"></div>
+  </div>
+
+  <!-- Background Grid Texture -->
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <!-- ==========================================================================
+       HEADER & NAVIGATION BAR
+       ========================================================================== -->
+  <header class="navbar">
+    <div class="container">
+      <div class="nav-wrapper">
+        <a href="#hero" class="brand" aria-label="BharatConnect Home">
+          <div class="brand-logo">
+            <img src="assets/app_logo.png" alt="BharatConnect Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><rect width=\'100\' height=\'100\' rx=\'20\' fill=\'%230f172a\'/><text x=\'50\' y=\'65\' font-size=\'45\' text-anchor=\'middle\' fill=\'%23ff9933\'>🇮🇳</text></svg>'">
+          </div>
+          <span>BharatConnect</span>
+          <span class="brand-badge">v1.0 Native</span>
+        </a>
+
+        <nav>
+          <ul class="nav-links">
+            <li><a href="#hero" class="nav-link active">Overview</a></li>
+            <li><a href="#features" class="nav-link">Features</a></li>
+            <li><a href="#simulator" class="nav-link">Live Playground</a></li>
+            <li><a href="#architecture" class="nav-link">Architecture</a></li>
+            <li><a href="#download" class="nav-link">Download APK</a></li>
+            <li><a href="#faq" class="nav-link">FAQ</a></li>
+          </ul>
+        </nav>
+
+        <div class="nav-actions">
+          <!-- Audio Feedback Toggle -->
+          <button class="icon-btn" id="soundToggleBtn" aria-label="Toggle Sound Effects" title="Toggle Sound Feedback">
+            <svg id="soundOffIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <line x1="23" y1="9" x2="17" y2="15"></line>
+              <line x1="17" y1="9" x2="23" y2="15"></line>
+            </svg>
+            <svg id="soundOnIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+          </button>
+
+          <!-- Theme Toggle -->
+          <button class="icon-btn" id="themeToggleBtn" aria-label="Toggle Theme" title="Toggle Dark/Light Mode">
+            <svg id="themeIconSun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg id="themeIconMoon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+
+          <!-- Fast CTA -->
+          <a href="BharatConnect-Native.apk" download="BharatConnect-Native.apk" class="btn btn-primary trigger-apk-download">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Get APK</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       HERO SECTION
+       ========================================================================== -->
+  <section id="hero" class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        
+        <!-- Hero Text Content -->
+        <div class="hero-content">
+          <div class="hero-badge">
+            <span class="pulse-dot"></span>
+            <span>Native Jetpack Compose • 60/120 FPS Fluid</span>
+          </div>
+
+          <h1 class="hero-title">
+            The Sovereign Social &amp; <br>
+            <span class="text-gradient">Realtime Mesh Network.</span>
+          </h1>
+
+          <p class="hero-subtitle">
+            Engineered for high performance, zero data tracking, and uncompromising privacy. Built with 100% offline-first Room SQLite, Supabase Realtime WebSockets, Sentinel 7-Layer End-to-End Encryption, and live Nearby Discovery Radar.
+          </p>
+
+          <div class="hero-cta-group">
+            <a href="BharatConnect-Native.apk" download="BharatConnect-Native.apk" class="btn btn-primary btn-lg trigger-apk-download">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993s-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993s-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.4126 13.8533 8.0822 12 8.0822c-1.8533 0-3.5902.3304-5.1368.8675L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+              </svg>
+              <span>Download Native APK (25.4 MB)</span>
+            </a>
+
+            <a href="#simulator" class="btn btn-outline btn-lg">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="10 8 16 12 10 16 10 8"></polygon>
+              </svg>
+              <span>Explore Interactive Simulator</span>
+            </a>
+          </div>
+
+          <div class="hero-stats">
+            <div class="stat-item">
+              <span class="stat-number" data-count="25.4" data-suffix=" MB">25.4 MB</span>
+              <span class="stat-label">Ultra-Light Footprint</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-number" data-count="15" data-suffix=" ms">&lt; 15 ms</span>
+              <span class="stat-label">Realtime Latency</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-number" data-count="100" data-suffix="%">100%</span>
+              <span class="stat-label">Offline-First SQLite</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-number" data-count="0" data-suffix=" Ads">0 Ads</span>
+              <span class="stat-label">Pure Sovereign Privacy</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero 3D Interactive Phone Mockup -->
+        <div class="hero-mockup-wrapper">
+          <div class="mockup-glow" aria-hidden="true"></div>
+
+          <div class="device-phone">
+            <!-- Notch / Dynamic Island -->
+            <div class="device-notch">
+              <div class="notch-camera"></div>
+              <div class="notch-sensor"></div>
+            </div>
+
+            <!-- Interactive Screen Container -->
+            <div class="device-screen">
+              <!-- Top Status Bar -->
+              <div class="screen-status-bar">
+                <span>9:41</span>
+                <span>5G • 100% ⚡</span>
+              </div>
+
+              <!-- In-App Header -->
+              <div class="screen-app-bar">
+                <div class="app-title-area">
+                  <img src="assets/app_logo.png" alt="" class="app-icon-mini" onerror="this.style.display='none'">
+                  <span class="app-title-text">BharatConnect</span>
+                </div>
+                <div style="font-size: 0.8rem; color: #3b82f6; font-weight: 700;">🇮🇳</div>
+              </div>
+
+              <!-- Main Scrollable Screen Content Container -->
+              <div class="screen-content-box">
+                
+                <!-- VIEW 1: FEED & STORIES (Default) -->
+                <div id="screen-feed" class="screen-view active">
+                  <!-- Stories Row -->
+                  <div class="mini-stories-row">
+                    <div class="mini-story-item">
+                      <div class="story-avatar-ring my-story">
+                        <div class="story-avatar">➕</div>
+                      </div>
+                      <span class="mini-story-name">You</span>
+                    </div>
+                    <div class="mini-story-item">
+                      <div class="story-avatar-ring">
+                        <div class="story-avatar">🇮🇳</div>
+                      </div>
+                      <span class="mini-story-name">Aarav</span>
+                    </div>
+                    <div class="mini-story-item">
+                      <div class="story-avatar-ring">
+                        <div class="story-avatar">🌸</div>
+                      </div>
+                      <span class="mini-story-name">Diya</span>
+                    </div>
+                    <div class="mini-story-item">
+                      <div class="story-avatar-ring">
+                        <div class="story-avatar">⚡</div>
+                      </div>
+                      <span class="mini-story-name">Rohan</span>
+                    </div>
+                  </div>
+
+                  <!-- Feed Post 1 -->
+                  <div class="mini-feed-card">
+                    <div class="feed-header">
+                      <div class="feed-author-img">VK</div>
+                      <div>
+                        <div class="feed-author-name">Vipin Kumar</div>
+                        <div class="feed-author-tag">@vipin · Just now</div>
+                      </div>
+                    </div>
+                    <div class="feed-text">
+                      Exploring the stunning Golden Temple at sunrise. 60 FPS buttery smooth in BharatConnect! ✨
+                    </div>
+                    <div class="feed-media">
+                      <img src="assets/sunset_post.png" alt="Sunset Post" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 300 150\' fill=\'%231e293b\'><rect width=\'300\' height=\'150\'/><text x=\'50%25\' y=\'50%25\' fill=\'%23ff9933\' text-anchor=\'middle\'>🌅 Sunset View</text></svg>'">
+                    </div>
+                    <div class="feed-actions">
+                      <span>❤️ 128</span>
+                      <span>💬 24</span>
+                      <span>🔄 Share</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- VIEW 2: RADAR -->
+                <div id="screen-radar" class="screen-view">
+                  <div class="mini-radar-container">
+                    <div class="mini-radar-screen">
+                      <div class="radar-circle-ring ring-1"></div>
+                      <div class="radar-circle-ring ring-2"></div>
+                      <div class="radar-circle-ring ring-3"></div>
+                      <div class="radar-sweep-line"></div>
+                      <div class="radar-blip blip-1"></div>
+                      <div class="radar-blip blip-2"></div>
+                      <div class="radar-blip blip-3"></div>
+                      <div class="radar-center-blip"></div>
+                    </div>
+
+                    <div class="radar-card-mini">
+                      <div>
+                        <div style="font-weight:700; color:#fff;">Diya Sharma</div>
+                        <div style="font-size:0.65rem; color:#94a3b8;">1.2 km away · Online</div>
+                      </div>
+                      <button class="btn btn-primary" style="padding:4px 10px; font-size:0.68rem;">Chat</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- VIEW 3: CHAT -->
+                <div id="screen-chat" class="screen-view">
+                  <div class="mini-chat-list">
+                    <div class="chat-bubble bubble-received">
+                      Namaste! Is this 7-Layer Sentinel encrypted?
+                      <span class="chat-time">9:38 AM</span>
+                    </div>
+                    <div class="chat-bubble bubble-sent">
+                      Yes! Full end-to-end cryptographic keys stored on device. 🔐
+                      <span class="chat-time">9:39 AM · ✓✓</span>
+                    </div>
+                    <div class="chat-bubble bubble-received">
+                      Incredible speed on Supabase Realtime! 🚀
+                      <span class="chat-time">9:40 AM</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- VIEW 4: MARKETPLACE -->
+                <div id="screen-market" class="screen-view">
+                  <div class="mini-market-grid">
+                    <div class="mini-market-item">
+                      <div class="market-item-img">
+                        <img src="assets/item_iphone.png" alt="iPhone 15" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\' fill=\'%231e293b\'><text x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'%2394a3b8\'>📱 iPhone</text></svg>'">
+                      </div>
+                      <div class="market-item-title">iPhone 15 Pro</div>
+                      <div class="market-item-price">₹89,999</div>
+                    </div>
+                    <div class="mini-market-item">
+                      <div class="market-item-img">
+                        <img src="assets/item_laptop.png" alt="MacBook" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\' fill=\'%231e293b\'><text x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'%2394a3b8\'>💻 Laptop</text></svg>'">
+                      </div>
+                      <div class="market-item-title">MacBook Air M2</div>
+                      <div class="market-item-price">₹74,500</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- In-App Bottom Navigation -->
+              <div class="screen-bottom-nav">
+                <button class="screen-nav-btn active" data-target="screen-feed">
+                  <span>📰</span>
+                  <span>Feed</span>
+                </button>
+                <button class="screen-nav-btn" data-target="screen-radar">
+                  <span>📍</span>
+                  <span>Radar</span>
+                </button>
+                <button class="screen-nav-btn" data-target="screen-chat">
+                  <span>💬</span>
+                  <span>Chat</span>
+                </button>
+                <button class="screen-nav-btn" data-target="screen-market">
+                  <span>🛍️</span>
+                  <span>Market</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Mockup Screen Switcher Pills -->
+          <div class="mockup-tab-pills">
+            <button class="mockup-tab-btn active" data-target="screen-feed">📰 Feed &amp; Stories</button>
+            <button class="mockup-tab-btn" data-target="screen-radar">📍 Radar Pulse</button>
+            <button class="mockup-tab-btn" data-target="screen-chat">💬 Encrypted Chat</button>
+            <button class="mockup-tab-btn" data-target="screen-market">🛍️ Marketplace</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       FEATURES SHOWCASE GRID
+       ========================================================================== -->
+  <section id="features" class="features-section">
+    <div class="container">
+      <div class="section-header reveal-on-scroll">
+        <div class="section-tag">
+          <span>⚡ Engineered Without Compromise</span>
+        </div>
+        <h2 class="section-title">A New Era of Native Mobility</h2>
+        <p class="section-desc">
+          BharatConnect is crafted from the ground up with Kotlin Jetpack Compose and modern reactive architecture to deliver instant responses even with zero internet.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        
+        <!-- Feature 1 -->
+        <div class="feature-card reveal-on-scroll">
+          <div class="feature-icon-wrapper icon-saffron">
+            <span>🌟</span>
+          </div>
+          <h3>Stories &amp; Status Engine</h3>
+          <p>
+            Dynamic story rings on feed with 5 custom color gradients, 24-hour time-to-live expiration, and full-screen story viewer with auto-advancing progress timers.
+          </p>
+          <div class="feature-pill-list">
+            <span class="feature-pill">5 Gradient Palettes</span>
+            <span class="feature-pill">24h TTL</span>
+            <span class="feature-pill">Auto-Timer</span>
+          </div>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="feature-card reveal-on-scroll">
+          <div class="feature-icon-wrapper icon-blue">
+            <span>📍</span>
+          </div>
+          <h3>Nearby Discovery Radar</h3>
+          <p>
+            Realtime animated pulse radar scanner with radius filters (1 km, 5 km, 10 km), precise distance calculations, and instant 1-tap direct chat initiation.
+          </p>
+          <div class="feature-pill-list">
+            <span class="feature-pill">Animated Pulse</span>
+            <span class="feature-pill">Distance Calculation</span>
+            <span class="feature-pill">1-Tap Connect</span>
+          </div>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="feature-card reveal-on-scroll">
+          <div class="feature-icon-wrapper icon-emerald">
+            <span>🛡️</span>
+          </div>
+          <h3>Sentinel 7-Layer E2E Security</h3>
+          <p>
+            Complete end-to-end cryptographic envelope encryption. Private keys never leave your device, ensuring true sovereign privacy with zero server snooping.
+          </p>
+          <div class="feature-pill-list">
+            <span class="feature-pill">AES-256 GCM</span>
+            <span class="feature-pill">Zero Server Storage</span>
+            <span class="feature-pill">Self-Destruct</span>
+          </div>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="feature-card reveal-on-scroll">
+          <div class="feature-icon-wrapper icon-purple">
+            <span>🛍️</span>
+          </div>
+          <h3>Triple-Hub Marketplace</h3>
+          <p>
+            Integrated classifieds with Indian Rupee (₹) pricing, career job openings with 1-tap apply, and hyper-local quick gigs with instant payouts.
+          </p>
+          <div class="feature-pill-list">
+            <span class="feature-pill">Buy &amp; Sell (₹)</span>
+            <span class="feature-pill">Tech Jobs</span>
+            <span class="feature-pill">Quick Gigs</span>
+          </div>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="feature-card reveal-on-scroll">
+          <div class="feature-icon-wrapper icon-blue">
+            <span>💾</span>
+          </div>
+          <h3>100% Offline-First SQLite</h3>
+          <p>
+            Powered by Room SQLite database and Android WorkManager sync queue. Read, write, and chat with 0 ms UI blocking while offline; auto-syncs when online.
+          </p>
+          <div class="feature-pill-list">
+            <span class="feature-pill">Room SQLite</span>
+            <span class="feature-pill">WorkManager</span>
+            <span class="feature-pill">Conflict Resolution</span>
+          </div>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="feature-card reveal-on-scroll">
+          <div class="feature-icon-wrapper icon-rose">
+            <span>📡</span>
+          </div>
+          <h3>Realtime WebSocket Hub</h3>
+          <p>
+            Instant duplex messaging, typing indicators, live presence states, and low-latency push notifications powered by Supabase &amp; Firebase Cloud Messaging.
+          </p>
+          <div class="feature-pill-list">
+            <span class="feature-pill">WebSockets</span>
+            <span class="feature-pill">Live Presence</span>
+            <span class="feature-pill">FCM Push</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       INTERACTIVE SIMULATOR / PLAYGROUND
+       ========================================================================== -->
+  <section id="simulator" class="simulator-section">
+    <div class="container">
+      <div class="section-header reveal-on-scroll">
+        <div class="section-tag">
+          <span>🎮 Live Web Simulator</span>
+        </div>
+        <h2 class="section-title">Test BharatConnect in Realtime</h2>
+        <p class="section-desc">
+          Interact with our core subsystems directly in your browser. Experience how nearby radar scanning and encrypted messaging work in practice.
+        </p>
+      </div>
+
+      <div class="simulator-box reveal-on-scroll">
+        <!-- Simulator Window Top Bar -->
+        <div class="simulator-header">
+          <div class="simulator-dots">
+            <div class="sim-dot dot-red"></div>
+            <div class="sim-dot dot-yellow"></div>
+            <div class="sim-dot dot-green"></div>
+          </div>
+
+          <div class="sim-tabs-nav">
+            <button class="sim-tab-btn active" data-tab="tab-sim-radar">📍 Nearby Radar</button>
+            <button class="sim-tab-btn" data-tab="tab-sim-chat">💬 Sentinel Chat</button>
+            <button class="sim-tab-btn" data-tab="tab-sim-market">🛍️ Marketplace</button>
+          </div>
+
+          <div style="font-size: 0.8rem; color: #10b981; font-weight: 600; display:flex; align-items:center; gap:6px;">
+            <span class="pulse-dot"></span> Live Engine
+          </div>
+        </div>
+
+        <!-- Simulator Content Panels -->
+        <div class="simulator-body">
+          
+          <!-- TAB 1: RADAR SIMULATOR -->
+          <div id="tab-sim-radar" class="sim-panel active">
+            <div class="radar-playground-grid">
+              
+              <!-- Radar Visualizer Canvas -->
+              <div class="radar-canvas-wrap">
+                <div class="radar-circle-ring ring-1"></div>
+                <div class="radar-circle-ring ring-2"></div>
+                <div class="radar-circle-ring ring-3"></div>
+                <div class="radar-big-sweep"></div>
+
+                <!-- Interactive Blips with Distance Data -->
+                <div class="radar-interactive-blip" style="top: 28%; left: 68%;" data-name="Ananya Roy" data-dist="1.4">
+                  <div class="blip-avatar" style="background:#ff9933;">AR</div>
+                </div>
+
+                <div class="radar-interactive-blip" style="top: 72%; left: 34%;" data-name="Vikram Singh" data-dist="3.8">
+                  <div class="blip-avatar" style="background:#3b82f6;">VS</div>
+                </div>
+
+                <div class="radar-interactive-blip" style="top: 38%; left: 24%;" data-name="Priya Patel" data-dist="7.2">
+                  <div class="blip-avatar" style="background:#10b981;">PP</div>
+                </div>
+
+                <div class="radar-interactive-blip" style="top: 80%; left: 78%;" data-name="Dev Mehta" data-dist="9.1">
+                  <div class="blip-avatar" style="background:#8b5cf6;">DM</div>
+                </div>
+
+                <!-- Center User Pin -->
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 20;">
+                  <div class="radar-center-blip"></div>
+                </div>
+              </div>
+
+              <!-- Radar Controls & Discovered List -->
+              <div class="radar-controls-card">
+                <h4 style="font-size: 1.15rem; margin-bottom: 8px;">Dynamic Radius Filter</h4>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                  Adjust scan range to discover BharatConnect nodes in your immediate vicinity.
+                </p>
+
+                <div class="radius-slider-group">
+                  <div class="slider-label">
+                    <span>Search Range</span>
+                    <span id="radarRadiusVal" style="color: var(--azure); font-weight: 700;">10 km</span>
+                  </div>
+                  <input type="range" id="radarRadiusSlider" class="custom-range" min="1" max="10" value="10" step="0.5">
+                </div>
+
+                <h5 style="font-size: 0.9rem; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">
+                  Nearby Discovered Nodes (Click to Connect)
+                </h5>
+
+                <div class="nearby-list-box">
+                  <div class="nearby-user-card" data-name="Ananya Roy" data-dist="1.4">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <div class="blip-avatar" style="background:#ff9933;">AR</div>
+                      <div>
+                        <div style="font-weight: 700; font-size: 0.88rem;">Ananya Roy</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted);">UI/UX Designer · Online</div>
+                      </div>
+                    </div>
+                    <span style="font-size: 0.8rem; font-weight: 700; color: var(--emerald);">1.4 km</span>
+                  </div>
+
+                  <div class="nearby-user-card" data-name="Vikram Singh" data-dist="3.8">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <div class="blip-avatar" style="background:#3b82f6;">VS</div>
+                      <div>
+                        <div style="font-weight: 700; font-size: 0.88rem;">Vikram Singh</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted);">Android Dev · 2m ago</div>
+                      </div>
+                    </div>
+                    <span style="font-size: 0.8rem; font-weight: 700; color: var(--azure);">3.8 km</span>
+                  </div>
+
+                  <div class="nearby-user-card" data-name="Priya Patel" data-dist="7.2">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <div class="blip-avatar" style="background:#10b981;">PP</div>
+                      <div>
+                        <div style="font-weight: 700; font-size: 0.88rem;">Priya Patel</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted);">Product Manager · Online</div>
+                      </div>
+                    </div>
+                    <span style="font-size: 0.8rem; font-weight: 700; color: var(--purple);">7.2 km</span>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- TAB 2: SENTINEL CHAT SIMULATOR -->
+          <div id="tab-sim-chat" class="sim-panel">
+            <div class="chat-playground-wrapper">
+              <div class="chat-sim-header">
+                <div class="chat-user-info">
+                  <div class="chat-user-avatar">🇮🇳</div>
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.95rem;">Bharat Sentinel Channel</div>
+                    <div style="font-size: 0.72rem; color: var(--emerald); font-weight: 600;">● Active • 7-Layer E2E Protected</div>
+                  </div>
+                </div>
+                <div style="font-size: 0.8rem; padding: 4px 10px; background: rgba(59, 130, 246, 0.15); border-radius: var(--radius-full); color: var(--azure); font-weight: 600;">
+                  Live WebSocket
+                </div>
+              </div>
+
+              <div id="simChatMessages" class="chat-sim-messages">
+                <div class="chat-bubble bubble-received">
+                  <p>Namaste! Try sending a real-time message below to test our zero-lag WebSocket engine. 🙏</p>
+                  <span class="chat-time">9:41 AM</span>
+                </div>
+              </div>
+
+              <div class="chat-sim-input-bar">
+                <input type="text" id="simChatInput" class="sim-input" placeholder="Type an encrypted message..." autocomplete="off">
+                <button id="simChatSendBtn" class="btn btn-primary" style="padding: 10px 18px;">
+                  <span>Send</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: MARKETPLACE SIMULATOR -->
+          <div id="tab-sim-market" class="sim-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap:wrap; gap:10px;">
+              <div style="display:flex; gap:8px;">
+                <button class="mockup-tab-btn market-filter-btn active" data-filter="all">All Listings</button>
+                <button class="mockup-tab-btn market-filter-btn" data-filter="item">Products</button>
+                <button class="mockup-tab-btn market-filter-btn" data-filter="job">Tech Jobs</button>
+                <button class="mockup-tab-btn market-filter-btn" data-filter="gig">Quick Gigs</button>
+              </div>
+              <div style="font-size: 0.85rem; color: var(--text-muted);">
+                Localized Indian Rupee (₹) Pricing
+              </div>
+            </div>
+
+            <div class="market-playground-grid">
+              
+              <div class="market-card" data-cat="item">
+                <div class="market-card-img">
+                  <img src="assets/item_iphone.png" alt="iPhone 15 Pro" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\' fill=\'%231e293b\'><text x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'%2394a3b8\'>📱 iPhone 15 Pro</text></svg>'">
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span style="font-weight: 700; font-size: 0.95rem;">iPhone 15 Pro (256GB)</span>
+                  <span style="font-weight: 800; color: var(--emerald);">₹89,999</span>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">New Delhi · Battery Health 100%</div>
+                <button class="btn btn-outline" style="width: 100%; font-size: 0.8rem; padding: 6px;" onclick="showToast('Contacting seller via Encrypted Chat...')">Contact Seller</button>
+              </div>
+
+              <div class="market-card" data-cat="item">
+                <div class="market-card-img">
+                  <img src="assets/item_laptop.png" alt="MacBook M2" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\' fill=\'%231e293b\'><text x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'%2394a3b8\'>💻 MacBook M2</text></svg>'">
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span style="font-weight: 700; font-size: 0.95rem;">MacBook Air M2 16GB</span>
+                  <span style="font-weight: 800; color: var(--emerald);">₹74,500</span>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">Bengaluru · Mint Condition with Bill</div>
+                <button class="btn btn-outline" style="width: 100%; font-size: 0.8rem; padding: 6px;" onclick="showToast('Contacting seller via Encrypted Chat...')">Contact Seller</button>
+              </div>
+
+              <div class="market-card" data-cat="job">
+                <div class="market-card-img" style="display:flex; align-items:center; justify-content:center; background:#1e293b; color:#3b82f6; font-size:2.5rem;">
+                  💼
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span style="font-weight: 700; font-size: 0.95rem;">Sr. Android Compose Dev</span>
+                  <span style="font-weight: 800; color: var(--azure);">₹24-35 LPA</span>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">Remote · Full-time · Kotlin MVVM</div>
+                <button class="btn btn-primary" style="width: 100%; font-size: 0.8rem; padding: 6px;" onclick="showToast('1-Tap Application Submitted with your BharatConnect Profile!')">1-Tap Apply</button>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       TECHNICAL ARCHITECTURE SECTION
+       ========================================================================== -->
+  <section id="architecture" class="tech-section">
+    <div class="container">
+      <div class="section-header reveal-on-scroll">
+        <div class="section-tag">
+          <span>🛠️ Production Architecture</span>
+        </div>
+        <h2 class="section-title">Built on Modern Industry Standards</h2>
+        <p class="section-desc">
+          Engineered using a strict Clean Architecture separation of concerns: Domain Use Cases, Room SQLite persistence, and Supabase GoTrue Realtime Cloud.
+        </p>
+      </div>
+
+      <div class="tech-grid reveal-on-scroll">
+        
+        <div class="tech-card">
+          <div class="tech-logo-icon">🚀</div>
+          <h4>Kotlin &amp; Compose</h4>
+          <span>Jetpack Compose Material 3 with 120 FPS buttery rendering</span>
+        </div>
+
+        <div class="tech-card">
+          <div class="tech-logo-icon">🗄️</div>
+          <h4>Room SQLite Cache</h4>
+          <span>5 local entity tables for instant offline read and write</span>
+        </div>
+
+        <div class="tech-card">
+          <div class="tech-logo-icon">⚡</div>
+          <h4>Supabase Realtime</h4>
+          <span>PostgREST APIs &amp; low-latency WebSocket duplex sync</span>
+        </div>
+
+        <div class="tech-card">
+          <div class="tech-logo-icon">🔄</div>
+          <h4>Android WorkManager</h4>
+          <span>Guaranteed idempotent background sync &amp; delta conflict resolution</span>
+        </div>
+
+        <div class="tech-card">
+          <div class="tech-logo-icon">📸</div>
+          <h4>Coil + Cloudinary</h4>
+          <span>On-device auto image compression &amp; instant CDN distribution</span>
+        </div>
+
+        <div class="tech-card">
+          <div class="tech-logo-icon">🔔</div>
+          <h4>FCM Cloud Push</h4>
+          <span>High-priority push notifications with background wakeup</span>
+        </div>
+
+        <div class="tech-card">
+          <div class="tech-logo-icon">🔐</div>
+          <h4>Sentinel E2E Layer</h4>
+          <span>Client-side AES cryptographic handshake &amp; zero-trust payload</span>
+        </div>
+
+        <div class="tech-card">
+          <div class="tech-logo-icon">🛡️</div>
+          <h4>Row Level Security</h4>
+          <span>PostgreSQL 13 RLS security policies enforced at database level</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       HEROIC APK DOWNLOAD CENTER
+       ========================================================================== -->
+  <section id="download" class="download-section">
+    <div class="container">
+      <div class="download-hero-card reveal-on-scroll">
+        <div class="download-grid">
+          
+          <!-- Download Info & Direct Action -->
+          <div>
+            <div class="section-tag" style="margin-bottom: 12px;">
+              <span>📱 Standalone Binary</span>
+            </div>
+            <h2 class="download-title">Get BharatConnect for Android</h2>
+            <p class="download-desc">
+              Download the standalone compiled native Android APK directly to your phone or tablet. Fast, lightweight, zero bloatware.
+            </p>
+
+            <div class="download-action-wrap">
+              <a href="BharatConnect-Native.apk" download="BharatConnect-Native.apk" class="direct-download-btn trigger-apk-download">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993s-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993s-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.4126 13.8533 8.0822 12 8.0822c-1.8533 0-3.5902.3304-5.1368.8675L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+                </svg>
+                <span>Download BharatConnect-Native.apk</span>
+              </a>
+
+              <div class="apk-meta-row">
+                <div class="apk-meta-item">
+                  <span>🏷️ <strong>Version:</strong> v1.0.0-native</span>
+                </div>
+                <div class="apk-meta-item">
+                  <span>📦 <strong>Size:</strong> ~25.4 MB</span>
+                </div>
+                <div class="apk-meta-item">
+                  <span>📱 <strong>OS:</strong> Android 8.0+ (Oreo to 15+)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Integrity Hash -->
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary);">
+                <strong style="color: var(--azure);">SHA-256:</strong> e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+              </div>
+              <button id="copyHashBtn" class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75rem;">Copy Hash</button>
+            </div>
+          </div>
+
+          <!-- Scan to Download QR Code -->
+          <div class="download-qr-box">
+            <div class="qr-canvas-frame">
+              <canvas id="qrCodeCanvas" width="180" height="180"></canvas>
+            </div>
+            <div class="qr-caption">Scan with Phone Camera</div>
+            <div class="qr-subtext">Instant direct download to your Android mobile device</div>
+          </div>
+
+        </div>
+
+        <!-- 3-Step Install Guide -->
+        <div class="install-steps-wrap">
+          <h4 style="font-size: 1.15rem; margin-bottom: 20px; text-align: center;">Simple 3-Step Installation Guide</h4>
+          
+          <div class="install-steps-grid">
+            <div class="install-step-card">
+              <div class="step-num-badge">1</div>
+              <h4>Download the APK</h4>
+              <p>Click the download button above or scan the QR code to save <code>BharatConnect-Native.apk</code> to your device.</p>
+            </div>
+
+            <div class="install-step-card">
+              <div class="step-num-badge">2</div>
+              <h4>Allow Unknown Sources</h4>
+              <p>When prompted by Android, tap <em>Settings</em> and enable <em>"Allow from this source"</em> for your browser or file manager.</p>
+            </div>
+
+            <div class="install-step-card">
+              <div class="step-num-badge">3</div>
+              <h4>Launch &amp; Connect</h4>
+              <p>Tap <em>Install</em>, open BharatConnect, create your profile, and start discovering connections on the mesh!</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       FREQUENTLY ASKED QUESTIONS (FAQ)
+       ========================================================================== -->
+  <section id="faq" class="faq-section">
+    <div class="container">
+      <div class="section-header reveal-on-scroll">
+        <div class="section-tag">
+          <span>💡 Got Questions?</span>
+        </div>
+        <h2 class="section-title">Frequently Asked Questions</h2>
+        <p class="section-desc">
+          Learn more about BharatConnect's offline mechanics, cryptographic security, and Android compatibility.
+        </p>
+      </div>
+
+      <div class="faq-list reveal-on-scroll">
+        
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Is BharatConnect completely free to use?</span>
+            <span class="faq-chevron">▼</span>
+          </button>
+          <div class="faq-answer">
+            Yes! BharatConnect is built as an open, sovereign community platform. There are no subscriptions, no ads, and no selling of user behavioral data.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>How does the 100% Offline-First architecture work?</span>
+            <span class="faq-chevron">▼</span>
+          </button>
+          <div class="faq-answer">
+            All feed posts, messages, user profiles, and conversations are stored locally on your device in a high-speed Room SQLite database. When you compose posts or send messages offline, they are queued instantly and synced seamlessly in the background via Android WorkManager as soon as network connectivity is restored.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>How does Sentinel 7-Layer End-to-End Encryption protect my chats?</span>
+            <span class="faq-chevron">▼</span>
+          </button>
+          <div class="faq-answer">
+            Every direct conversation generates a local cryptographic key pair using AES-256 GCM. Messages are encrypted locally on the sender's device before transmission and can only be decrypted by the intended recipient's device. No plaintext is ever accessible to intermediate servers or third parties.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>What Android versions are supported?</span>
+            <span class="faq-chevron">▼</span>
+          </button>
+          <div class="faq-answer">
+            BharatConnect supports Android 8.0 (API Level 26 - Oreo) all the way up to Android 15. The APK contains native multi-architecture binaries compiled for ARM64 (arm64-v8a), ARMv7 (armeabi-v7a), and x86_64 devices.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Can I build and compile the APK from source code myself?</span>
+            <span class="faq-chevron">▼</span>
+          </button>
+          <div class="faq-answer">
+            Absolutely! On Windows, simply run the included <code>build_native_apk.bat</code> script in the repository root. Gradle will automatically compile the Kotlin Jetpack Compose project and package the final binary.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       FOOTER
+       ========================================================================== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        
+        <div class="footer-brand-col">
+          <div class="brand">
+            <div class="brand-logo">
+              <img src="assets/app_logo.png" alt="BharatConnect" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><text x=\'50\' y=\'65\' font-size=\'45\' text-anchor=\'middle\'>🇮🇳</text></svg>'">
+            </div>
+            <span>BharatConnect</span>
+          </div>
+          <p>
+            The sovereign Indian social and realtime mesh ecosystem. Built for resilience, privacy, and ultra-high speed.
+          </p>
+          <div style="margin-top: 16px; font-size: 0.85rem; color: var(--emerald); font-weight: 600;">
+            🇮🇳 Made with pride for Bharat
+          </div>
+        </div>
+
+        <div class="footer-col">
+          <h5>Subsystems</h5>
+          <ul>
+            <li><a href="#features">Stories &amp; Status</a></li>
+            <li><a href="#features">Nearby Pulse Radar</a></li>
+            <li><a href="#features">Encrypted Chat Hub</a></li>
+            <li><a href="#features">Marketplace &amp; Jobs</a></li>
+            <li><a href="#features">Sentinel Security</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Architecture</h5>
+          <ul>
+            <li><a href="#architecture">Kotlin &amp; Compose</a></li>
+            <li><a href="#architecture">Room SQLite Cache</a></li>
+            <li><a href="#architecture">Supabase Realtime</a></li>
+            <li><a href="#architecture">Android WorkManager</a></li>
+            <li><a href="#architecture">Cloudinary Media Engine</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Download</h5>
+          <ul>
+            <li><a href="BharatConnect-Native.apk" download="BharatConnect-Native.apk" class="trigger-apk-download">Download APK (~25.4 MB)</a></li>
+            <li><a href="#download">Scan QR Code</a></li>
+            <li><a href="#download">Installation Steps</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          &copy; 2026 BharatConnect. All rights reserved. Sovereign Open Mesh.
+        </div>
+        <div style="display:flex; gap: 16px;">
+          <span>Version: 1.0.0-native</span>
+          <span>•</span>
+          <span>Status: All Systems Operational 🟢</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
