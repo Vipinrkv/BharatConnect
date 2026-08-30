@@ -1435,6 +1435,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                         contactSearchQuery.isBlank() ||
                         it.name.contains(contactSearchQuery, ignoreCase = true) ||
                         it.rawPhone.contains(contactSearchQuery) ||
+                        (it.username != null && it.username.contains(contactSearchQuery, ignoreCase = true)) ||
                         (queryDigits.isNotEmpty() && (it.normalizedPhone.contains(queryDigits) || it.rawPhone.filter { c -> c.isDigit() }.contains(queryDigits)))
                     )
                 }
@@ -1445,6 +1446,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                         contactSearchQuery.isBlank() ||
                         it.name.contains(contactSearchQuery, ignoreCase = true) ||
                         it.rawPhone.contains(contactSearchQuery) ||
+                        (it.username != null && it.username.contains(contactSearchQuery, ignoreCase = true)) ||
                         (queryDigits.isNotEmpty() && (it.normalizedPhone.contains(queryDigits) || it.rawPhone.filter { c -> c.isDigit() }.contains(queryDigits)))
                     )
                 }
@@ -1473,7 +1475,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                         Column {
                             Text("Select Contact", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             Text(
-                                text = if (hasContactPermission) "${phoneContacts.size} contacts found in phonebook" else "Contacts permission required",
+                                text = "${registeredContacts.size} registered members available",
                                 color = Color.Gray,
                                 fontSize = 12.sp
                             )
@@ -1483,72 +1485,65 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                         }
                     }
 
+                    // Search Bar - ALWAYS available
+                    OutlinedTextField(
+                        value = contactSearchQuery,
+                        onValueChange = { contactSearchQuery = it },
+                        placeholder = { Text("Search name, @username, or phone number...", color = Color.Gray, fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFF16142E),
+                            unfocusedContainerColor = Color(0xFF16142E),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = ColorPrimary6367FF,
+                            unfocusedBorderColor = Color(0xFF2C2856)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                    )
+
                     if (!hasContactPermission) {
-                        // Permission Request Card
+                        // Phonebook Sync Banner
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1840)),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 24.dp)
+                                .padding(vertical = 4.dp)
                         ) {
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(56.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF2B255F)),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.Contacts, contentDescription = null, tint = ColorPrimary6367FF, modifier = Modifier.size(28.dp))
+                                    Icon(Icons.Default.Contacts, contentDescription = null, tint = ColorPrimary6367FF, modifier = Modifier.size(24.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text("Sync Device Contacts", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text("Find phonebook friends & invite via SMS", color = Color.LightGray, fontSize = 11.sp)
+                                    }
                                 }
-                                Spacer(modifier = Modifier.height(14.dp))
-                                Text("Sync Device Phonebook", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = "Allow BharatConnect to find your friends on the app and send instant SMS invites with their phonebook names.",
-                                    color = Color.LightGray,
-                                    fontSize = 13.sp,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                                Spacer(modifier = Modifier.height(18.dp))
                                 Button(
                                     onClick = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
                                     colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                                 ) {
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Allow Access", fontWeight = FontWeight.Bold)
+                                    Text("Sync", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
-                    } else {
-                        // Search Bar
-                        OutlinedTextField(
-                            value = contactSearchQuery,
-                            onValueChange = { contactSearchQuery = it },
-                            placeholder = { Text("Search name or phone number...", color = Color.Gray, fontSize = 13.sp) },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
-                            singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFF16142E),
-                                unfocusedContainerColor = Color(0xFF16142E),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = ColorPrimary6367FF,
-                                unfocusedBorderColor = Color(0xFF2C2856)
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                        )
+                    }
 
                         if (isLoadingContacts) {
                             Box(
@@ -1724,7 +1719,6 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
             }
         }
     }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

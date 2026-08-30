@@ -176,13 +176,9 @@ class ChatRepositoryImpl : ChatRepository {
                 createdAt = timestamp
             )
 
-            val inserted = supabase.postgrest["messages"]
-                .upsert(messageDto) {
-                    select()
-                }
-                .decodeSingle<MessageDto>()
+            supabase.postgrest["messages"].upsert(messageDto)
 
-            val finalMessage = inserted.toDomain()
+            val finalMessage = messageDto.toDomain()
             // 3. Mark synced in Room DB
             messageDao.updateMessageStatus(messageId, "sent", false)
 
@@ -325,9 +321,11 @@ class ChatRepositoryImpl : ChatRepository {
             val channel = supabase.realtime.channel("messages_$conversationId")
             activeRealtimeChannel = channel
 
+            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "messages"
+            }
             channel.subscribe()
 
-            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public")
             changeFlow.collect { action: PostgresAction ->
                 when (action) {
                     is PostgresAction.Insert -> {
@@ -379,9 +377,12 @@ class ChatRepositoryImpl : ChatRepository {
 
             val channel = supabase.realtime.channel("global_user_$currentUserId")
             globalRealtimeChannel = channel
+
+            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "messages"
+            }
             channel.subscribe()
 
-            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public")
             changeFlow.collect { action: PostgresAction ->
                 when (action) {
                     is PostgresAction.Insert -> {

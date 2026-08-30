@@ -18,7 +18,8 @@ data class PhoneContact(
     val normalizedPhone: String,
     val isRegistered: Boolean = false,
     val registeredUserId: String? = null,
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+    val username: String? = null
 )
 
 object ContactsManager {
@@ -28,7 +29,7 @@ object ContactsManager {
      * Preserves the authoritative contact name from the user's phonebook.
      */
     suspend fun getDeviceContacts(context: Context): List<PhoneContact> = withContext(Dispatchers.IO) {
-        val contactsMap = mutableMapOf<String, PhoneContact>()
+        val contactsMap = LinkedHashMap<String, PhoneContact>()
         val contentResolver = context.contentResolver
 
         val projection = arrayOf(
@@ -58,8 +59,9 @@ object ContactsManager {
                     val rawNumber = if (numberIndex >= 0) it.getString(numberIndex) ?: "" else ""
                     val normalized = normalizePhoneNumber(rawNumber)
 
-                    if (normalized.length >= 10 && !contactsMap.containsKey(normalized)) {
-                        contactsMap[normalized] = PhoneContact(
+                    val key = if (normalized.isNotBlank()) normalized else rawNumber.trim()
+                    if (key.isNotBlank() && !contactsMap.containsKey(key)) {
+                        contactsMap[key] = PhoneContact(
                             id = id,
                             name = name,
                             rawPhone = rawNumber,
@@ -121,30 +123,39 @@ object ContactsManager {
                     contact.copy(
                         isRegistered = true,
                         registeredUserId = match.id,
-                        avatarUrl = match.avatarUrl
+                        avatarUrl = match.avatarUrl,
+                        username = match.username
                     )
                 } else {
                     contact.copy(isRegistered = false)
                 }
             }.toMutableList()
 
-            // Also include registered BharatConnect members not in device phonebook
+            // Also include ALL registered BharatConnect members not in device phonebook
             for (p in remoteProfiles) {
                 if (p.id == currentUserId) continue
-                val norm = p.phoneNumber?.let { normalizePhoneNumber(it) }.orEmpty()
-                if (norm.isNotEmpty() && !matchedDevicePhones.contains(norm) && !registeredIdMap.contains(p.id)) {
+                if (!registeredIdMap.contains(p.id)) {
                     val displayName = p.fullName?.takeIf { it.isNotBlank() }
                         ?: p.username?.takeIf { it.isNotBlank() }
                         ?: "BharatConnect Member"
+                    val displaySubtitle = if (!p.username.isNullOrBlank()) {
+                        "@${p.username}"
+                    } else if (!p.phoneNumber.isNullOrBlank()) {
+                        p.phoneNumber
+                    } else {
+                        "Registered Member"
+                    }
+                    val norm = p.phoneNumber?.let { normalizePhoneNumber(it) }.orEmpty()
                     updatedContacts.add(
                         PhoneContact(
                             id = p.id,
                             name = displayName,
-                            rawPhone = p.phoneNumber ?: "",
+                            rawPhone = displaySubtitle,
                             normalizedPhone = norm,
                             isRegistered = true,
                             registeredUserId = p.id,
-                            avatarUrl = p.avatarUrl
+                            avatarUrl = p.avatarUrl,
+                            username = p.username
                         )
                     )
                     registeredIdMap.add(p.id)
