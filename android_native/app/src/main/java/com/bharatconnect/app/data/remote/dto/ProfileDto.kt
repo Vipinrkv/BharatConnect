@@ -20,7 +20,11 @@ data class ProfileDto(
     @SerialName("is_online")
     val isOnline: Boolean? = false,
     @SerialName("created_at")
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    @SerialName("last_seen")
+    val lastSeen: String? = null,
+    @SerialName("updated_at")
+    val updatedAt: String? = null
 ) {
     fun toDomain(overrideEmail: String? = null): UserProfile {
         return UserProfile(

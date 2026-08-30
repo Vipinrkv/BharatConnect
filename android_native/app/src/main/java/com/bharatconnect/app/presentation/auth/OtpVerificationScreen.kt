@@ -391,12 +391,44 @@ fun OtpVerificationScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Spam & Delivery Notice Card
+            Surface(
+                color = Color(0xFF140F26),
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF262347)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "💡 Tip: Supabase emails may take 1-2 minutes to arrive. Please be sure to check your Spam, Junk, or Promotions tab.",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = "Wrong email address? Change Email",
                 color = Color.Gray,
                 fontSize = 12.sp,
+                modifier = Modifier.clickable {
+                    authViewModel.clearError()
+                    onNavigateBack()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Already have an account? Sign In",
+                color = Color(0xFF818CF8),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clickable {
                     authViewModel.clearError()
                     onNavigateBack()

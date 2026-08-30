@@ -8,8 +8,8 @@ import com.bharatconnect.app.core.network.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
+import com.bharatconnect.app.data.remote.dto.ProfileDto
+import io.github.jan.supabase.gotrue.auth
 
 data class PhoneContact(
     val id: String,
@@ -18,17 +18,6 @@ data class PhoneContact(
     val normalizedPhone: String,
     val isRegistered: Boolean = false,
     val registeredUserId: String? = null,
-    val avatarUrl: String? = null
-)
-
-@Serializable
-private data class ProfilePhoneDto(
-    val id: String,
-    @SerialName("full_name")
-    val fullName: String? = null,
-    @SerialName("phone_number")
-    val phoneNumber: String? = null,
-    @SerialName("avatar_url")
     val avatarUrl: String? = null
 )
 
@@ -88,29 +77,41 @@ object ContactsManager {
     /**
      * Cross-references device contacts with Supabase registered users.
      * Registered users are marked with isRegistered = true, registeredUserId, and avatarUrl.
+     * Always sorts registered users to the top with direct chat capability.
      */
     suspend fun matchRegisteredContacts(deviceContacts: List<PhoneContact>): List<PhoneContact> = withContext(Dispatchers.IO) {
-        if (deviceContacts.isEmpty()) return@withContext emptyList()
-
         try {
             val supabase = SupabaseClient.client
-            val remoteProfiles = supabase.postgrest["profiles"]
-                .select()
-                .decodeList<ProfilePhoneDto>()
+            val currentUserId = supabase.auth.currentUserOrNull()?.id
 
-            val registeredPhoneMap = mutableMapOf<String, ProfilePhoneDto>()
+            val remoteProfiles = try {
+                supabase.postgrest["profiles"]
+                    .select()
+                    .decodeList<ProfileDto>()
+            } catch (e: Exception) {
+                android.util.Log.e("ContactsManager", "Failed to decode remote profiles", e)
+                emptyList()
+            }
+
+            val registeredPhoneMap = mutableMapOf<String, ProfileDto>()
+            val registeredIdMap = mutableSetOf<String>()
             for (p in remoteProfiles) {
+                if (p.id == currentUserId) continue // Skip self
                 p.phoneNumber?.let { num ->
                     val norm = normalizePhoneNumber(num)
-                    if (norm.isNotEmpty()) {
+                    if (norm.length >= 10) {
                         registeredPhoneMap[norm] = p
                     }
                 }
             }
 
-            deviceContacts.map { contact ->
-                val match = registeredPhoneMap[contact.normalizedPhone]
+            val matchedDevicePhones = mutableSetOf<String>()
+            val updatedContacts = deviceContacts.map { contact ->
+                val norm = normalizePhoneNumber(contact.rawPhone)
+                val match = registeredPhoneMap[norm]
                 if (match != null) {
+                    matchedDevicePhones.add(norm)
+                    registeredIdMap.add(match.id)
                     contact.copy(
                         isRegistered = true,
                         registeredUserId = match.id,
@@ -119,29 +120,52 @@ object ContactsManager {
                 } else {
                     contact.copy(isRegistered = false)
                 }
-            }.sortedWith(
+            }.toMutableList()
+
+            // Also include registered BharatConnect members not in device phonebook
+            for (p in remoteProfiles) {
+                if (p.id == currentUserId) continue
+                val norm = p.phoneNumber?.let { normalizePhoneNumber(it) }.orEmpty()
+                if (norm.isNotEmpty() && !matchedDevicePhones.contains(norm) && !registeredIdMap.contains(p.id)) {
+                    val displayName = p.fullName?.takeIf { it.isNotBlank() }
+                        ?: p.username?.takeIf { it.isNotBlank() }
+                        ?: "BharatConnect Member"
+                    updatedContacts.add(
+                        PhoneContact(
+                            id = p.id,
+                            name = displayName,
+                            rawPhone = p.phoneNumber ?: "",
+                            normalizedPhone = norm,
+                            isRegistered = true,
+                            registeredUserId = p.id,
+                            avatarUrl = p.avatarUrl
+                        )
+                    )
+                    registeredIdMap.add(p.id)
+                }
+            }
+
+            updatedContacts.sortedWith(
                 compareByDescending<PhoneContact> { it.isRegistered }
                     .thenBy { it.name.lowercase() }
             )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.e("ContactsManager", "Error in matchRegisteredContacts", e)
             deviceContacts.sortedBy { it.name.lowercase() }
         }
     }
 
     /**
      * Normalizes phone number to 10-digit Indian standard / international format.
-     * Strips +91, leading 0, spaces, dashes, and special characters.
+     * Takes the last 10 digits to cleanly bridge +91, 0, and un-prefixed numbers.
      */
     fun normalizePhoneNumber(phone: String): String {
-        var clean = phone.replace("[^0-9+]".toRegex(), "")
-        if (clean.startsWith("+91")) {
-            clean = clean.substring(3)
-        } else if (clean.startsWith("91") && clean.length == 12) {
-            clean = clean.substring(2)
-        } else if (clean.startsWith("0") && clean.length == 11) {
-            clean = clean.substring(1)
+        val digitsOnly = phone.filter { it.isDigit() }
+        return if (digitsOnly.length >= 10) {
+            digitsOnly.takeLast(10)
+        } else {
+            digitsOnly
         }
-        return clean.replace("+", "").trim()
     }
 
     /**

@@ -85,6 +85,27 @@ class AuthRepositoryImpl : AuthRepository {
             val trimmedDob = dob?.trim()
             val trimmedAvatar = avatarUrl?.trim()
 
+            // 1. Check if email or username is already registered in profiles
+            val existingProfile = try {
+                supabase.postgrest["profiles"].select {
+                    filter {
+                        or {
+                            eq("email", trimmedEmail)
+                            eq("username", trimmedUsername)
+                        }
+                    }
+                }.decodeSingleOrNull<ProfileDto>()
+            } catch (_: Exception) {
+                null
+            }
+
+            if (existingProfile != null) {
+                val conflictField = if (existingProfile.email.equals(trimmedEmail, ignoreCase = true)) "email '$trimmedEmail'" else "username '@$trimmedUsername'"
+                return@withContext Result.failure(
+                    Exception("An account with this $conflictField is already registered. Please sign in or use Forgot Password.")
+                )
+            }
+
             supabase.auth.signUpWith(Email, redirectUrl = SupabaseClient.AUTH_REDIRECT_URL) {
                 this.email = trimmedEmail
                 this.password = password

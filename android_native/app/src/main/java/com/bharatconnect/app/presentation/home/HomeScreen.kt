@@ -1410,14 +1410,25 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
         // ==================== PHONEBOOK CONTACT PICKER BOTTOM SHEET ====================
         if (showNewChatDialog) {
             var contactSearchQuery by remember { mutableStateOf("") }
-            val registeredContacts = remember(phoneContacts, contactSearchQuery) {
+            val queryDigits = remember(contactSearchQuery) { contactSearchQuery.filter { it.isDigit() } }
+            val registeredContacts = remember(phoneContacts, contactSearchQuery, queryDigits) {
                 phoneContacts.filter {
-                    it.isRegistered && (contactSearchQuery.isBlank() || it.name.contains(contactSearchQuery, ignoreCase = true) || it.rawPhone.contains(contactSearchQuery))
+                    it.isRegistered && (
+                        contactSearchQuery.isBlank() ||
+                        it.name.contains(contactSearchQuery, ignoreCase = true) ||
+                        it.rawPhone.contains(contactSearchQuery) ||
+                        (queryDigits.isNotEmpty() && (it.normalizedPhone.contains(queryDigits) || it.rawPhone.filter { c -> c.isDigit() }.contains(queryDigits)))
+                    )
                 }
             }
-            val unregisteredContacts = remember(phoneContacts, contactSearchQuery) {
+            val unregisteredContacts = remember(phoneContacts, contactSearchQuery, queryDigits) {
                 phoneContacts.filter {
-                    !it.isRegistered && (contactSearchQuery.isBlank() || it.name.contains(contactSearchQuery, ignoreCase = true) || it.rawPhone.contains(contactSearchQuery))
+                    !it.isRegistered && (
+                        contactSearchQuery.isBlank() ||
+                        it.name.contains(contactSearchQuery, ignoreCase = true) ||
+                        it.rawPhone.contains(contactSearchQuery) ||
+                        (queryDigits.isNotEmpty() && (it.normalizedPhone.contains(queryDigits) || it.rawPhone.filter { c -> c.isDigit() }.contains(queryDigits)))
+                    )
                 }
             }
 

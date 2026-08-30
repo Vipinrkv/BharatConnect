@@ -487,6 +487,37 @@
   - **FastAPI Health & Webhook Service**: Added lightweight FastAPI service in `backend/server.py` with `/` (app info), `/health` (system uptime check), and `/api/info` endpoints for cloud hosting environments and monitoring.
 
 ---
+
+### 🔹 Entry #025 — Registration OTP Diagnosis, Existing Account Handling & Delivery Hardening
+- **Date & Time**: `2026-08-30 19:32:00 IST` (`2026-08-30T14:02:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/OtpVerificationScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/OtpVerificationScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Existing Profile Pre-Check**: Added proactive `profiles` database check on registration so users attempting to register with an already-registered email/username are immediately alerted and guided to sign in, rather than trapped on an impossible OTP screen.
+  - **OTP UI Spam & Delivery Guidance**: Added a dedicated spam/promotions folder delivery notice and a direct "Already have an account? Sign In" action to `OtpVerificationScreen.kt`.
+  - **Compilation & Test Pass**: Verified all 25 unit test suites pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated root standalone binary `BharatConnect-Native.apk` (26 MB).
+
+---
+
+### 🔹 Entry #026 — Registered Contact Matching Fix & Top Priority Chat Action
+- **Date & Time**: `2026-08-30 20:05:00 IST` (`2026-08-30T14:35:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/remote/dto/ProfileDto.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/remote/dto/ProfileDto.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/contacts/ContactsManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/contacts/ContactsManager.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Serialization Crash Resolved in PostgREST Query**: Replaced incomplete private DTO in `ContactsManager.kt` with full `ProfileDto` (adding `last_seen` and `updated_at` mapping), eliminating the silent `SerializationException` on unknown keys that previously caused all contacts to default to unregistered.
+  - **10-Digit Standard Phone Matching**: Enhanced `normalizePhoneNumber` to extract and match standard 10-digit phone tails (`filter { it.isDigit() }.takeLast(10)`), seamlessly bridging `+91`, country code, 0 prefix, and spacing variations between device contacts and database profiles.
+  - **Registered Users Displayed at Top**: Ensured registered contacts are matched and sorted directly to the top under **"REGISTERED ON BHARATCONNECT"** with the **[Chat]** button and green verification indicator, while unregistered phonebook entries remain below under **"INVITE TO BHARATCONNECT"** with the **[Invite]** SMS button.
+  - **Community Member Discovery**: Included registered BharatConnect members not in the user's phonebook into the registered section for 1-tap instant messaging.
+  - **Compilation & Test Pass**: Verified all 25 unit test suites pass cleanly (`./gradlew testDebugUnitTest`); recompiled and updated standalone binary `BharatConnect-Native.apk` (26 MB).
+
+---
 *(Append all future system changes below this line)*
 
 
