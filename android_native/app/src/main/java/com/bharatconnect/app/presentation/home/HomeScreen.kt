@@ -1816,6 +1816,31 @@ fun ChatDetailScreen(
     var showAttachmentSheet by remember { mutableStateOf(false) }
     var showEmojiDrawer by remember { mutableStateOf(false) }
     var showCallNoticeDialog by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+    var isUploadingMedia by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        if (uri != null) {
+            isUploadingMedia = true
+            Toast.makeText(context, "Uploading image...", Toast.LENGTH_SHORT).show()
+            coroutineScope.launch {
+                val uploadResult = CloudinaryManager.uploadMedia(context, uri, "image/jpeg")
+                isUploadingMedia = false
+                uploadResult.onSuccess { mediaUrl ->
+                    chatViewModel.sendMessage(
+                        conversationId = conversation.id,
+                        text = "📷 Photo",
+                        mediaUrl = mediaUrl,
+                        mediaType = "image/jpeg"
+                    )
+                }.onFailure { err ->
+                    Toast.makeText(context, "Upload failed: ${err.message ?: "Network error"}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     val emojiCategories = remember {
         listOf(
@@ -1962,8 +1987,25 @@ fun ChatDetailScreen(
                             shape = RoundedCornerShape(14.dp)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                Text(msg.content, color = Color.White, fontSize = 14.sp)
-                                Spacer(modifier = Modifier.height(2.dp))
+                                if (!msg.mediaUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(msg.mediaUrl)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "Photo message",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = 240.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                }
+                                if (msg.content.isNotBlank() && (msg.mediaUrl.isNullOrBlank() || msg.content != "📷 Photo")) {
+                                    Text(msg.content, color = Color.White, fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.End
@@ -2058,6 +2100,28 @@ fun ChatDetailScreen(
                 }
             }
 
+            if (isUploadingMedia) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF14122A))
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = ColorPrimary6367FF
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Uploading media...",
+                        color = Color.LightGray,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
             // Chat Input Bar
             Surface(
                 color = Color(0xFF0F0D24),
@@ -2078,6 +2142,7 @@ fun ChatDetailScreen(
                         onValueChange = { inputText = it },
                         placeholder = { Text("Message...", color = Color.Gray) },
                         modifier = Modifier.weight(1f),
+                        maxLines = 4,
                         shape = RoundedCornerShape(24.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
@@ -2148,8 +2213,13 @@ fun ChatDetailScreen(
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.clickable {
-                                chatViewModel.sendMessage(conversation.id, "📎 Shared $label")
-                                showAttachmentSheet = false
+                                if (label == "Camera" || label == "Gallery") {
+                                    imagePickerLauncher.launch("image/*")
+                                    showAttachmentSheet = false
+                                } else {
+                                    chatViewModel.sendMessage(conversation.id, "📎 Shared $label")
+                                    showAttachmentSheet = false
+                                }
                             }
                         ) {
                             Box(

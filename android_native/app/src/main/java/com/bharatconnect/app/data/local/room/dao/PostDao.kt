@@ -13,6 +13,9 @@ interface PostDao {
     @Query("SELECT * FROM posts ORDER BY createdAt DESC")
     fun getAllPostsFlow(): Flow<List<PostEntity>>
 
+    @Query("SELECT * FROM posts ORDER BY createdAt DESC")
+    suspend fun getAllPosts(): List<PostEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdatePost(post: PostEntity)
 

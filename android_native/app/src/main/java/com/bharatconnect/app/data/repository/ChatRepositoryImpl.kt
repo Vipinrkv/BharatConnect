@@ -116,7 +116,8 @@ class ChatRepositoryImpl : ChatRepository {
             Result.success(entities.map { it.toDomain() })
         } catch (e: Exception) {
             // Offline fallback to Room
-            Result.success(emptyList())
+            val local = conversationDao.getAllConversations().map { it.toDomain() }
+            Result.success(local)
         }
     }
 
@@ -138,7 +139,9 @@ class ChatRepositoryImpl : ChatRepository {
 
             Result.success(entities.map { it.toDomain() })
         } catch (e: Exception) {
-            Result.failure(e)
+            // Offline fallback to Room
+            val local = messageDao.getMessagesByConversation(conversationId).map { it.toDomain() }
+            Result.success(local)
         }
     }
 

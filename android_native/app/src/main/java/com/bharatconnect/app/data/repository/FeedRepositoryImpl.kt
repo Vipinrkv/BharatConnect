@@ -39,8 +39,9 @@ class FeedRepositoryImpl : FeedRepository {
             postDao.insertPosts(entities)
             Result.success(entities.map { it.toDomain() })
         } catch (e: Exception) {
-            // Offline fallback
-            Result.success(emptyList())
+            // Offline fallback to Room
+            val local = postDao.getAllPosts().map { it.toDomain() }
+            Result.success(local)
         }
     }
 

@@ -151,10 +151,15 @@ class ChatViewModel(
         }
     }
 
-    fun sendMessage(conversationId: String, text: String) {
-        if (text.isBlank()) return
+    fun sendMessage(
+        conversationId: String,
+        text: String,
+        mediaUrl: String? = null,
+        mediaType: String? = null
+    ) {
+        if (text.isBlank() && mediaUrl.isNullOrBlank()) return
         viewModelScope.launch {
-            sendMessageUseCase(conversationId, text)
+            sendMessageUseCase(conversationId, text, mediaUrl, mediaType)
             refreshConversations()
         }
     }

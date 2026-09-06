@@ -720,25 +720,37 @@
 
 ---
 
+### 🔹 Entry #034 — Comprehensive System Audit: Offline Room Fallbacks, Cloudinary Media Chat & Input Polish
+- **Date & Time**: `2026-09-06 10:20:00 IST` (`2026-09-06T04:50:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/ConversationDao.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/ConversationDao.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/MessageDao.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/MessageDao.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/PostDao.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/PostDao.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/FeedRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/FeedRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Full Offline Room SQLite Fallbacks**:
+    - Added `@Query("SELECT * FROM conversations ORDER BY lastMessageTime DESC")` in `ConversationDao.kt`.
+    - Added `@Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAt ASC")` in `MessageDao.kt`.
+    - Added `@Query("SELECT * FROM posts ORDER BY createdAt DESC")` in `PostDao.kt`.
+    - Updated `fetchConversations()` and `fetchMessages()` in `ChatRepositoryImpl.kt` and `fetchPosts()` in `FeedRepositoryImpl.kt` to catch network exceptions and instantly return local cached data from Room DB, ensuring zero disruption when connectivity drops.
+  - **Cloudinary Photo Messaging & Upload Indicator**:
+    - Integrated `rememberLauncherForActivityResult(ActivityResultContracts.GetContent())` in `ChatDetailScreen`.
+    - Tapping "Camera" or "Gallery" in the attachment sheet now opens the system photo picker, compresses images, and uploads directly to Cloudinary via `CloudinaryManager.uploadMedia(context, uri, "image/jpeg")`.
+    - Displayed real-time uploading progress indicator above the chat input bar while media is in transit.
+  - **Inline Media Rendering**:
+    - Configured `AsyncImage` with Coil in message cards to render photo messages seamlessly with rounded corners and cropped preview scaling.
+  - **Chat Input Ergonomics**:
+    - Added `maxLines = 4` to the chat `OutlinedTextField` so multiline messages expand cleanly without taking over the screen.
+  - **Automated Verification & Release**:
+    - Executed all 27 unit test suites with 100% pass rate (`./gradlew testDebugUnitTest`).
+    - Recompiled production debug APK (`assembleDebug`, 24.96 MB / ~25.0 MB, SHA-256: `CC16CD3C35F8497FF59B15DC3AD5771F00BA6A86D5977AAE112112B382A53C95`).
+    - Synced APK binaries to root and `web/` distribution directory.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+---
+*(Append all future system changes below this line)*

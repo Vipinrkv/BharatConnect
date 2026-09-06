@@ -13,6 +13,9 @@ interface ConversationDao {
     @Query("SELECT * FROM conversations ORDER BY lastMessageTime DESC")
     fun getAllConversationsFlow(): Flow<List<ConversationEntity>>
 
+    @Query("SELECT * FROM conversations ORDER BY lastMessageTime DESC")
+    suspend fun getAllConversations(): List<ConversationEntity>
+
     @Query("SELECT * FROM conversations WHERE id = :conversationId LIMIT 1")
     suspend fun getConversationById(conversationId: String): ConversationEntity?
 
