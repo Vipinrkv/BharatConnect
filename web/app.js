@@ -535,18 +535,18 @@ function initApkDownload() {
   downloadBtns.forEach(btn => {
     btn.addEventListener('click', (e) => {
       playHapticSound('pop');
-      showToast('🚀 Downloading BharatConnect-Native.apk (26.0 MB)...');
+      showToast('🚀 Downloading BharatConnect-Native.apk (24.7 MB)...');
     });
   });
 
   if (copyHashBtn) {
     copyHashBtn.addEventListener('click', () => {
       playHapticSound('click');
-      const hash = "7a683c83b08859e246e4eb121c411dd2f2f23826f386b392d80767c54fcbc542";
+      const hash = "d301848742f0fb79c016dab631ae6f25f4f4dd56f0753f2432a123e398b8e3e9";
       navigator.clipboard.writeText(hash).then(() => {
         showToast('✅ SHA-256 Checksum copied to clipboard!');
       }).catch(() => {
-        showToast('SHA-256: e3b0c442...b855');
+        showToast('SHA-256: d3018487...e3e9');
       });
     });
   }

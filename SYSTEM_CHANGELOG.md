@@ -661,6 +661,48 @@
 
 ---
 
+### 🔹 Entry #032 — Real-Time Multi-Device Chat Delivery, WhatsApp Ticks (⏳ / ✓ / ✓✓ / ✓✓ Blue), Sentinel E2EE & Notification Auto-Dismissal
+- **Date & Time**: `2026-09-06 09:45:00 IST` (`2026-09-06T04:15:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/encryption/SignalEncryptionManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/encryption/SignalEncryptionManager.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/notifications/NotificationHelper.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/notifications/NotificationHelper.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/MessageDao.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/MessageDao.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/remote/dto/ChatDtos.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/remote/dto/ChatDtos.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/repository/ChatRepository.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/repository/ChatRepository.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/domain/ChatUseCasesTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/domain/ChatUseCasesTest.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`web/index.html`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/index.html)
+  - [`web/app.js`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/app.js)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Flawless Multi-Device Real-Time Delivery (User A & User B)**:
+    - Eliminated message filtering drop where `subscribeToGlobalUserMessages` previously checked if the RFC UUID contained `currentUserId`.
+    - Implemented deterministic pair matching `UUID.nameUUIDFromBytes("${min(A,B)}_${max(A,B)}") == record.conversationId`, ensuring User B's device instantly and unconditionally accepts direct incoming messages destined for them even without prior local conversation sync.
+    - Creates or updates the conversation in Room SQLite reactively with the sender's authoritative phonebook name and pops a high-priority heads-up notification.
+  - **WhatsApp Multi-State Ticks**:
+    - **Sending**: `⏳` Hourglass indicator while dispatching to Room SQLite / Supabase.
+    - **Sent**: Single grey tick `✓` (`#B0BEC5`) when message has been upserted to remote Supabase server.
+    - **Delivered**: Double grey ticks `✓✓` (`#B0BEC5`) triggered automatically when recipient's device receives the realtime message payload and issues `acknowledgeMessageDelivered()`.
+    - **Read**: Double sky blue ticks `✓✓` (`#38BDF8`) triggered when recipient opens the chat screen or selects the conversation via `markMessagesAsRead()`.
+    - Real-time `PostgresAction.Update` listeners in both active chat and global handlers reflect tick transitions dynamically without page reloads.
+  - **Sentinel End-to-End Encryption (AES-GCM-256)**:
+    - Implemented [`SignalEncryptionManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/encryption/SignalEncryptionManager.kt) utilizing AES-256-GCM with 12-byte IV and SHA-256 deterministic key derivation per conversation.
+    - Transparent encryption upon dispatch (`sendMessage` / `retryPendingMessages`) and decryption upon retrieval (`fetchMessages`, `subscribeToRealtime`, `subscribeToGlobalUserMessages`), prefixed with `ENC:`.
+  - **Notification Auto-Dismissal**:
+    - Notifications are assigned deterministic IDs keyed by `conversationId.hashCode()`.
+    - Entering `ChatDetailScreen` or selecting a conversation in `ChatViewModel` immediately cancels the corresponding status bar alert via `NotificationHelper.clearMessageNotifications(context, conversationId)`.
+  - **Automated Verification & Release**:
+    - Added `testMessageTickTransitions_sentToDeliveredToRead()` in `ChatUseCasesTest.kt`. All 27 unit test suites passed (`./gradlew testDebugUnitTest`).
+    - Recompiled native APK (`assembleDebug`, 24.7 MB, SHA-256: `d301848742f0fb79c016dab631ae6f25f4f4dd56f0753f2432a123e398b8e3e9`).
+    - Synced APK to root binary and `web/` distribution directory; updated Web portal download cards, checksum verifier, and copy-hash buttons.
+
+---
+
+
 
 
 

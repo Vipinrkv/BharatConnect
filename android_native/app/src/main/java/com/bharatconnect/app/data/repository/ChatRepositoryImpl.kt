@@ -5,6 +5,7 @@ import com.bharatconnect.app.core.database.DatabaseProvider
 import com.bharatconnect.app.core.network.SupabaseClient
 import com.bharatconnect.app.core.notifications.NotificationHelper
 import com.bharatconnect.app.core.contacts.ContactsManager
+import com.bharatconnect.app.core.encryption.SignalEncryptionManager
 import com.bharatconnect.app.data.local.room.entity.ConversationEntity
 import com.bharatconnect.app.data.local.room.entity.MessageEntity
 import com.bharatconnect.app.data.remote.dto.ConversationDto
@@ -107,7 +108,8 @@ class ChatRepositoryImpl : ChatRepository {
                     conv.title ?: "Group Conversation"
                 }
 
-                ConversationEntity.fromDomain(conv.toDomain(resolvedTitle))
+                val decryptedLastMsg = conv.lastMessage?.let { SignalEncryptionManager.decrypt(conv.id, it) }
+                ConversationEntity.fromDomain(conv.toDomain(resolvedTitle, decryptedLastMsg))
             }
 
             conversationDao.insertConversations(entities)
@@ -128,7 +130,10 @@ class ChatRepositoryImpl : ChatRepository {
                 }
                 .decodeList<MessageDto>()
 
-            val entities = remoteMessages.map { MessageEntity.fromDomain(it.toDomain()) }
+            val entities = remoteMessages.map { 
+                val decrypted = SignalEncryptionManager.decrypt(it.conversationId, it.content)
+                MessageEntity.fromDomain(it.toDomain().copy(content = decrypted))
+            }
             messageDao.insertMessages(entities)
 
             Result.success(entities.map { it.toDomain() })
@@ -165,11 +170,12 @@ class ChatRepositoryImpl : ChatRepository {
 
         // 2. Dispatch to Supabase
         try {
+            val encryptedContent = SignalEncryptionManager.encrypt(conversationId, content)
             val messageDto = MessageDto(
                 id = messageId,
                 conversationId = conversationId,
                 senderId = currentUserId,
-                content = content,
+                content = encryptedContent,
                 mediaUrl = mediaUrl,
                 mediaType = mediaType,
                 status = "sent",
@@ -178,14 +184,14 @@ class ChatRepositoryImpl : ChatRepository {
 
             supabase.postgrest["messages"].upsert(messageDto)
 
-            val finalMessage = messageDto.toDomain()
+            val finalMessage = localMessage.copy(status = "sent", isPendingSync = false)
             // 3. Mark synced in Room DB
             messageDao.updateMessageStatus(messageId, "sent", false)
 
             // 4. Update conversation in remote Supabase
             try {
                 supabase.postgrest["conversations"].update({
-                    set("last_message", content)
+                    set("last_message", encryptedContent)
                     set("last_message_time", timestamp)
                 }) {
                     filter {
@@ -246,11 +252,12 @@ class ChatRepositoryImpl : ChatRepository {
 
         for (msg in pending) {
             try {
+                val encryptedContent = SignalEncryptionManager.encrypt(msg.conversationId, msg.content)
                 val messageDto = MessageDto(
                     id = msg.id,
                     conversationId = msg.conversationId,
                     senderId = msg.senderId,
-                    content = msg.content,
+                    content = encryptedContent,
                     mediaUrl = msg.mediaUrl,
                     mediaType = msg.mediaType,
                     status = "sent",
@@ -351,7 +358,15 @@ class ChatRepositoryImpl : ChatRepository {
                         try {
                             val record = action.decodeRecord<MessageDto>()
                             if (record.conversationId == conversationId) {
-                                messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(record.toDomain()))
+                                val currentUserId = supabase.auth.currentUserOrNull()?.id
+                                val decrypted = SignalEncryptionManager.decrypt(record.conversationId, record.content)
+                                val domainMsg = record.toDomain().copy(content = decrypted)
+                                messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(domainMsg))
+
+                                // If receiver is viewing this conversation, mark as read immediately!
+                                if (currentUserId != null && record.senderId != currentUserId) {
+                                    markMessagesAsRead(conversationId)
+                                }
                             }
                         } catch (_: Exception) {}
                     }
@@ -359,7 +374,9 @@ class ChatRepositoryImpl : ChatRepository {
                         try {
                             val record = action.decodeRecord<MessageDto>()
                             if (record.conversationId == conversationId) {
-                                messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(record.toDomain()))
+                                val decrypted = SignalEncryptionManager.decrypt(record.conversationId, record.content)
+                                val domainMsg = record.toDomain().copy(content = decrypted)
+                                messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(domainMsg))
                             }
                         } catch (_: Exception) {}
                     }
@@ -408,7 +425,12 @@ class ChatRepositoryImpl : ChatRepository {
                         try {
                             val record = action.decodeRecord<MessageDto>()
                             if (record.senderId != currentUserId) {
-                                val isMyConv = conversationDao.getConversationById(record.conversationId) != null ||
+                                val sortedPair = listOf(currentUserId, record.senderId).sorted()
+                                val expectedDirectId = UUID.nameUUIDFromBytes("${sortedPair[0]}_${sortedPair[1]}".toByteArray()).toString()
+                                val isMyDirectChat = (record.conversationId == expectedDirectId)
+
+                                val isMyConv = isMyDirectChat ||
+                                    conversationDao.getConversationById(record.conversationId) != null ||
                                     record.conversationId.contains(currentUserId) ||
                                     try {
                                         supabase.postgrest["conversation_members"].select {
@@ -417,11 +439,17 @@ class ChatRepositoryImpl : ChatRepository {
                                                 eq("user_id", currentUserId)
                                             }
                                         }.decodeList<ConversationMemberDto>().isNotEmpty()
-                                    } catch (_: Exception) { true }
+                                    } catch (_: Exception) { false }
 
                                 if (isMyConv) {
-                                    val domainMsg = record.toDomain()
+                                    val decrypted = SignalEncryptionManager.decrypt(record.conversationId, record.content)
+                                    val domainMsg = record.toDomain().copy(content = decrypted)
                                     messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(domainMsg))
+
+                                    // Acknowledge delivery to sender so sender gets double ticks!
+                                    if (record.status == "sent") {
+                                        acknowledgeMessageDelivered(record.id, record.conversationId)
+                                    }
 
                                     // Resolve sender name (WhatsApp style: device phonebook if saved, else phone number)
                                     val senderProfile = try {
@@ -444,7 +472,7 @@ class ChatRepositoryImpl : ChatRepository {
                                             isGroup = false,
                                             title = senderName,
                                             createdBy = record.senderId,
-                                            lastMessage = record.content,
+                                            lastMessage = decrypted,
                                             lastMessageTime = record.createdAt,
                                             unreadCount = 1
                                         )
@@ -452,7 +480,7 @@ class ChatRepositoryImpl : ChatRepository {
                                     } else {
                                         conversationDao.updateLastMessage(
                                             record.conversationId,
-                                            record.content,
+                                            decrypted,
                                             senderName,
                                             record.createdAt ?: ""
                                         )
@@ -464,11 +492,18 @@ class ChatRepositoryImpl : ChatRepository {
                                     NotificationHelper.showMessageNotification(
                                         context = BharatConnectApp.appContext,
                                         title = senderName,
-                                        body = record.content,
+                                        body = decrypted,
                                         conversationId = record.conversationId
                                     )
                                 }
                             }
+                        } catch (_: Exception) {}
+                    }
+                    is PostgresAction.Update -> {
+                        try {
+                            val record = action.decodeRecord<MessageDto>()
+                            val decrypted = SignalEncryptionManager.decrypt(record.conversationId, record.content)
+                            messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(record.toDomain().copy(content = decrypted)))
                         } catch (_: Exception) {}
                     }
                     else -> {}
@@ -537,6 +572,47 @@ class ChatRepositoryImpl : ChatRepository {
                 }
             } catch (_: Exception) {}
 
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun markMessagesAsRead(conversationId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val currentUserId = supabase.auth.currentUserOrNull()?.id ?: return@withContext Result.success(Unit)
+        try {
+            // Update local Room database
+            messageDao.markIncomingMessagesRead(conversationId, currentUserId, "read")
+
+            // Update remote Supabase
+            try {
+                supabase.postgrest["messages"].update({
+                    set("status", "read")
+                }) {
+                    filter {
+                        eq("conversation_id", conversationId)
+                        neq("sender_id", currentUserId)
+                        neq("status", "read")
+                    }
+                }
+            } catch (_: Exception) {}
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun acknowledgeMessageDelivered(messageId: String, conversationId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            supabase.postgrest["messages"].update({
+                set("status", "delivered")
+            }) {
+                filter {
+                    eq("id", messageId)
+                    eq("status", "sent")
+                }
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

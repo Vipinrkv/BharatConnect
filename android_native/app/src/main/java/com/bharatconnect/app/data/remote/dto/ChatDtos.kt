@@ -22,13 +22,13 @@ data class ConversationDto(
     @SerialName("created_at")
     val createdAt: String? = null
 ) {
-    fun toDomain(overrideTitle: String? = null): Conversation {
+    fun toDomain(overrideTitle: String? = null, overrideLastMessage: String? = null): Conversation {
         return Conversation(
             id = id,
             isGroup = type != "direct",
             title = overrideTitle ?: title ?: "Conversation",
             createdBy = createdBy,
-            lastMessage = lastMessage ?: "Tap to open chat",
+            lastMessage = overrideLastMessage ?: lastMessage ?: "Tap to open chat",
             lastMessageTime = lastMessageTime ?: createdAt,
             unreadCount = 0
         )

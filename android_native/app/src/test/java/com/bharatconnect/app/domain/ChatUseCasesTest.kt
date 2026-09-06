@@ -80,6 +80,24 @@ class FakeChatRepository : ChatRepository {
         messages.removeAll { it.conversationId == conversationId }
         return Result.success(Unit)
     }
+
+    override suspend fun markMessagesAsRead(conversationId: String): Result<Unit> {
+        for (i in messages.indices) {
+            if (messages[i].conversationId == conversationId) {
+                messages[i] = messages[i].copy(status = "read")
+            }
+        }
+        return Result.success(Unit)
+    }
+
+    override suspend fun acknowledgeMessageDelivered(messageId: String, conversationId: String): Result<Unit> {
+        for (i in messages.indices) {
+            if (messages[i].id == messageId) {
+                messages[i] = messages[i].copy(status = "delivered")
+            }
+        }
+        return Result.success(Unit)
+    }
 }
 
 class ChatUseCasesTest {
@@ -137,5 +155,25 @@ class ChatUseCasesTest {
 
         val msgResult = fetchMessagesUseCase("conv_1")
         assertTrue(msgResult.isSuccess)
+    }
+
+    @Test
+    fun testMessageTickTransitions_sentToDeliveredToRead() = runBlocking {
+        val sendRes = fakeChatRepository.sendMessage("conv_ticks", "Testing WhatsApp Ticks")
+        assertTrue(sendRes.isSuccess)
+        val sentMsg = sendRes.getOrNull()!!
+        assertEquals("sent", sentMsg.status)
+
+        // Recipient acknowledges delivery -> delivered (double grey tick)
+        val deliverRes = fakeChatRepository.acknowledgeMessageDelivered(sentMsg.id, "conv_ticks")
+        assertTrue(deliverRes.isSuccess)
+        val deliveredMsgs = fakeChatRepository.fetchMessages("conv_ticks").getOrNull() ?: emptyList()
+        assertEquals("delivered", deliveredMsgs.first().status)
+
+        // Recipient opens chat and reads -> read (double blue tick)
+        val readRes = fakeChatRepository.markMessagesAsRead("conv_ticks")
+        assertTrue(readRes.isSuccess)
+        val readMsgs = fakeChatRepository.fetchMessages("conv_ticks").getOrNull() ?: emptyList()
+        assertEquals("read", readMsgs.first().status)
     }
 }

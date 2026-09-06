@@ -132,6 +132,7 @@ fun HomeScreen(
         ChatDetailScreen(
             conversation = selectedConversation!!,
             chatViewModel = chatViewModel,
+            currentUserId = currentUser?.id,
             onBack = { chatViewModel.closeChat() }
         )
         return
@@ -1799,9 +1800,17 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
 fun ChatDetailScreen(
     conversation: Conversation,
     chatViewModel: ChatViewModel,
+    currentUserId: String? = null,
     onBack: () -> Unit
 ) {
     val messages by chatViewModel.messages.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(conversation.id) {
+        com.bharatconnect.app.core.notifications.NotificationHelper.clearMessageNotifications(context, conversation.id)
+        chatViewModel.markMessagesAsRead(conversation.id)
+    }
+
     var inputText by remember { mutableStateOf("") }
     var showAttachmentSheet by remember { mutableStateOf(false) }
     var showEmojiDrawer by remember { mutableStateOf(false) }
@@ -1931,7 +1940,7 @@ fun ChatDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(messages) { msg ->
-                    val isMe = msg.senderId != "other"
+                    val isMe = msg.senderId == currentUserId || (currentUserId == null && msg.senderId != "other")
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = if (isMe) Alignment.CenterEnd else Alignment.CenterStart
@@ -1952,11 +1961,46 @@ fun ChatDetailScreen(
                                     Text(msg.createdAt.takeLast(8), color = Color(0xFFD1D1E0), fontSize = 10.sp)
                                     if (isMe) {
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = if (msg.status == "sending") "⏳" else "✓✓",
-                                            fontSize = 10.sp,
-                                            color = Color.White
-                                        )
+                                        when (msg.status) {
+                                            "sending" -> {
+                                                Text(
+                                                    text = "⏳",
+                                                    fontSize = 10.sp
+                                                )
+                                            }
+                                            "sent" -> {
+                                                Text(
+                                                    text = "✓",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFB0BEC5)
+                                                )
+                                            }
+                                            "delivered" -> {
+                                                Text(
+                                                    text = "✓✓",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFB0BEC5)
+                                                )
+                                            }
+                                            "read" -> {
+                                                Text(
+                                                    text = "✓✓",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF38BDF8)
+                                                )
+                                            }
+                                            else -> {
+                                                Text(
+                                                    text = "✓",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFB0BEC5)
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }

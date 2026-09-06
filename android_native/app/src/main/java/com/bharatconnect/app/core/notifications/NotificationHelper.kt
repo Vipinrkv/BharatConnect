@@ -71,7 +71,26 @@ object NotificationHelper {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
 
+        val notifId = conversationId?.hashCode() ?: System.currentTimeMillis().toInt()
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
+        notificationManager.notify(notifId, builder.build())
+    }
+
+    fun clearMessageNotifications(context: Context, conversationId: String? = null) {
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (conversationId != null) {
+                notificationManager.cancel(conversationId.hashCode())
+            } else {
+                notificationManager.cancelAll()
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun clearAllNotifications(context: Context) {
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.cancelAll()
+        } catch (_: Exception) {}
     }
 }

@@ -19,4 +19,6 @@ interface ChatRepository {
     suspend fun fetchNotifications(): Result<List<com.bharatconnect.app.data.remote.dto.NotificationDto>>
     suspend fun markNotificationsRead(): Result<Unit>
     suspend fun deleteConversation(conversationId: String): Result<Unit>
+    suspend fun markMessagesAsRead(conversationId: String): Result<Unit>
+    suspend fun acknowledgeMessageDelivered(messageId: String, conversationId: String): Result<Unit>
 }

@@ -30,4 +30,10 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE conversationId = :conversationId")
     suspend fun deleteMessagesByConversation(conversationId: String)
+
+    @Query("UPDATE messages SET status = :status WHERE conversationId = :conversationId AND senderId != :currentUserId AND status != 'read'")
+    suspend fun markIncomingMessagesRead(conversationId: String, currentUserId: String, status: String = "read")
+
+    @Query("UPDATE messages SET status = 'delivered' WHERE conversationId = :conversationId AND senderId = :currentUserId AND status = 'sent'")
+    suspend fun markOutgoingMessagesDelivered(conversationId: String, currentUserId: String)
 }

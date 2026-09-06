@@ -118,6 +118,19 @@ class ChatViewModel(
     fun selectConversation(conversation: Conversation) {
         _selectedConversation.value = conversation
         observeMessages(conversation.id)
+        markMessagesAsRead(conversation.id)
+        try {
+            com.bharatconnect.app.core.notifications.NotificationHelper.clearMessageNotifications(
+                com.bharatconnect.app.BharatConnectApp.appContext,
+                conversation.id
+            )
+        } catch (_: Exception) {}
+    }
+
+    fun markMessagesAsRead(conversationId: String) {
+        viewModelScope.launch {
+            chatRepo.markMessagesAsRead(conversationId)
+        }
     }
 
     private fun observeMessages(conversationId: String) {
@@ -167,7 +180,7 @@ class ChatViewModel(
 
     fun startChatWithContact(
         contact: com.bharatconnect.app.core.contacts.PhoneContact,
-        chatRepository: ChatRepository = ChatRepositoryImpl(),
+        chatRepository: ChatRepository = chatRepo,
         onSuccess: (Conversation) -> Unit = {}
     ) {
         viewModelScope.launch {
