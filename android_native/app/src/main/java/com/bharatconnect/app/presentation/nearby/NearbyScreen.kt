@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
+import com.bharatconnect.app.presentation.components.NearbyUserSkeleton
 
 data class LiveBroadcast(
     val id: String,
@@ -75,6 +76,7 @@ fun NearbyScreen(
     var showPayToPinDialogForBroadcast by remember { mutableStateOf<LiveBroadcast?>(null) }
     var selectedPinRegion by remember { mutableStateOf("Delhi NCR & North") }
     var pinSuccessMessage by remember { mutableStateOf<String?>(null) }
+    var isScanningRadar by remember { mutableStateOf(false) }
 
     val liveBroadcasts = remember {
         mutableStateListOf(
@@ -672,7 +674,11 @@ fun NearbyScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (filteredUsers.isEmpty()) {
+                if (isScanningRadar && filteredUsers.isEmpty()) {
+                    items(5) {
+                        NearbyUserSkeleton()
+                    }
+                } else if (filteredUsers.isEmpty()) {
                     item {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),

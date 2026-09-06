@@ -22,6 +22,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
+import com.bharatconnect.app.presentation.components.NotificationItemSkeleton
+
+import androidx.activity.compose.BackHandler
 
 data class NotificationItem(
     val id: String,
@@ -40,8 +43,13 @@ fun NotificationsScreen(
     chatViewModel: com.bharatconnect.app.presentation.chat.ChatViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler {
+        onBack()
+    }
+
     var selectedCategory by remember { mutableStateOf("all") }
     val rawNotifications by chatViewModel.notifications.collectAsState()
+    val isLoadingNotifications by chatViewModel.isLoadingNotifications.collectAsState()
 
     LaunchedEffect(Unit) {
         chatViewModel.fetchNotifications()
@@ -142,7 +150,11 @@ fun NotificationsScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (filteredNotifications.isEmpty()) {
+                if (isLoadingNotifications && filteredNotifications.isEmpty()) {
+                    items(6) {
+                        NotificationItemSkeleton()
+                    }
+                } else if (filteredNotifications.isEmpty()) {
                     item {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),

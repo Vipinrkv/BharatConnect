@@ -4,6 +4,7 @@ import com.bharatconnect.app.BharatConnectApp
 import com.bharatconnect.app.core.database.DatabaseProvider
 import com.bharatconnect.app.core.network.SupabaseClient
 import com.bharatconnect.app.core.notifications.NotificationHelper
+import com.bharatconnect.app.core.contacts.ContactsManager
 import com.bharatconnect.app.data.local.room.entity.ConversationEntity
 import com.bharatconnect.app.data.local.room.entity.MessageEntity
 import com.bharatconnect.app.data.remote.dto.ConversationDto
@@ -95,10 +96,13 @@ class ChatRepositoryImpl : ChatRepository {
                 val otherProfile = otherId?.let { allProfiles[it] }
 
                 val resolvedTitle = if (conv.type == "direct" || conv.id.startsWith("direct_")) {
-                    otherProfile?.fullName?.takeIf { it.isNotBlank() }
-                        ?: otherProfile?.username?.takeIf { it.isNotBlank() }
-                        ?: conv.title
-                        ?: "BharatConnect Member"
+                    ContactsManager.resolveCounterpartDisplayName(
+                        context = BharatConnectApp.appContext,
+                        phoneNumber = otherProfile?.phoneNumber,
+                        fullName = otherProfile?.fullName,
+                        username = otherProfile?.username,
+                        fallbackTitle = conv.title
+                    )
                 } else {
                     conv.title ?: "Group Conversation"
                 }
@@ -419,15 +423,18 @@ class ChatRepositoryImpl : ChatRepository {
                                     val domainMsg = record.toDomain()
                                     messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(domainMsg))
 
-                                    // Resolve sender name
+                                    // Resolve sender name (WhatsApp style: device phonebook if saved, else phone number)
                                     val senderProfile = try {
                                         supabase.postgrest["profiles"].select {
                                             filter { eq("id", record.senderId) }
                                         }.decodeSingleOrNull<ProfileDto>()
                                     } catch (_: Exception) { null }
-                                    val senderName = senderProfile?.fullName?.takeIf { it.isNotBlank() }
-                                        ?: senderProfile?.username?.takeIf { it.isNotBlank() }
-                                        ?: "BharatConnect Member"
+                                    val senderName = ContactsManager.resolveCounterpartDisplayName(
+                                        context = BharatConnectApp.appContext,
+                                        phoneNumber = senderProfile?.phoneNumber,
+                                        fullName = senderProfile?.fullName,
+                                        username = senderProfile?.username
+                                    )
 
                                     // Ensure conversation exists in local Room DB
                                     val existingConv = conversationDao.getConversationById(record.conversationId)
@@ -499,6 +506,37 @@ class ChatRepositoryImpl : ChatRepository {
                     eq("user_id", currentUserId)
                 }
             }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteConversation(conversationId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            // 1. Wipe all messages and conversation locally from Room DB
+            messageDao.deleteMessagesByConversation(conversationId)
+            conversationDao.deleteConversation(conversationId)
+
+            // 2. Permanently delete from remote Supabase
+            try {
+                supabase.postgrest["messages"].delete {
+                    filter { eq("conversation_id", conversationId) }
+                }
+            } catch (_: Exception) {}
+
+            try {
+                supabase.postgrest["conversation_members"].delete {
+                    filter { eq("conversation_id", conversationId) }
+                }
+            } catch (_: Exception) {}
+
+            try {
+                supabase.postgrest["conversations"].delete {
+                    filter { eq("id", conversationId) }
+                }
+            } catch (_: Exception) {}
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

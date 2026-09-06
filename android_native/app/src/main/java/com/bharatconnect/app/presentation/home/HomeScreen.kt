@@ -2,6 +2,8 @@ package com.bharatconnect.app.presentation.home
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -52,6 +54,7 @@ import com.bharatconnect.app.presentation.story.CreateStoryDialog
 import com.bharatconnect.app.presentation.story.StoriesRow
 import com.bharatconnect.app.presentation.story.StoryItem
 import com.bharatconnect.app.presentation.story.StoryViewerDialog
+import com.bharatconnect.app.presentation.components.*
 
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
@@ -72,6 +75,9 @@ fun HomeScreen(
     val currentUser by authViewModel.currentUser.collectAsState()
     val selectedConversation by chatViewModel.selectedConversation.collectAsState()
 
+    val context = LocalContext.current
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
+
     // Stories state
     val stories = remember {
         mutableStateListOf<StoryItem>()
@@ -81,6 +87,38 @@ fun HomeScreen(
 
     val notificationsList by chatViewModel.notifications.collectAsState()
     val unreadNotifCount = remember(notificationsList) { notificationsList.count { !it.isRead } }
+
+    // WhatsApp-style device back button prevention
+    BackHandler {
+        when {
+            showNotificationsScreen -> {
+                showNotificationsScreen = false
+            }
+            selectedConversation != null -> {
+                chatViewModel.closeChat()
+            }
+            showCreateStoryDialog -> {
+                showCreateStoryDialog = false
+            }
+            activeViewingStory != null -> {
+                activeViewingStory = null
+            }
+            selectedTab != 0 -> {
+                // Return to main Feed tab first instead of quitting
+                selectedTab = 0
+            }
+            else -> {
+                // On main tab: double back press within 2 seconds to exit
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastBackPressTime < 2000L) {
+                    (context as? android.app.Activity)?.finish()
+                } else {
+                    lastBackPressTime = currentTime
+                    Toast.makeText(context, "Press back again to exit BharatConnect", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     if (showNotificationsScreen) {
         NotificationsScreen(
@@ -346,6 +384,7 @@ fun FeedTab(
     onStoryClick: (StoryItem) -> Unit
 ) {
     val posts by feedViewModel.posts.collectAsState()
+    val isLoadingFeed by feedViewModel.isLoading.collectAsState()
     var showCreatePostDialog by remember { mutableStateOf(false) }
     var viewingCommentsForPost by remember { mutableStateOf<Post?>(null) }
     var viewingAuthorProfile by remember { mutableStateOf<String?>(null) }
@@ -373,15 +412,23 @@ fun FeedTab(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                StoriesRow(
-                    stories = stories,
-                    currentUserAvatar = currentUser?.avatarUrl,
-                    onAddStoryClick = onAddStoryClick,
-                    onStoryClick = onStoryClick
-                )
+                if (isLoadingFeed && stories.isEmpty()) {
+                    StoriesRowSkeleton()
+                } else {
+                    StoriesRow(
+                        stories = stories,
+                        currentUserAvatar = currentUser?.avatarUrl,
+                        onAddStoryClick = onAddStoryClick,
+                        onStoryClick = onStoryClick
+                    )
+                }
             }
 
-            if (posts.isEmpty()) {
+            if (isLoadingFeed && posts.isEmpty()) {
+                items(3) {
+                    FeedPostSkeleton()
+                }
+            } else if (posts.isEmpty()) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
@@ -832,6 +879,7 @@ fun PostCard(
 fun ChatsTab(chatViewModel: ChatViewModel) {
     val context = LocalContext.current
     val conversations by chatViewModel.conversations.collectAsState()
+    val isLoadingConversations by chatViewModel.isLoadingConversations.collectAsState()
     val phoneContacts by chatViewModel.phoneContacts.collectAsState()
     val isLoadingContacts by chatViewModel.isLoadingContacts.collectAsState()
 
@@ -849,6 +897,23 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
     val unreadConvIds = remember { mutableStateListOf<String>() }
     var showThreeDotMenu by remember { mutableStateOf(false) }
     var headerNoticeMessage by remember { mutableStateOf<String?>(null) }
+
+    // Intercept back button if any sub-dialog or sheet in ChatsTab is active
+    BackHandler(
+        enabled = showNewChatDialog ||
+                selectedConversationForMenu != null ||
+                conversationForNicknameDialog != null ||
+                showThreeDotMenu ||
+                searchQuery.isNotBlank()
+    ) {
+        when {
+            showNewChatDialog -> showNewChatDialog = false
+            selectedConversationForMenu != null -> selectedConversationForMenu = null
+            conversationForNicknameDialog != null -> conversationForNicknameDialog = null
+            showThreeDotMenu -> showThreeDotMenu = false
+            searchQuery.isNotBlank() -> searchQuery = ""
+        }
+    }
 
     // Mock Groups state
     val groupChats = remember {
@@ -1046,7 +1111,17 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
             when (selectedSubTab) {
                 0 -> {
                     // ==================== INDIVIDUAL CHATS ====================
-                    if (filteredConversations.isEmpty()) {
+                    if (isLoadingConversations && filteredConversations.isEmpty()) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(5) {
+                                ConversationItemSkeleton()
+                            }
+                        }
+                    } else if (filteredConversations.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -1348,9 +1423,11 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    archivedConvIds.add(conv.id)
+                                    val targetId = conv.id
                                     selectedConversationForMenu = null
-                                    headerNoticeMessage = "Chat deleted"
+                                    chatViewModel.deleteConversation(targetId) {
+                                        headerNoticeMessage = "Chat permanently deleted"
+                                    }
                                 }
                         ) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1546,16 +1623,13 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                     }
 
                         if (isLoadingContacts) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(vertical = 8.dp)
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    CircularProgressIndicator(color = ColorPrimary6367FF, modifier = Modifier.size(36.dp))
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text("Matching contacts with BharatConnect...", color = Color.LightGray, fontSize = 13.sp)
+                                items(6) {
+                                    ContactItemSkeleton()
                                 }
                             }
                         } else if (phoneContacts.isEmpty()) {
@@ -1742,6 +1816,48 @@ fun ChatDetailScreen(
         )
     }
 
+    var showChatMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
+    // WhatsApp-style hierarchical back handling: closes sheets/drawers first, then exits chat
+    BackHandler {
+        when {
+            showEmojiDrawer -> showEmojiDrawer = false
+            showAttachmentSheet -> showAttachmentSheet = false
+            showCallNoticeDialog != null -> showCallNoticeDialog = null
+            showDeleteConfirmDialog -> showDeleteConfirmDialog = false
+            showChatMenu -> showChatMenu = false
+            else -> onBack()
+        }
+    }
+
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = { Text("Delete this chat?", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text("All messages in this chat will be permanently deleted from this device and BharatConnect servers.", color = Color.LightGray, fontSize = 13.sp) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        chatViewModel.deleteConversation(conversation.id) {
+                            onBack()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4B4B))
+                ) {
+                    Text("Delete", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("Cancel", color = Color.LightGray)
+                }
+            },
+            containerColor = Color(0xFF1B1736)
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -1774,6 +1890,27 @@ fun ChatDetailScreen(
                     }
                     IconButton(onClick = { showCallNoticeDialog = "Starting HD Video Call with ${conversation.title}..." }) {
                         Icon(Icons.Default.Videocam, contentDescription = "Video Call", tint = Color.White)
+                    }
+                    Box {
+                        IconButton(onClick = { showChatMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More", tint = Color.White)
+                        }
+                        DropdownMenu(
+                            expanded = showChatMenu,
+                            onDismissRequest = { showChatMenu = false },
+                            modifier = Modifier.background(Color(0xFF1E1A3C))
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Delete Chat", color = Color(0xFFFF6B6B), fontWeight = FontWeight.Bold) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF6B6B))
+                                },
+                                onClick = {
+                                    showChatMenu = false
+                                    showDeleteConfirmDialog = true
+                                }
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F0D24))

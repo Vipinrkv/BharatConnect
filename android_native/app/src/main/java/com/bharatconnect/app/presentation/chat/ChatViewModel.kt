@@ -13,6 +13,7 @@ import com.bharatconnect.app.domain.usecase.chat.GetMessagesUseCase
 import com.bharatconnect.app.domain.usecase.chat.SendMessageUseCase
 import com.bharatconnect.app.domain.usecase.chat.SubscribeToRealtimeUseCase
 import com.bharatconnect.app.domain.usecase.chat.UnsubscribeRealtimeUseCase
+import com.bharatconnect.app.domain.usecase.chat.DeleteConversationUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +28,8 @@ class ChatViewModel(
     private val fetchConversationsUseCase: FetchConversationsUseCase = FetchConversationsUseCase(chatRepository),
     private val fetchMessagesUseCase: FetchMessagesUseCase = FetchMessagesUseCase(chatRepository),
     private val subscribeToRealtimeUseCase: SubscribeToRealtimeUseCase = SubscribeToRealtimeUseCase(chatRepository),
-    private val unsubscribeRealtimeUseCase: UnsubscribeRealtimeUseCase = UnsubscribeRealtimeUseCase(chatRepository)
+    private val unsubscribeRealtimeUseCase: UnsubscribeRealtimeUseCase = UnsubscribeRealtimeUseCase(chatRepository),
+    private val deleteConversationUseCase: DeleteConversationUseCase = DeleteConversationUseCase(chatRepository)
 ) : ViewModel() {
 
     private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
@@ -44,6 +46,12 @@ class ChatViewModel(
 
     private val _isLoadingContacts = MutableStateFlow(false)
     val isLoadingContacts: StateFlow<Boolean> = _isLoadingContacts.asStateFlow()
+
+    private val _isLoadingConversations = MutableStateFlow(true)
+    val isLoadingConversations: StateFlow<Boolean> = _isLoadingConversations.asStateFlow()
+
+    private val _isLoadingNotifications = MutableStateFlow(false)
+    val isLoadingNotifications: StateFlow<Boolean> = _isLoadingNotifications.asStateFlow()
 
     private val _notifications = MutableStateFlow<List<com.bharatconnect.app.data.remote.dto.NotificationDto>>(emptyList())
     val notifications: StateFlow<List<com.bharatconnect.app.data.remote.dto.NotificationDto>> = _notifications.asStateFlow()
@@ -72,10 +80,12 @@ class ChatViewModel(
 
     fun fetchNotifications() {
         viewModelScope.launch {
+            _isLoadingNotifications.value = true
             val res = chatRepo.fetchNotifications()
             res.getOrNull()?.let {
                 _notifications.value = it
             }
+            _isLoadingNotifications.value = false
         }
     }
 
@@ -90,13 +100,18 @@ class ChatViewModel(
         viewModelScope.launch {
             getConversationsUseCase().collect { list ->
                 _conversations.value = list
+                if (list.isNotEmpty()) {
+                    _isLoadingConversations.value = false
+                }
             }
         }
     }
 
     fun refreshConversations() {
         viewModelScope.launch {
+            _isLoadingConversations.value = true
             fetchConversationsUseCase()
+            _isLoadingConversations.value = false
         }
     }
 
@@ -175,5 +190,18 @@ class ChatViewModel(
         }
         _selectedConversation.value = null
         _messages.value = emptyList()
+    }
+
+    fun deleteConversation(conversationId: String, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            if (_selectedConversation.value?.id == conversationId) {
+                closeChat()
+            }
+            deleteConversationUseCase(conversationId)
+            // Immediately update in-memory list
+            _conversations.value = _conversations.value.filter { it.id != conversationId }
+            refreshConversations()
+            onComplete()
+        }
     }
 }

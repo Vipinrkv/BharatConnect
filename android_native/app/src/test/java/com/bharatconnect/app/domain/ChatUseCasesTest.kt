@@ -74,6 +74,12 @@ class FakeChatRepository : ChatRepository {
     override suspend fun fetchNotifications(): Result<List<com.bharatconnect.app.data.remote.dto.NotificationDto>> = Result.success(emptyList())
 
     override suspend fun markNotificationsRead(): Result<Unit> = Result.success(Unit)
+
+    override suspend fun deleteConversation(conversationId: String): Result<Unit> {
+        conversations.removeAll { it.id == conversationId }
+        messages.removeAll { it.conversationId == conversationId }
+        return Result.success(Unit)
+    }
 }
 
 class ChatUseCasesTest {
@@ -84,6 +90,7 @@ class ChatUseCasesTest {
     private val sendMessageUseCase = SendMessageUseCase(fakeChatRepository)
     private val fetchConversationsUseCase = FetchConversationsUseCase(fakeChatRepository)
     private val fetchMessagesUseCase = FetchMessagesUseCase(fakeChatRepository)
+    private val deleteConversationUseCase = DeleteConversationUseCase(fakeChatRepository)
 
     @Test
     fun testGetConversationsFlow_returnsInitialList() = runBlocking {
@@ -108,6 +115,19 @@ class ChatUseCasesTest {
         assertTrue(result.isSuccess)
         val conv = result.getOrNull()
         assertEquals("Amit Patel (Phonebook)", conv?.title)
+    }
+
+    @Test
+    fun testDeleteConversation_removesConversationAndMessages() = runBlocking {
+        fakeChatRepository.sendMessage("conv_1", "Temporary message")
+        val deleteResult = deleteConversationUseCase("conv_1")
+        assertTrue(deleteResult.isSuccess)
+
+        val convs = fakeChatRepository.fetchConversations().getOrNull() ?: emptyList()
+        assertTrue(convs.none { it.id == "conv_1" })
+
+        val msgs = fakeChatRepository.fetchMessages("conv_1").getOrNull() ?: emptyList()
+        assertTrue(msgs.isEmpty())
     }
 
     @Test

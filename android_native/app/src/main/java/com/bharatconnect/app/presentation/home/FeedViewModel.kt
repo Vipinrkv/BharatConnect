@@ -25,6 +25,9 @@ class FeedViewModel(
     private val _posts = MutableStateFlow<List<Post>>(emptyList())
     val posts: StateFlow<List<Post>> = _posts.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     init {
         observePosts()
         refreshFeed()
@@ -34,13 +37,18 @@ class FeedViewModel(
         viewModelScope.launch {
             getFeedPostsUseCase().collect { list ->
                 _posts.value = list
+                if (list.isNotEmpty()) {
+                    _isLoading.value = false
+                }
             }
         }
     }
 
     fun refreshFeed() {
         viewModelScope.launch {
+            _isLoading.value = true
             fetchFeedPostsUseCase()
+            _isLoading.value = false
         }
     }
 

@@ -33,9 +33,10 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    var identifier by remember { mutableStateOf("") }
+    var identifier by remember { mutableStateOf(authViewModel.getRememberedIdentifier()) }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var rememberMe by remember { mutableStateOf(authViewModel.isRememberCredentialsEnabled()) }
 
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var forgotPasswordInput by remember { mutableStateOf("") }
@@ -209,11 +210,36 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Forgot Password Button (Right aligned)
+            // Remember Me and Forgot Password Row
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = rememberMe,
+                        onCheckedChange = {
+                            rememberMe = it
+                            authViewModel.setRememberCredentials(it)
+                        },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = ColorPrimary6367FF,
+                            uncheckedColor = Color.Gray,
+                            checkmarkColor = Color.White
+                        )
+                    )
+                    Text(
+                        text = "Remember Login",
+                        color = Color.LightGray,
+                        fontSize = 13.sp
+                    )
+                }
+
                 TextButton(
                     onClick = {
                         forgotPasswordInput = identifier

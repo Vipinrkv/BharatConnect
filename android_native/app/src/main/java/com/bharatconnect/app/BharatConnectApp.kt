@@ -16,6 +16,8 @@ class BharatConnectApp : Application() {
     override fun onCreate() {
         super.onCreate()
         appContext = this
+        // Initialize Persistent Session Manager
+        com.bharatconnect.app.core.session.SessionManager.init(this)
         // Initialize Supabase Kotlin SDK
         SupabaseClient.init(this)
         // Initialize Local Room Database

@@ -1,8 +1,11 @@
 package com.bharatconnect.app.data.repository
 
 import android.net.Uri
+import com.bharatconnect.app.core.database.DatabaseProvider
 import com.bharatconnect.app.core.network.NetworkErrorSanitizer
 import com.bharatconnect.app.core.network.SupabaseClient
+import com.bharatconnect.app.core.session.SessionManager
+import com.bharatconnect.app.data.local.room.entity.UserEntity
 import com.bharatconnect.app.data.remote.dto.ProfileDto
 import com.bharatconnect.app.domain.model.UserProfile
 import com.bharatconnect.app.domain.repository.AuthRepository
@@ -30,6 +33,7 @@ class AuthRepositoryImpl : AuthRepository {
     override suspend fun login(identifier: String, password: String): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
             val trimmed = identifier.trim()
+            SessionManager.saveRememberedIdentifier(trimmed)
             val emailToUse = if (trimmed.contains("@")) {
                 trimmed
             } else {
@@ -323,7 +327,13 @@ class AuthRepositoryImpl : AuthRepository {
 
     override suspend fun logout(): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            supabase.auth.signOut()
+            try {
+                supabase.auth.signOut()
+            } catch (_: Exception) {}
+            SessionManager.clearSession()
+            try {
+                DatabaseProvider.getDatabase().userDao().clearAll()
+            } catch (_: Exception) {}
             _currentUserFlow.value = null
             Result.success(Unit)
         } catch (e: Exception) {
@@ -332,6 +342,51 @@ class AuthRepositoryImpl : AuthRepository {
     }
 
     override suspend fun getCurrentUser(): UserProfile? = withContext(Dispatchers.IO) {
+        // 1. Fast-path: In-memory profile
+        _currentUserFlow.value?.let { return@withContext it }
+
+        // 2. Persistent storage: SessionManager cached profile (WhatsApp-style instant startup)
+        val cachedUser = SessionManager.getCachedUserProfile()
+        if (cachedUser != null) {
+            _currentUserFlow.value = cachedUser
+            // Silently restore tokens if Supabase auth session is not in memory
+            try {
+                if (supabase.auth.currentUserOrNull() == null) {
+                    val (access, refresh) = SessionManager.getAuthTokens()
+                    if (!access.isNullOrBlank() && !refresh.isNullOrBlank()) {
+                        supabase.auth.importAuthToken(accessToken = access, refreshToken = refresh)
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // In background, refresh profile from remote if session is valid
+            try {
+                val user = supabase.auth.currentUserOrNull()
+                if (user != null) {
+                    val freshProfile = fetchOrCreateProfile(user.id, user.email, null, null, null, null, null)
+                    _currentUserFlow.value = freshProfile
+                    return@withContext freshProfile
+                }
+            } catch (_: Exception) {}
+
+            return@withContext cachedUser
+        }
+
+        // 3. Fallback: check Room Database
+        try {
+            val user = supabase.auth.currentUserOrNull()
+            if (user != null) {
+                val dbUser = DatabaseProvider.getDatabase().userDao().getUserById(user.id)
+                if (dbUser != null) {
+                    val domainUser = dbUser.toDomain()
+                    SessionManager.saveSession(domainUser)
+                    _currentUserFlow.value = domainUser
+                    return@withContext domainUser
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 4. Remote Supabase active session
         try {
             val user = supabase.auth.currentUserOrNull() ?: return@withContext null
             val profile = fetchOrCreateProfile(user.id, user.email, null, null, null, null, null)
@@ -343,7 +398,7 @@ class AuthRepositoryImpl : AuthRepository {
     }
 
     override fun isUserLoggedIn(): Boolean {
-        return supabase.auth.currentUserOrNull() != null
+        return SessionManager.hasActiveSession() || supabase.auth.currentUserOrNull() != null
     }
 
     private fun extractParam(rawString: String?, key: String): String? {
@@ -387,7 +442,7 @@ class AuthRepositoryImpl : AuthRepository {
         val finalDob = dob ?: metaDob
         val finalAvatar = avatarUrl ?: metaAvatar
 
-        return try {
+        val domainProfile = try {
             val existing = supabase.postgrest["profiles"].select {
                 filter {
                     eq("id", userId)
@@ -435,5 +490,18 @@ class AuthRepositoryImpl : AuthRepository {
                 avatarUrl = finalAvatar
             )
         }
+
+        // Persist to SessionManager (SharedPreferences) and Room Database
+        try {
+            val session = supabase.auth.currentSessionOrNull()
+            SessionManager.saveSession(
+                user = domainProfile,
+                accessToken = session?.accessToken,
+                refreshToken = session?.refreshToken
+            )
+            DatabaseProvider.getDatabase().userDao().insertOrUpdateUser(UserEntity.fromDomain(domainProfile))
+        } catch (_: Exception) {}
+
+        return domainProfile
     }
 }

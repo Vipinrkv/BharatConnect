@@ -37,7 +37,7 @@ class AuthViewModel(
     private val getCurrentUserUseCase: GetCurrentUserUseCase = GetCurrentUserUseCase(authRepository)
 ) : ViewModel() {
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     private val _currentUser = MutableStateFlow<UserProfile?>(null)
@@ -66,6 +66,7 @@ class AuthViewModel(
 
     fun checkSession() {
         viewModelScope.launch {
+            _authState.value = AuthState.Loading
             val user = getCurrentUserUseCase()
             if (user != null) {
                 _currentUser.value = user
@@ -74,6 +75,18 @@ class AuthViewModel(
                 _authState.value = AuthState.Idle
             }
         }
+    }
+
+    fun getRememberedIdentifier(): String {
+        return com.bharatconnect.app.core.session.SessionManager.getRememberedIdentifier()
+    }
+
+    fun isRememberCredentialsEnabled(): Boolean {
+        return com.bharatconnect.app.core.session.SessionManager.isRememberCredentialsEnabled()
+    }
+
+    fun setRememberCredentials(enabled: Boolean) {
+        com.bharatconnect.app.core.session.SessionManager.setRememberCredentials(enabled)
     }
 
     fun login(identifier: String, password: String) {

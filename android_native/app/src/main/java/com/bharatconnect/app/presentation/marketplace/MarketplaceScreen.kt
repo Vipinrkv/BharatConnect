@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
+import com.bharatconnect.app.presentation.components.MarketItemSkeleton
 
 data class MarketItem(
     val id: String,
@@ -56,6 +57,7 @@ fun MarketplaceScreen(
     var selectedTab by remember { mutableStateOf(0) } // 0: Items, 1: Jobs, 2: Quick Jobs
     var searchQuery by remember { mutableStateOf("") }
     var showCreateListingDialog by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
 
     val itemsList = remember {
         mutableStateListOf<MarketItem>()
@@ -145,7 +147,11 @@ fun MarketplaceScreen(
                         val filteredItems = itemsList.filter {
                             searchQuery.isBlank() || it.title.contains(searchQuery, ignoreCase = true) || it.category.contains(searchQuery, ignoreCase = true)
                         }
-                        if (filteredItems.isEmpty()) {
+                        if (isLoading && filteredItems.isEmpty()) {
+                            items(4) {
+                                MarketItemSkeleton()
+                            }
+                        } else if (filteredItems.isEmpty()) {
                             item {
                                 Card(
                                     colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),

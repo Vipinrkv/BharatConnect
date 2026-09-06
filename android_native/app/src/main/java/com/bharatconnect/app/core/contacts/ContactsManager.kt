@@ -24,6 +24,8 @@ data class PhoneContact(
 
 object ContactsManager {
 
+    private val phoneToNameMap = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     /**
      * Reads all contacts from the Android device phonebook.
      * Preserves the authoritative contact name from the user's phonebook.
@@ -58,6 +60,14 @@ object ContactsManager {
                     val name = if (nameIndex >= 0) it.getString(nameIndex) ?: "Contact" else "Contact"
                     val rawNumber = if (numberIndex >= 0) it.getString(numberIndex) ?: "" else ""
                     val normalized = normalizePhoneNumber(rawNumber)
+
+                    if (normalized.isNotBlank()) {
+                        phoneToNameMap[normalized] = name
+                        val fullDigits = rawNumber.filter { char -> char.isDigit() }
+                        if (fullDigits.isNotBlank()) {
+                            phoneToNameMap[fullDigits] = name
+                        }
+                    }
 
                     val key = if (normalized.isNotBlank()) normalized else rawNumber.trim()
                     if (key.isNotBlank() && !contactsMap.containsKey(key)) {
@@ -183,6 +193,84 @@ object ContactsManager {
         } else {
             digitsOnly
         }
+    }
+
+    /**
+     * Looks up whether a phone number exists in the device phonebook.
+     * Returns the device contact name if saved, or null if unsaved.
+     */
+    fun getContactNameByPhone(context: Context, rawPhone: String?): String? {
+        if (rawPhone.isNullOrBlank()) return null
+        val norm = normalizePhoneNumber(rawPhone)
+        if (norm.isNotBlank() && phoneToNameMap.containsKey(norm)) {
+            return phoneToNameMap[norm]
+        }
+        val fullDigits = rawPhone.filter { it.isDigit() }
+        if (fullDigits.isNotBlank() && phoneToNameMap.containsKey(fullDigits)) {
+            return phoneToNameMap[fullDigits]
+        }
+
+        // Direct ContentResolver query if cache is cold
+        return try {
+            val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(rawPhone))
+            context.contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME)
+                    if (nameIdx >= 0) {
+                        val name = cursor.getString(nameIdx)
+                        if (!name.isNullOrBlank()) {
+                            if (norm.isNotBlank()) phoneToNameMap[norm] = name
+                            return@use name
+                        }
+                    }
+                }
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Formats a phone number for clean WhatsApp-style display (e.g. "+91 98765 43210").
+     */
+    fun formatDisplayPhoneNumber(phone: String): String {
+        val digits = phone.filter { it.isDigit() }
+        return if (digits.length >= 10) {
+            val last10 = digits.takeLast(10)
+            "+91 ${last10.substring(0, 5)} ${last10.substring(5)}"
+        } else {
+            phone.ifBlank { "BharatConnect Member" }
+        }
+    }
+
+    /**
+     * WhatsApp-style authoritative name resolution:
+     * 1. If saved in device phonebook -> displays device phonebook name (e.g. "Rahul Work")
+     * 2. If NOT saved in device phonebook -> displays phone number (e.g. "+91 98765 43210")
+     * 3. Fallback -> full name, username, or fallback title
+     */
+    fun resolveCounterpartDisplayName(
+        context: Context,
+        phoneNumber: String?,
+        fullName: String?,
+        username: String?,
+        fallbackTitle: String? = null
+    ): String {
+        if (!phoneNumber.isNullOrBlank()) {
+            val savedName = getContactNameByPhone(context, phoneNumber)
+            if (!savedName.isNullOrBlank()) {
+                return savedName
+            }
+            // Contact is NOT saved in phonebook -> display phone number, just like WhatsApp!
+            return formatDisplayPhoneNumber(phoneNumber)
+        }
+
+        // If no phone number is present on profile, fallback to profile full name or username
+        return fullName?.takeIf { it.isNotBlank() }
+            ?: username?.takeIf { it.isNotBlank() }
+            ?: fallbackTitle?.takeIf { it.isNotBlank() }
+            ?: "BharatConnect Member"
     }
 
     /**

@@ -587,6 +587,82 @@
 ---
 *(Append all future system changes below this line)*
 
+### 🔹 Entry #030 — WhatsApp-Style Login Persistence, Auto-Login & Shimmer Skeleton Loaders
+- **Date & Time**: `2026-09-06 08:45:00 IST` (`2026-09-06T03:15:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/session/SessionManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/session/SessionManager.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/components/SkeletonComponents.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/components/SkeletonComponents.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/BharatConnectApp.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/BharatConnectApp.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/AuthRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/AuthViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/LoginScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/LoginScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/FeedViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/FeedViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/notifications/NotificationsScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/notifications/NotificationsScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/marketplace/MarketplaceScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/marketplace/MarketplaceScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/nearby/NearbyScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/nearby/NearbyScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+- **Summary of Changes**:
+  - **WhatsApp-Style Session Persistence**: Created [`SessionManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/session/SessionManager.kt) to persist authenticated user profile, session tokens, and credentials in SharedPreferences + Room SQLite `users` table.
+  - **Instant Auto-Login on Cold Launch**: Updated `AuthRepositoryImpl.getCurrentUser()` and `AuthViewModel.checkSession()` to immediately restore the cached session on launch (0ms instant startup online/offline), while silently refreshing Supabase GoTrue auth in the background.
+  - **Smooth Auto-Navigation in Splash**: Updated [`SplashScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/splash/SplashScreen.kt) to auto-transition directly to `HomeScreen` when an active session is detected, eliminating redundant sign-in prompts.
+  - **Remember Me & Credential Autofill**: Added "Remember Login" checkbox and remembered identifier pre-population in [`LoginScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/auth/LoginScreen.kt).
+  - **Comprehensive Shimmer Skeleton Design System**: Created [`SkeletonComponents.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/components/SkeletonComponents.kt) with fluid gradient animation modifiers (`Modifier.shimmerEffect()`) and dedicated composables:
+    - `FeedPostSkeleton` & `StoriesRowSkeleton` in Social Feed.
+    - `ConversationItemSkeleton` in Messages & Hubs chat list.
+    - `ContactItemSkeleton` in Contact Drawer & sync view.
+    - `NotificationItemSkeleton` in Notifications & Activity feed.
+    - `MarketItemSkeleton` in Marketplace buy/sell & gigs tab.
+    - `NearbyUserSkeleton` in Nearby Radar discovery screen.
+  - **Compilation & Verification**: All 25 unit test suites passed cleanly (`./gradlew testDebugUnitTest`); assembled debug APK and updated standalone binaries in root and `web/` distribution directory (25.85 MB).
+
+---
+
+### 🔹 Entry #031 — Device Back Button Prevention, Permanent Chat Deletion & WhatsApp-Style Contact Resolution
+- **Date & Time**: `2026-09-06 09:15:00 IST` (`2026-09-06T03:45:00Z`)
+- **Files Modified**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/contacts/ContactsManager.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/contacts/ContactsManager.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/repository/ChatRepository.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/repository/ChatRepository.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/usecase/chat/ChatUseCases.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/usecase/chat/ChatUseCases.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/sync/SyncWorker.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/sync/SyncWorker.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/notifications/NotificationsScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/notifications/NotificationsScreen.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/domain/ChatUseCasesTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/domain/ChatUseCasesTest.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Device Back Button Exit Prevention (WhatsApp Style)**:
+    - Added nested and root Compose `BackHandler`s to eliminate abrupt application exits on hardware/gesture back press.
+    - Active overlays (dialogs, bottom sheets, full-screen stories, notifications screen, emoji drawer, attachment picker) now close cleanly first on back press.
+    - If user is on sub-tabs (Messages, Nearby, Marketplace, Profile), back press returns to the main Feed tab (`selectedTab = 0`).
+    - On the main Feed tab, exiting requires a double back press within 2 seconds, displaying the native toast: `"Press back again to exit BharatConnect"`.
+  - **Permanent Chat Deletion (Two-Way Purge)**:
+    - Root cause: Deleting a chat previously only appended to an in-memory list (`archivedConvIds`), leaving all messages and conversation rows untouched in Room SQLite and Supabase PostgREST. Initiating a chat with the same person regenerated the deterministic UUID and restored old messages.
+    - Added `deleteConversation(conversationId)` to `ChatRepository`, `ChatRepositoryImpl`, and `DeleteConversationUseCase`.
+    - Permanently deletes all messages and conversation records locally via `messageDao.deleteMessagesByConversation()` and `conversationDao.deleteConversation()`, and remotely in Supabase `messages`, `conversation_members`, and `conversations`.
+    - Added delete confirmations and menu actions in both conversation list long-press modal and `ChatDetailScreen` top bar overflow menu.
+  - **WhatsApp-Style Authoritative Contact Name Resolution**:
+    - Sender display names in individual chats, conversation list headers, and incoming message notifications now prioritize the receiver's local device phonebook.
+    - Implemented `ContactsManager.resolveCounterpartDisplayName()`:
+      1. If phone number is saved in the user's phonebook, display the authoritative phonebook contact name (e.g., `"Rahul Work"`).
+      2. If NOT saved in the phonebook, display the clean formatted phone number (e.g., `"+91 98765 43210"`), exactly matching WhatsApp.
+      3. Fallback to full name / username only if no phone number exists.
+  - **Background Incoming Message Notifications**:
+    - Updated `SyncWorker.kt` to inspect unread message notifications when the app is in the background and trigger high-priority heads-up notifications with resolved sender names.
+  - **Test Suite & Build Verification**:
+    - Added `testDeleteConversation_removesConversationAndMessages()` to `ChatUseCasesTest.kt`. All 26 unit test suites executed and passed with 100% success (`./gradlew testDebugUnitTest`).
+    - Assembled updated Android APK (`assembleDebug`, 26.02 MB) and synced to root `BharatConnect-Native.apk` and `web/BharatConnect-Native.apk`.
+
+---
+
+
+
 
 
 

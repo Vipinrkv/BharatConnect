@@ -51,3 +51,9 @@ class UnsubscribeRealtimeUseCase(private val chatRepository: ChatRepository) {
         chatRepository.unsubscribeRealtime()
     }
 }
+
+class DeleteConversationUseCase(private val chatRepository: ChatRepository) {
+    suspend operator fun invoke(conversationId: String): Result<Unit> {
+        return chatRepository.deleteConversation(conversationId)
+    }
+}

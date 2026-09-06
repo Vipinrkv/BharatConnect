@@ -45,6 +45,7 @@ fun SplashScreen(
 
     LaunchedEffect(authState) {
         if (authState is com.bharatconnect.app.domain.model.AuthState.Authenticated) {
+            kotlinx.coroutines.delay(400)
             onNavigateToHome()
         }
     }
