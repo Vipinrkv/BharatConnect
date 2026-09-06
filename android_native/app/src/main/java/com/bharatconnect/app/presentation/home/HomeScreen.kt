@@ -1975,7 +1975,11 @@ fun ChatDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(messages) { msg ->
-                    val isMe = msg.senderId == currentUserId || (currentUserId == null && msg.senderId != "other")
+                    val resolvedUserId = currentUserId 
+                        ?: com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()?.id
+                    val isMe = (resolvedUserId != null && msg.senderId == resolvedUserId) ||
+                               (msg.senderName == "You") ||
+                               (resolvedUserId == null && msg.senderId != "other")
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = if (isMe) Alignment.CenterEnd else Alignment.CenterStart

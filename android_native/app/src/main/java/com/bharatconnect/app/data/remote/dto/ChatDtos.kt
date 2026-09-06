@@ -68,7 +68,9 @@ data class MessageDto(
     val conversationId: String,
     @SerialName("sender_id")
     val senderId: String,
-    val content: String,
+    @SerialName("sender_name")
+    val senderName: String? = "User",
+    val content: String = "",
     @SerialName("media_url")
     val mediaUrl: String? = null,
     @SerialName("media_type")
@@ -77,12 +79,12 @@ data class MessageDto(
     @SerialName("created_at")
     val createdAt: String? = null
 ) {
-    fun toDomain(senderName: String? = null): Message {
+    fun toDomain(overrideSenderName: String? = null): Message {
         return Message(
             id = id,
             conversationId = conversationId,
             senderId = senderId,
-            senderName = senderName,
+            senderName = overrideSenderName ?: senderName ?: "User",
             content = content,
             mediaUrl = mediaUrl,
             mediaType = mediaType,

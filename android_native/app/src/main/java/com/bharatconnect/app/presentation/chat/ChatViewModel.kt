@@ -15,9 +15,11 @@ import com.bharatconnect.app.domain.usecase.chat.SubscribeToRealtimeUseCase
 import com.bharatconnect.app.domain.usecase.chat.UnsubscribeRealtimeUseCase
 import com.bharatconnect.app.domain.usecase.chat.DeleteConversationUseCase
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class ChatViewModel(
@@ -59,12 +61,15 @@ class ChatViewModel(
     private var messageObservationJob: Job? = null
     private var realtimeJob: Job? = null
     private var globalRealtimeJob: Job? = null
+    private var activeChatPollingJob: Job? = null
+    private var conversationSyncJob: Job? = null
     private val chatRepo = chatRepository
 
     init {
         observeConversations()
         refreshConversations()
         startGlobalRealtimeListener()
+        startPeriodicConversationSync()
         fetchNotifications()
     }
 
@@ -74,6 +79,19 @@ class ChatViewModel(
             chatRepo.subscribeToGlobalUserMessages { _, _ ->
                 refreshConversations()
                 fetchNotifications()
+            }
+        }
+    }
+
+    private fun startPeriodicConversationSync() {
+        conversationSyncJob?.cancel()
+        conversationSyncJob = viewModelScope.launch {
+            while (isActive) {
+                delay(3500)
+                try {
+                    fetchConversationsUseCase()
+                    fetchNotifications()
+                } catch (_: Exception) {}
             }
         }
     }
@@ -149,6 +167,17 @@ class ChatViewModel(
         realtimeJob = viewModelScope.launch {
             subscribeToRealtimeUseCase(conversationId)
         }
+
+        // Fast adaptive polling heartbeat while chat screen is actively open
+        activeChatPollingJob?.cancel()
+        activeChatPollingJob = viewModelScope.launch {
+            while (isActive && _selectedConversation.value?.id == conversationId) {
+                delay(2000)
+                try {
+                    fetchMessagesUseCase(conversationId)
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     fun sendMessage(
@@ -201,6 +230,7 @@ class ChatViewModel(
     }
 
     fun closeChat() {
+        activeChatPollingJob?.cancel()
         messageObservationJob?.cancel()
         realtimeJob?.cancel()
         viewModelScope.launch {

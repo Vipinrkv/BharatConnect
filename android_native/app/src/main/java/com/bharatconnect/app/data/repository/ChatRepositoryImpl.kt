@@ -41,6 +41,27 @@ class ChatRepositoryImpl : ChatRepository {
     private val messageDao = db.messageDao()
     private val supabase = SupabaseClient.client
 
+    private suspend fun ensureAuthSession() {
+        if (supabase.auth.currentUserOrNull() == null) {
+            val (access, refresh) = com.bharatconnect.app.core.session.SessionManager.getAuthTokens()
+            if (!access.isNullOrBlank() && !refresh.isNullOrBlank()) {
+                try {
+                    supabase.auth.importAuthToken(access, refresh)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    private fun resolveCurrentUserId(): String? {
+        val authId = supabase.auth.currentUserOrNull()?.id
+        if (!authId.isNullOrBlank()) return authId
+
+        val sessionUser = com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()
+        if (!sessionUser?.id.isNullOrBlank()) return sessionUser!!.id
+
+        return null
+    }
+
     override fun getConversationsFlow(): Flow<List<Conversation>> {
         return conversationDao.getAllConversationsFlow().map { list ->
             list.map { it.toDomain() }
@@ -54,7 +75,12 @@ class ChatRepositoryImpl : ChatRepository {
     }
 
     override suspend fun fetchConversations(): Result<List<Conversation>> = withContext(Dispatchers.IO) {
-        val currentUserId = supabase.auth.currentUserOrNull()?.id ?: return@withContext Result.success(emptyList())
+        ensureAuthSession()
+        val currentUserId = resolveCurrentUserId()
+        if (currentUserId.isNullOrBlank()) {
+            val local = conversationDao.getAllConversations().map { it.toDomain() }
+            return@withContext Result.success(local)
+        }
         try {
             // 1. Fetch conversations from remote
             val remoteConversations = try {
@@ -78,11 +104,18 @@ class ChatRepositoryImpl : ChatRepository {
                 .filter { it.userId != currentUserId }
                 .associate { it.conversationId to it.userId }
 
+            // 3. Find conversations from messages where user sent or received
+            val myMessageConvIds = try {
+                supabase.postgrest["messages"].select {
+                    filter { eq("sender_id", currentUserId) }
+                }.decodeList<MessageDto>().map { it.conversationId }.toSet()
+            } catch (_: Exception) { emptySet() }
+
             // Filter for conversations relevant to this user
             val myConversations = remoteConversations.filter { conv ->
                 conv.createdBy == currentUserId ||
                 memberConvIds.contains(conv.id) ||
-                conv.id.contains(currentUserId)
+                myMessageConvIds.contains(conv.id)
             }
 
             // Fetch profiles to resolve the other participant's name for direct chats
@@ -113,7 +146,10 @@ class ChatRepositoryImpl : ChatRepository {
             }
 
             conversationDao.insertConversations(entities)
-            Result.success(entities.map { it.toDomain() })
+            val localConvs = conversationDao.getAllConversations().map { it.toDomain() }
+            val remoteIds = entities.map { it.id }.toSet()
+            val merged = entities.map { it.toDomain() } + localConvs.filter { !remoteIds.contains(it.id) }
+            Result.success(merged)
         } catch (e: Exception) {
             // Offline fallback to Room
             val local = conversationDao.getAllConversations().map { it.toDomain() }
@@ -122,6 +158,7 @@ class ChatRepositoryImpl : ChatRepository {
     }
 
     override suspend fun fetchMessages(conversationId: String): Result<List<Message>> = withContext(Dispatchers.IO) {
+        ensureAuthSession()
         try {
             val remoteMessages = supabase.postgrest["messages"]
                 .select {
@@ -131,13 +168,18 @@ class ChatRepositoryImpl : ChatRepository {
                 }
                 .decodeList<MessageDto>()
 
+            val currentUserId = resolveCurrentUserId()
             val entities = remoteMessages.map { 
                 val decrypted = SignalEncryptionManager.decrypt(it.conversationId, it.content)
+                if (currentUserId != null && it.senderId != currentUserId && it.status == "sent") {
+                    try { acknowledgeMessageDelivered(it.id, conversationId) } catch (_: Exception) {}
+                }
                 MessageEntity.fromDomain(it.toDomain().copy(content = decrypted))
             }
             messageDao.insertMessages(entities)
 
-            Result.success(entities.map { it.toDomain() })
+            val local = messageDao.getMessagesByConversation(conversationId).map { it.toDomain() }
+            Result.success(local)
         } catch (e: Exception) {
             // Offline fallback to Room
             val local = messageDao.getMessagesByConversation(conversationId).map { it.toDomain() }
@@ -151,14 +193,21 @@ class ChatRepositoryImpl : ChatRepository {
         mediaUrl: String?,
         mediaType: String?
     ): Result<Message> = withContext(Dispatchers.IO) {
-        val currentUserId = supabase.auth.currentUserOrNull()?.id ?: "local_user"
+        ensureAuthSession()
+        val currentUserId = resolveCurrentUserId() ?: return@withContext Result.failure(Exception("User not authenticated"))
         val messageId = UUID.randomUUID().toString()
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+
+        val senderProfile = com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()
+        val senderName = senderProfile?.fullName?.takeIf { it.isNotBlank() }
+            ?: senderProfile?.username?.takeIf { it.isNotBlank() }
+            ?: "You"
 
         val localMessage = Message(
             id = messageId,
             conversationId = conversationId,
             senderId = currentUserId,
+            senderName = senderName,
             content = content,
             mediaUrl = mediaUrl,
             mediaType = mediaType,
@@ -178,6 +227,7 @@ class ChatRepositoryImpl : ChatRepository {
                 id = messageId,
                 conversationId = conversationId,
                 senderId = currentUserId,
+                senderName = senderName,
                 content = encryptedContent,
                 mediaUrl = mediaUrl,
                 mediaType = mediaType,
@@ -191,16 +241,21 @@ class ChatRepositoryImpl : ChatRepository {
             // 3. Mark synced in Room DB
             messageDao.updateMessageStatus(messageId, "sent", false)
 
-            // 4. Update conversation in remote Supabase
+            // 4. Update or upsert conversation in remote Supabase
             try {
-                supabase.postgrest["conversations"].update({
-                    set("last_message", encryptedContent)
-                    set("last_message_time", timestamp)
-                }) {
-                    filter {
-                        eq("id", conversationId)
-                    }
-                }
+                val convEntity = conversationDao.getConversationById(conversationId)
+                val convTitle = convEntity?.title ?: "Chat"
+                supabase.postgrest["conversations"].upsert(
+                    ConversationDto(
+                        id = conversationId,
+                        type = "direct",
+                        title = convTitle,
+                        createdBy = currentUserId,
+                        lastMessage = encryptedContent,
+                        lastMessageTime = timestamp,
+                        createdAt = timestamp
+                    )
+                )
             } catch (_: Exception) {}
 
             // 5. Notify recipient in public.notifications
@@ -219,15 +274,20 @@ class ChatRepositoryImpl : ChatRepository {
                     } else null
                 } else null
 
+            // Ensure both members are registered in conversation_members
             if (recipientId != null && recipientId != currentUserId) {
                 try {
-                    val senderProfile = supabase.postgrest["profiles"].select {
-                        filter { eq("id", currentUserId) }
-                    }.decodeSingleOrNull<ProfileDto>()
-                    val senderName = senderProfile?.fullName?.takeIf { it.isNotBlank() }
-                        ?: senderProfile?.username?.takeIf { it.isNotBlank() }
-                        ?: "BharatConnect Member"
+                    val m1 = java.util.UUID.nameUUIDFromBytes("${conversationId}_${currentUserId}".toByteArray()).toString()
+                    val m2 = java.util.UUID.nameUUIDFromBytes("${conversationId}_${recipientId}".toByteArray()).toString()
+                    supabase.postgrest["conversation_members"].upsert(
+                        ConversationMemberDto(id = m1, conversationId = conversationId, userId = currentUserId, role = "member")
+                    )
+                    supabase.postgrest["conversation_members"].upsert(
+                        ConversationMemberDto(id = m2, conversationId = conversationId, userId = recipientId, role = "member")
+                    )
+                } catch (_: Exception) {}
 
+                try {
                     supabase.postgrest["notifications"].insert(
                         NotificationDto(
                             userId = recipientId,
@@ -260,6 +320,7 @@ class ChatRepositoryImpl : ChatRepository {
                     id = msg.id,
                     conversationId = msg.conversationId,
                     senderId = msg.senderId,
+                    senderName = msg.senderName ?: "User",
                     content = encryptedContent,
                     mediaUrl = msg.mediaUrl,
                     mediaType = msg.mediaType,
@@ -275,7 +336,8 @@ class ChatRepositoryImpl : ChatRepository {
     }
 
     override suspend fun getOrCreateDirectConversation(participantId: String, title: String): Result<Conversation> = withContext(Dispatchers.IO) {
-        val currentUserId = supabase.auth.currentUserOrNull()?.id ?: "local_user"
+        ensureAuthSession()
+        val currentUserId = resolveCurrentUserId() ?: return@withContext Result.failure(Exception("User not authenticated"))
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
         
         // Generate deterministic conversation ID for 1-on-1 pairs
@@ -407,7 +469,8 @@ class ChatRepositoryImpl : ChatRepository {
     }
 
     override suspend fun subscribeToGlobalUserMessages(onNewMessage: ((Message, String) -> Unit)?): Unit = withContext(Dispatchers.IO) {
-        val currentUserId = supabase.auth.currentUserOrNull()?.id ?: return@withContext
+        ensureAuthSession()
+        val currentUserId = resolveCurrentUserId() ?: return@withContext
         try {
             globalRealtimeChannel?.let {
                 try { supabase.realtime.removeChannel(it) } catch (_: Exception) {}
@@ -517,7 +580,8 @@ class ChatRepositoryImpl : ChatRepository {
     }
 
     override suspend fun fetchNotifications(): Result<List<NotificationDto>> = withContext(Dispatchers.IO) {
-        val currentUserId = supabase.auth.currentUserOrNull()?.id ?: return@withContext Result.success(emptyList())
+        ensureAuthSession()
+        val currentUserId = resolveCurrentUserId() ?: return@withContext Result.success(emptyList())
         try {
             val list = supabase.postgrest["notifications"]
                 .select {
@@ -535,7 +599,8 @@ class ChatRepositoryImpl : ChatRepository {
     }
 
     override suspend fun markNotificationsRead(): Result<Unit> = withContext(Dispatchers.IO) {
-        val currentUserId = supabase.auth.currentUserOrNull()?.id ?: return@withContext Result.success(Unit)
+        ensureAuthSession()
+        val currentUserId = resolveCurrentUserId() ?: return@withContext Result.success(Unit)
         try {
             supabase.postgrest["notifications"].update({
                 set("is_read", true)
@@ -582,7 +647,8 @@ class ChatRepositoryImpl : ChatRepository {
     }
 
     override suspend fun markMessagesAsRead(conversationId: String): Result<Unit> = withContext(Dispatchers.IO) {
-        val currentUserId = supabase.auth.currentUserOrNull()?.id ?: return@withContext Result.success(Unit)
+        ensureAuthSession()
+        val currentUserId = resolveCurrentUserId() ?: return@withContext Result.success(Unit)
         try {
             // Update local Room database
             messageDao.markIncomingMessagesRead(conversationId, currentUserId, "read")

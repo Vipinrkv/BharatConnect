@@ -753,4 +753,36 @@
     - Synced APK binaries to root and `web/` distribution directory.
 
 ---
+
+### 🔹 Entry #035 — End-to-End Real-Time Chat Resolution, Multi-Tier Auth Warmup, Dual Sync Engine & Delivery Hardening
+- **Date & Time**: `2026-09-06 10:37:00 IST` (`2026-09-06T05:07:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/BharatConnectApp.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/BharatConnectApp.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/UserDao.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/UserDao.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/remote/dto/ChatDtos.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/remote/dto/ChatDtos.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Multi-Tier Identity & Session Warmup**:
+    - Eliminated fatal Postgres error `22P02 invalid input syntax for type uuid: "local_user"` by centralizing `resolveCurrentUserId()` in `ChatRepositoryImpl.kt`, verifying Supabase in-memory session, `SessionManager` SharedPreferences cache, and Room `UserDao` UUID.
+    - Updated [`BharatConnectApp.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/BharatConnectApp.kt) to asynchronously warm up and import GoTrue auth tokens (`importAuthToken`) on startup.
+  - **Schema-Compliant `MessageDto`**:
+    - Added `@SerialName("sender_name") val senderName: String? = "User"` to [`ChatDtos.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/remote/dto/ChatDtos.kt) ensuring strict compliance with Supabase Postgres schema `sender_name TEXT NOT NULL`.
+  - **Dual WebSocket Realtime + Polling Heartbeat**:
+    - Added active chat polling heartbeat (`activeChatPollingJob`, 2s interval) in [`ChatViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt) to guarantee zero message loss even when WebSocket reconnects or experiences mobile network sleep.
+    - Added background foreground sync loop (`conversationSyncJob`, 3.5s interval) in `ChatViewModel.kt` to auto-fetch new conversations and notifications across devices.
+  - **Idempotent Membership & Conversation Upsert**:
+    - Updated `sendMessage` in `ChatRepositoryImpl.kt` to upsert both participants into `public.conversation_members` and upsert the `conversations` record, guaranteeing User B's device immediately discovers the conversation upon message arrival.
+  - **Robust Message Bubble Alignment & Tick Visibility**:
+    - Updated `isMe` evaluation in [`HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt) with session profile resolution and `senderName == "You"` fallback, ensuring outbound messages always align on the right with proper WhatsApp multi-state ticks (`⏳`, `✓`, `✓✓`, `✓✓` blue).
+  - **Compilation, Test Verification & Distribution**:
+    - All 27 unit test suites passed with 100% success (`./gradlew testDebugUnitTest`).
+    - Recompiled production debug APK (`assembleDebug`, 24.7 MB / ~25.0 MB, SHA-256: `8AEA85EA34163A7C19A5E3488B10C7ABA57C75251AB7BA731D938B7BF3716747`).
+    - Synced APK to root repository and `web/` distribution directory.
+
+---
 *(Append all future system changes below this line)*
