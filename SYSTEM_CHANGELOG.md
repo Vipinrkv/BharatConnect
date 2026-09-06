@@ -702,6 +702,25 @@
 
 ---
 
+### 🔹 Entry #033 — Soft Keyboard Window Resize & Pinned Chat Top App Bar Fix
+- **Date & Time**: `2026-09-06 10:00:00 IST` (`2026-09-06T04:30:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/AndroidManifest.xml`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/AndroidManifest.xml)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/home/HomeScreen.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`web/index.html`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/index.html)
+  - [`web/app.js`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/app.js)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Root Cause Identified (Window Soft Input Pan)**: Without explicit `windowSoftInputMode` in `AndroidManifest.xml`, Android defaulted to `adjustPan`. When the message `OutlinedTextField` gained focus, Android translated/panned the entire window upwards to keep the input visible, sliding the `TopAppBar` completely off the top of the screen.
+  - **Explicit `adjustResize` Window Soft Input Mode**: Configured `android:windowSoftInputMode="adjustResize"` on `.MainActivity` in `AndroidManifest.xml`. The window height resizes to the area above the software keyboard, keeping the `TopAppBar` firmly pinned below the status bar while the bottom message input bar rests naturally above the keyboard.
+  - **Smooth Auto-Scroll to Latest Message**: Bound `listState = rememberLazyListState()` with `LaunchedEffect(messages.size)` on `LazyColumn` in `ChatDetailScreen` to keep newest messages scrolled into view as the viewport resizes.
+  - **Verification & Rebuild**: Passed all 27 unit test suites (`./gradlew testDebugUnitTest`); recompiled release APK (`assembleDebug`, 25.0 MB, SHA-256: `993cc654dc9b778fcdb3e43202dbb40f2de471d4331174205b3d37b07259b9ac`); updated root and web binaries, hashes, and download cards.
+
+---
+
+
 
 
 
