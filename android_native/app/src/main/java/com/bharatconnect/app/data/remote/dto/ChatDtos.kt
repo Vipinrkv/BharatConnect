@@ -77,7 +77,9 @@ data class MessageDto(
     val mediaType: String? = null,
     val status: String = "sent",
     @SerialName("created_at")
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    @SerialName("recipient_id")
+    val recipientId: String? = null
 ) {
     fun toDomain(overrideSenderName: String? = null): Message {
         return Message(

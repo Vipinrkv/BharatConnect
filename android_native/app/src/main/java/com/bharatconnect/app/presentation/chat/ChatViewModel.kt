@@ -19,6 +19,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -58,6 +61,10 @@ class ChatViewModel(
     private val _notifications = MutableStateFlow<List<com.bharatconnect.app.data.remote.dto.NotificationDto>>(emptyList())
     val notifications: StateFlow<List<com.bharatconnect.app.data.remote.dto.NotificationDto>> = _notifications.asStateFlow()
 
+    val totalUnreadCount: StateFlow<Int> = _conversations.map { list ->
+        list.sumOf { it.unreadCount }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     private var messageObservationJob: Job? = null
     private var realtimeJob: Job? = null
     private var globalRealtimeJob: Job? = null
@@ -76,9 +83,16 @@ class ChatViewModel(
     private fun startGlobalRealtimeListener() {
         globalRealtimeJob?.cancel()
         globalRealtimeJob = viewModelScope.launch {
-            chatRepo.subscribeToGlobalUserMessages { _, _ ->
-                refreshConversations()
-                fetchNotifications()
+            while (isActive) {
+                try {
+                    chatRepo.subscribeToGlobalUserMessages { _, _ ->
+                        refreshConversations()
+                        fetchNotifications()
+                    }
+                } catch (_: Exception) {
+                    delay(2000)
+                }
+                delay(1000)
             }
         }
     }
@@ -87,7 +101,7 @@ class ChatViewModel(
         conversationSyncJob?.cancel()
         conversationSyncJob = viewModelScope.launch {
             while (isActive) {
-                delay(3500)
+                delay(1500)
                 try {
                     fetchConversationsUseCase()
                     fetchNotifications()
@@ -172,7 +186,7 @@ class ChatViewModel(
         activeChatPollingJob?.cancel()
         activeChatPollingJob = viewModelScope.launch {
             while (isActive && _selectedConversation.value?.id == conversationId) {
-                delay(2000)
+                delay(1000)
                 try {
                     fetchMessagesUseCase(conversationId)
                 } catch (_: Exception) {}

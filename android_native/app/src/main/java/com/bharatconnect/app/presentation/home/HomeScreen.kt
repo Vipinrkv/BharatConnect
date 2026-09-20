@@ -88,6 +88,7 @@ fun HomeScreen(
 
     val notificationsList by chatViewModel.notifications.collectAsState()
     val unreadNotifCount = remember(notificationsList) { notificationsList.count { !it.isRead } }
+    val totalChatUnread by chatViewModel.totalUnreadCount.collectAsState()
 
     // WhatsApp-style device back button prevention
     BackHandler {
@@ -260,7 +261,26 @@ fun HomeScreen(
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    icon = { Icon(Icons.Default.ChatBubble, contentDescription = "Chats") },
+                    icon = {
+                        if (totalChatUnread > 0) {
+                            BadgedBox(
+                                badge = {
+                                    Badge(containerColor = Color(0xFF25D366)) {
+                                        Text(
+                                            text = if (totalChatUnread > 99) "99+" else "$totalChatUnread",
+                                            color = Color.Black,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                }
+                            ) {
+                                Icon(Icons.Default.ChatBubble, contentDescription = "Chats")
+                            }
+                        } else {
+                            Icon(Icons.Default.ChatBubble, contentDescription = "Chats")
+                        }
+                    },
                     label = { Text("Chats", fontSize = 11.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = ColorPrimary6367FF,
@@ -1179,7 +1199,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
-                            items(filteredConversations) { conv ->
+                            items(items = filteredConversations, key = { it.id }) { conv ->
                                 val isPinned = pinnedConvIds.contains(conv.id)
                                 val displayName = customNicknames[conv.id] ?: conv.title
 
@@ -1206,34 +1226,83 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                                         }
                                         Spacer(modifier = Modifier.width(14.dp))
                                         Column(modifier = Modifier.weight(1f)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = displayName,
-                                                    color = Color.White,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    fontSize = 15.sp,
-                                                    maxLines = 1,
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
                                                     modifier = Modifier.weight(1f, fill = false)
-                                                )
-                                                if (customNicknames.containsKey(conv.id)) {
-                                                    Spacer(modifier = Modifier.width(4.dp))
-                                                    Text("(${conv.title})", color = Color.Gray, fontSize = 11.sp)
+                                                ) {
+                                                    Text(
+                                                        text = displayName,
+                                                        color = Color.White,
+                                                        fontWeight = if (conv.unreadCount > 0) FontWeight.Bold else FontWeight.SemiBold,
+                                                        fontSize = 15.sp,
+                                                        maxLines = 1
+                                                    )
+                                                    if (customNicknames.containsKey(conv.id)) {
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text("(${conv.title})", color = Color.Gray, fontSize = 11.sp)
+                                                    }
+                                                    if (isPinned) {
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Icon(Icons.Default.PushPin, contentDescription = "Pinned", tint = Color(0xFFFF9933), modifier = Modifier.size(14.dp))
+                                                    }
                                                 }
-                                                if (isPinned) {
-                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                    Icon(Icons.Default.PushPin, contentDescription = "Pinned", tint = Color(0xFFFF9933), modifier = Modifier.size(14.dp))
+                                                val formattedTime = remember(conv.lastMessageTime) {
+                                                    conv.lastMessageTime?.takeIf { it.isNotBlank() }?.let { t ->
+                                                        if (t.length >= 16 && t.contains(" ")) {
+                                                            t.substring(11, 16)
+                                                        } else if (t.length >= 8) {
+                                                            t.takeLast(8).take(5)
+                                                        } else t
+                                                    } ?: ""
+                                                }
+                                                if (formattedTime.isNotBlank()) {
+                                                    Text(
+                                                        text = formattedTime,
+                                                        color = if (conv.unreadCount > 0) Color(0xFF25D366) else Color.Gray,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (conv.unreadCount > 0) FontWeight.Bold else FontWeight.Normal
+                                                    )
                                                 }
                                             }
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Spacer(modifier = Modifier.height(3.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
                                                 Text(
                                                     text = conv.lastMessage ?: "Tap to start conversation",
-                                                    color = Color.Gray,
+                                                    color = if (conv.unreadCount > 0) Color.White else Color.Gray,
+                                                    fontWeight = if (conv.unreadCount > 0) FontWeight.Medium else FontWeight.Normal,
                                                     fontSize = 13.sp,
                                                     maxLines = 1,
                                                     modifier = Modifier.weight(1f)
                                                 )
-                                                Text("• Online", color = Color(0xFF4EFEAA), fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                                                if (conv.unreadCount > 0) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .padding(start = 8.dp)
+                                                            .sizeIn(minWidth = 20.dp, minHeight = 20.dp)
+                                                            .clip(CircleShape)
+                                                            .background(Color(0xFF25D366)),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(
+                                                            text = if (conv.unreadCount > 99) "99+" else "${conv.unreadCount}",
+                                                            color = Color.Black,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            fontSize = 11.sp,
+                                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                                        )
+                                                    }
+                                                } else {
+                                                    Text("• Online", color = Color(0xFF4EFEAA), fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                                                }
                                             }
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -1974,7 +2043,7 @@ fun ChatDetailScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(messages) { msg ->
+                items(items = messages, key = { it.id }) { msg ->
                     val resolvedUserId = currentUserId 
                         ?: com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()?.id
                     val isMe = (resolvedUserId != null && msg.senderId == resolvedUserId) ||
