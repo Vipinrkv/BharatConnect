@@ -198,6 +198,7 @@ class AuthRepositoryImpl : AuthRepository {
         }
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun verifyEmailOtp(email: String, token: String): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
             val trimmedEmail = email.trim()
@@ -238,6 +239,7 @@ class AuthRepositoryImpl : AuthRepository {
         }
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun resendEmailOtp(email: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val trimmedEmail = email.trim()

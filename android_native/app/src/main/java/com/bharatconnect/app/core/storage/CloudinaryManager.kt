@@ -198,7 +198,7 @@ object CloudinaryManager {
                     }
                 } else {
                     val errorText = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "HTTP $responseCode"
-                    lastException = Exception("Media upload service error ($responseCode)")
+                    lastException = Exception("Media upload service error ($responseCode): $errorText")
                 }
             } catch (e: Exception) {
                 lastException = e
