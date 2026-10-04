@@ -1322,16 +1322,75 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
 
                 1 -> {
                     // ==================== GROUPS TAB ====================
+                    val groupConvs = conversations.filter { it.isGroup }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        if (groupConvs.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "YOUR ACTIVE GROUPS (${groupConvs.size})",
+                                    color = Color(0xFF4EFEAA),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+                            items(items = groupConvs, key = { it.id }) { conv ->
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF191638)),
+                                    shape = RoundedCornerShape(14.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { chatViewModel.selectConversation(conv) }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(46.dp)
+                                                .clip(CircleShape)
+                                                .background(ColorPrimary6367FF),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.Group, contentDescription = null, tint = Color.White)
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(conv.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                            Text(conv.lastMessage ?: "Active group chat", color = Color.LightGray, fontSize = 12.sp, maxLines = 1)
+                                        }
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            Text(
+                                text = "EXPLORE FEATURED GROUPS",
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(top = if (groupConvs.isNotEmpty()) 12.dp else 4.dp, bottom = 4.dp)
+                            )
+                        }
+
                         items(groupChats) { (name, details) ->
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
                                 shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        chatViewModel.startGroupChat(name.lowercase().replace(" ", "_"), name)
+                                    }
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -1353,6 +1412,16 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                                         Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                         Text(details, color = Color.Gray, fontSize = 12.sp, maxLines = 1)
                                     }
+                                    Button(
+                                        onClick = {
+                                            chatViewModel.startGroupChat(name.lowercase().replace(" ", "_"), name)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                                    ) {
+                                        Text("Open", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
@@ -1370,7 +1439,11 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
                                 shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        chatViewModel.startGroupChat("comm_" + name.lowercase().replace(" ", "_"), name)
+                                    }
                             ) {
                                 Column(modifier = Modifier.padding(14.dp)) {
                                     Row(
@@ -1392,8 +1465,26 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                                             )
                                         }
                                     }
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     Text(desc, color = Color.LightGray, fontSize = 12.sp)
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End
+                                    ) {
+                                        Button(
+                                            onClick = {
+                                                chatViewModel.startGroupChat("comm_" + name.lowercase().replace(" ", "_"), name)
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
+                                        ) {
+                                            Icon(Icons.Default.ChatBubble, contentDescription = null, modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Join Chat", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1577,9 +1668,20 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
         if (showNewChatDialog) {
             var contactSearchQuery by remember { mutableStateOf("") }
             val queryDigits = remember(contactSearchQuery) { contactSearchQuery.filter { it.isDigit() } }
-            val registeredContacts = remember(phoneContacts, contactSearchQuery, queryDigits) {
+            val registeredPhonebookContacts = remember(phoneContacts, contactSearchQuery, queryDigits) {
                 phoneContacts.filter {
-                    it.isRegistered && (
+                    it.isRegistered && it.isPhonebookContact && (
+                        contactSearchQuery.isBlank() ||
+                        it.name.contains(contactSearchQuery, ignoreCase = true) ||
+                        it.rawPhone.contains(contactSearchQuery) ||
+                        (it.username != null && it.username.contains(contactSearchQuery, ignoreCase = true)) ||
+                        (queryDigits.isNotEmpty() && (it.normalizedPhone.contains(queryDigits) || it.rawPhone.filter { c -> c.isDigit() }.contains(queryDigits)))
+                    )
+                }
+            }
+            val otherRegisteredContacts = remember(phoneContacts, contactSearchQuery, queryDigits) {
+                phoneContacts.filter {
+                    it.isRegistered && !it.isPhonebookContact && (
                         contactSearchQuery.isBlank() ||
                         it.name.contains(contactSearchQuery, ignoreCase = true) ||
                         it.rawPhone.contains(contactSearchQuery) ||
@@ -1599,6 +1701,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                     )
                 }
             }
+            val totalRegisteredCount = registeredPhonebookContacts.size + otherRegisteredContacts.size
 
             ModalBottomSheet(
                 onDismissRequest = { showNewChatDialog = false },
@@ -1623,7 +1726,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                         Column {
                             Text("Select Contact", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             Text(
-                                text = "${registeredContacts.size} registered members available",
+                                text = "$totalRegisteredCount registered members available",
                                 color = Color.Gray,
                                 fontSize = 12.sp
                             )
@@ -1718,22 +1821,48 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 contentPadding = PaddingValues(vertical = 8.dp)
                             ) {
-                                // 1. Registered Contacts Section
-                                if (registeredContacts.isNotEmpty()) {
+                                // 1. Registered Phonebook Contacts Section (PINNED ON TOP)
+                                if (registeredPhonebookContacts.isNotEmpty()) {
                                     item {
-                                        Text(
-                                            text = "REGISTERED ON BHARATCONNECT (${registeredContacts.size})",
-                                            color = Color(0xFF4EFEAA),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp,
-                                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 8.dp, bottom = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "CONTACTS ON BHARATCONNECT (${registeredPhonebookContacts.size})",
+                                                color = Color(0xFF4EFEAA),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 11.sp
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Surface(
+                                                color = Color(0xFF142E1F),
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Phonebook",
+                                                    color = Color(0xFF4EFEAA),
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
                                     }
-                                    items(registeredContacts) { contact ->
+                                    items(registeredPhonebookContacts) { contact ->
                                         Card(
-                                            colors = CardDefaults.cardColors(containerColor = Color(0xFF191638)),
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1640)),
                                             shape = RoundedCornerShape(14.dp),
-                                            modifier = Modifier.fillMaxWidth()
+                                            border = BorderStroke(1.dp, Color(0xFF322A6B)),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    chatViewModel.startChatWithContact(contact) {
+                                                        showNewChatDialog = false
+                                                    }
+                                                }
                                         ) {
                                             Row(
                                                 modifier = Modifier
@@ -1749,7 +1878,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Text(
-                                                        text = contact.name.take(1),
+                                                        text = contact.name.take(1).uppercase(),
                                                         color = Color.White,
                                                         fontWeight = FontWeight.Bold,
                                                         fontSize = 18.sp
@@ -1772,7 +1901,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                                                                 .background(Color(0xFF4EFEAA))
                                                         )
                                                     }
-                                                    Text(contact.rawPhone, color = Color.Gray, fontSize = 12.sp)
+                                                    Text(contact.rawPhone, color = Color.LightGray, fontSize = 12.sp)
                                                 }
                                                 Button(
                                                     onClick = {
@@ -1781,6 +1910,85 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                                                         }
                                                     },
                                                     colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.ChatBubble, contentDescription = "Chat", modifier = Modifier.size(14.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Chat", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // 2. Other Registered BharatConnect Members
+                                if (otherRegisteredContacts.isNotEmpty()) {
+                                    item {
+                                        Text(
+                                            text = "OTHER BHARATCONNECT MEMBERS (${otherRegisteredContacts.size})",
+                                            color = Color(0xFF818CF8),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                                        )
+                                    }
+                                    items(otherRegisteredContacts) { contact ->
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFF16142E)),
+                                            shape = RoundedCornerShape(14.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    chatViewModel.startChatWithContact(contact) {
+                                                        showNewChatDialog = false
+                                                    }
+                                                }
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(46.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFF2C2856)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = contact.name.take(1).uppercase(),
+                                                        color = Color.White,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 18.sp
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text(
+                                                            text = contact.name,
+                                                            color = Color.White,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            fontSize = 14.sp
+                                                        )
+                                                        contact.username?.let { u ->
+                                                            Spacer(modifier = Modifier.width(4.dp))
+                                                            Text("@$u", color = Color.Gray, fontSize = 12.sp)
+                                                        }
+                                                    }
+                                                    Text(contact.rawPhone, color = Color.Gray, fontSize = 12.sp)
+                                                }
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        chatViewModel.startChatWithContact(contact) {
+                                                            showNewChatDialog = false
+                                                        }
+                                                    },
+                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF818CF8)),
+                                                    border = BorderStroke(1.dp, Color(0xFF818CF8)),
                                                     shape = RoundedCornerShape(10.dp),
                                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                                                 ) {
@@ -2043,6 +2251,42 @@ fun ChatDetailScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // WhatsApp-style End-to-End Encryption Notice Badge
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp, horizontal = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            color = Color(0xFF1E1A34).copy(alpha = 0.95f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(0.6.dp, Color(0xFF4A4468))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Encrypted",
+                                    tint = Color(0xFFFFD54F),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Messages and calls are end-to-end encrypted with AES-GCM-256. No one outside of this chat, not even BharatConnect, can read or listen to them.",
+                                    color = Color(0xFFFFD54F),
+                                    fontSize = 11.sp,
+                                    lineHeight = 14.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+
                 items(items = messages, key = { it.id }) { msg ->
                     val resolvedUserId = currentUserId 
                         ?: com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()?.id
@@ -2086,44 +2330,46 @@ fun ChatDetailScreen(
                                     Text(msg.createdAt.takeLast(8), color = Color(0xFFD1D1E0), fontSize = 10.sp)
                                     if (isMe) {
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        when (msg.status) {
-                                            "sending" -> {
-                                                Text(
-                                                    text = "⏳",
-                                                    fontSize = 10.sp
-                                                )
-                                            }
-                                            "sent" -> {
-                                                Text(
-                                                    text = "✓",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFB0BEC5)
-                                                )
-                                            }
-                                            "delivered" -> {
-                                                Text(
-                                                    text = "✓✓",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFB0BEC5)
-                                                )
-                                            }
-                                            "read" -> {
-                                                Text(
-                                                    text = "✓✓",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF38BDF8)
-                                                )
-                                            }
-                                            else -> {
-                                                Text(
-                                                    text = "✓",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFB0BEC5)
-                                                )
+                                        if (msg.isPendingSync || msg.status == "sending") {
+                                            Text(
+                                                text = "⏱",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFFB0BEC5)
+                                            )
+                                        } else {
+                                            when (msg.status) {
+                                                "sent" -> {
+                                                    Text(
+                                                        text = "✓",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFFB0BEC5)
+                                                    )
+                                                }
+                                                "delivered" -> {
+                                                    Text(
+                                                        text = "✓✓",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFFB0BEC5)
+                                                    )
+                                                }
+                                                "read" -> {
+                                                    Text(
+                                                        text = "✓✓",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF38BDF8)
+                                                    )
+                                                }
+                                                else -> {
+                                                    Text(
+                                                        text = "✓",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFFB0BEC5)
+                                                    )
+                                                }
                                             }
                                         }
                                     }

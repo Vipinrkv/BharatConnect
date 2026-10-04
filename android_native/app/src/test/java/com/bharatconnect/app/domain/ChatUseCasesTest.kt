@@ -65,6 +65,20 @@ class FakeChatRepository : ChatRepository {
         return Result.success(newConv)
     }
 
+    override suspend fun getOrCreateGroupConversation(groupId: String, title: String): Result<Conversation> {
+        val existing = conversations.find { it.id == "group_$groupId" }
+        if (existing != null) return Result.success(existing)
+        val newConv = Conversation(
+            id = "group_$groupId",
+            isGroup = true,
+            title = title,
+            lastMessage = "Welcome to $title!",
+            unreadCount = 0
+        )
+        conversations.add(newConv)
+        return Result.success(newConv)
+    }
+
     override suspend fun subscribeToRealtime(conversationId: String) {}
 
     override suspend fun unsubscribeRealtime() {}

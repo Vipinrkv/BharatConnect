@@ -19,7 +19,8 @@ data class PhoneContact(
     val isRegistered: Boolean = false,
     val registeredUserId: String? = null,
     val avatarUrl: String? = null,
-    val username: String? = null
+    val username: String? = null,
+    val isPhonebookContact: Boolean = true
 )
 
 object ContactsManager {
@@ -87,64 +88,134 @@ object ContactsManager {
     }
 
     /**
-     * Cross-references device contacts with Supabase registered users.
-     * Registered users are marked with isRegistered = true, registeredUserId, and avatarUrl.
-     * Always sorts registered users to the top with direct chat capability.
+     * Cross-references device contacts with Supabase & Room DB registered users.
+     * Registered phonebook contacts are identified with isRegistered = true, isPhonebookContact = true,
+     * and placed at the top of the contact drawer with direct 1-tap chat capability.
      */
     suspend fun matchRegisteredContacts(deviceContacts: List<PhoneContact>): List<PhoneContact> = withContext(Dispatchers.IO) {
         try {
             val supabase = SupabaseClient.client
             val currentUserId = supabase.auth.currentUserOrNull()?.id
+                ?: com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()?.id
 
+            // 1. Fetch from local Room DB first for instant offline matching
+            val localUsers = try {
+                com.bharatconnect.app.core.database.DatabaseProvider.getDatabase().userDao().getAllUsers()
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            // 2. Fetch remote profiles from Supabase with timeout guard
             val remoteProfiles = try {
-                supabase.postgrest["profiles"]
-                    .select()
-                    .decodeList<ProfileDto>()
+                kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                    supabase.postgrest["profiles"]
+                        .select()
+                        .decodeList<ProfileDto>()
+                } ?: emptyList()
             } catch (e: Exception) {
                 android.util.Log.e("ContactsManager", "Failed to decode remote profiles", e)
                 emptyList()
             }
 
-            val registeredPhoneMap = mutableMapOf<String, ProfileDto>()
-            val registeredIdMap = mutableSetOf<String>()
+            // 3. Cache fresh remote profiles into local Room DB for future offline usage
+            if (remoteProfiles.isNotEmpty()) {
+                try {
+                    val entities = remoteProfiles.map {
+                        com.bharatconnect.app.data.local.room.entity.UserEntity.fromDomain(it.toDomain())
+                    }
+                    com.bharatconnect.app.core.database.DatabaseProvider.getDatabase().userDao().insertUsers(entities)
+                } catch (_: Exception) {}
+            }
+
+            // 4. Build registered index mapping phone, username, and email to profile
+            data class MatchableProfile(
+                val id: String,
+                val username: String?,
+                val fullName: String?,
+                val phoneNumber: String?,
+                val email: String?,
+                val avatarUrl: String?
+            )
+
+            val profilePool = mutableMapOf<String, MatchableProfile>()
+
+            // Add local users
+            for (u in localUsers) {
+                if (u.id == currentUserId) continue
+                profilePool[u.id] = MatchableProfile(
+                    id = u.id,
+                    username = u.username,
+                    fullName = u.fullName,
+                    phoneNumber = u.phoneNumber,
+                    email = u.email,
+                    avatarUrl = u.avatarUrl
+                )
+            }
+
+            // Overlay remote profiles (more up-to-date)
             for (p in remoteProfiles) {
-                if (p.id == currentUserId) continue // Skip self
+                if (p.id == currentUserId) continue
+                profilePool[p.id] = MatchableProfile(
+                    id = p.id,
+                    username = p.username,
+                    fullName = p.fullName,
+                    phoneNumber = p.phoneNumber,
+                    email = p.email,
+                    avatarUrl = p.avatarUrl
+                )
+            }
+
+            val phoneIndex = mutableMapOf<String, MatchableProfile>()
+            val nameIndex = mutableMapOf<String, MatchableProfile>()
+            val emailIndex = mutableMapOf<String, MatchableProfile>()
+
+            for (p in profilePool.values) {
                 p.phoneNumber?.let { num ->
                     val norm = normalizePhoneNumber(num)
                     val fullDigits = num.filter { it.isDigit() }
-                    if (norm.length >= 10) {
-                        registeredPhoneMap[norm] = p
-                    }
-                    if (fullDigits.isNotEmpty()) {
-                        registeredPhoneMap[fullDigits] = p
-                    }
+                    if (norm.length >= 10) phoneIndex[norm] = p
+                    if (fullDigits.isNotEmpty()) phoneIndex[fullDigits] = p
+                }
+                p.username?.let { u ->
+                    if (u.isNotBlank()) nameIndex[u.trim().lowercase()] = p
+                }
+                p.fullName?.let { f ->
+                    if (f.isNotBlank()) nameIndex[f.trim().lowercase()] = p
+                }
+                p.email?.let { e ->
+                    if (e.isNotBlank()) emailIndex[e.trim().lowercase()] = p
                 }
             }
 
-            val matchedDevicePhones = mutableSetOf<String>()
-            val updatedContacts = deviceContacts.map { contact ->
+            val matchedRegisteredIds = mutableSetOf<String>()
+
+            // 5. Match device phonebook contacts
+            val updatedDeviceContacts = deviceContacts.map { contact ->
                 val norm = normalizePhoneNumber(contact.rawPhone)
                 val fullDigits = contact.rawPhone.filter { it.isDigit() }
-                val match = registeredPhoneMap[norm] ?: registeredPhoneMap[fullDigits]
-                if (match != null) {
-                    matchedDevicePhones.add(norm)
-                    if (fullDigits.isNotEmpty()) matchedDevicePhones.add(fullDigits)
-                    registeredIdMap.add(match.id)
+                val contactNameLower = contact.name.trim().lowercase()
+
+                val matched = phoneIndex[norm]
+                    ?: phoneIndex[fullDigits]
+                    ?: nameIndex[contactNameLower]
+
+                if (matched != null) {
+                    matchedRegisteredIds.add(matched.id)
                     contact.copy(
                         isRegistered = true,
-                        registeredUserId = match.id,
-                        avatarUrl = match.avatarUrl,
-                        username = match.username
+                        registeredUserId = matched.id,
+                        avatarUrl = matched.avatarUrl,
+                        username = matched.username,
+                        isPhonebookContact = true
                     )
                 } else {
-                    contact.copy(isRegistered = false)
+                    contact.copy(isRegistered = false, isPhonebookContact = true)
                 }
             }.toMutableList()
 
-            // Also include ALL registered BharatConnect members not in device phonebook
-            for (p in remoteProfiles) {
-                if (p.id == currentUserId) continue
-                if (!registeredIdMap.contains(p.id)) {
+            // 6. Include other registered BharatConnect members not present in phonebook
+            for (p in profilePool.values) {
+                if (!matchedRegisteredIds.contains(p.id)) {
                     val displayName = p.fullName?.takeIf { it.isNotBlank() }
                         ?: p.username?.takeIf { it.isNotBlank() }
                         ?: "BharatConnect Member"
@@ -156,7 +227,7 @@ object ContactsManager {
                         "Registered Member"
                     }
                     val norm = p.phoneNumber?.let { normalizePhoneNumber(it) }.orEmpty()
-                    updatedContacts.add(
+                    updatedDeviceContacts.add(
                         PhoneContact(
                             id = p.id,
                             name = displayName,
@@ -165,15 +236,21 @@ object ContactsManager {
                             isRegistered = true,
                             registeredUserId = p.id,
                             avatarUrl = p.avatarUrl,
-                            username = p.username
+                            username = p.username,
+                            isPhonebookContact = false
                         )
                     )
-                    registeredIdMap.add(p.id)
+                    matchedRegisteredIds.add(p.id)
                 }
             }
 
-            updatedContacts.sortedWith(
-                compareByDescending<PhoneContact> { it.isRegistered }
+            // 7. Sort:
+            // 1st: Registered phonebook contacts (Saved contacts on BharatConnect)
+            // 2nd: Other registered members on BharatConnect
+            // 3rd: Unregistered phonebook contacts (for SMS invite)
+            updatedDeviceContacts.sortedWith(
+                compareByDescending<PhoneContact> { it.isRegistered && it.isPhonebookContact }
+                    .thenByDescending { it.isRegistered }
                     .thenBy { it.name.lowercase() }
             )
         } catch (e: Exception) {

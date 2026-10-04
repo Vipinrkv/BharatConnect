@@ -31,6 +31,18 @@ class FeedViewModel(
     init {
         observePosts()
         refreshFeed()
+        startPeriodicSync()
+    }
+
+    private fun startPeriodicSync() {
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(10000)
+                try {
+                    fetchFeedPostsUseCase()
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     private fun observePosts() {

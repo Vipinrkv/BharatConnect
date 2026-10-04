@@ -2,6 +2,7 @@ package com.bharatconnect.app.data.repository
 
 import com.bharatconnect.app.core.database.DatabaseProvider
 import com.bharatconnect.app.core.network.SupabaseClient
+import com.bharatconnect.app.core.session.SessionManager
 import com.bharatconnect.app.data.local.room.entity.PostEntity
 import com.bharatconnect.app.data.remote.dto.PostDto
 import com.bharatconnect.app.domain.model.Post
@@ -50,14 +51,27 @@ class FeedRepositoryImpl : FeedRepository {
         mediaUrl: String?,
         mediaType: String?
     ): Result<Post> = withContext(Dispatchers.IO) {
-        val currentUserId = supabase.auth.currentUserOrNull()?.id ?: "local_user"
+        val cachedUser = SessionManager.getCachedUserProfile()
+        val rawUserId = supabase.auth.currentUserOrNull()?.id ?: cachedUser?.id
+        val currentUserId = if (!rawUserId.isNullOrBlank()) {
+            try {
+                UUID.fromString(rawUserId)
+                rawUserId
+            } catch (_: Exception) {
+                UUID.nameUUIDFromBytes(rawUserId.toByteArray()).toString()
+            }
+        } else {
+            UUID.nameUUIDFromBytes("local_guest_user".toByteArray()).toString()
+        }
+        val authorName = cachedUser?.fullName ?: cachedUser?.username ?: "You"
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
         val postId = UUID.randomUUID().toString()
 
         val post = Post(
             id = postId,
             authorId = currentUserId,
-            authorName = "You",
+            authorName = authorName,
+            authorAvatar = cachedUser?.avatarUrl,
             content = content,
             mediaUrl = mediaUrl,
             mediaType = mediaType,
@@ -75,6 +89,7 @@ class FeedRepositoryImpl : FeedRepository {
             val postDto = PostDto(
                 id = postId,
                 authorId = currentUserId,
+                authorName = authorName,
                 content = content,
                 mediaUrl = mediaUrl,
                 mediaType = mediaType,
@@ -97,7 +112,16 @@ class FeedRepositoryImpl : FeedRepository {
 
     override suspend fun toggleLike(postId: String): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
-            val currentUserId = supabase.auth.currentUserOrNull()?.id
+            val rawUserId = supabase.auth.currentUserOrNull()?.id ?: SessionManager.getCachedUserProfile()?.id
+            val currentUserId = if (!rawUserId.isNullOrBlank()) {
+                try {
+                    UUID.fromString(rawUserId)
+                    rawUserId
+                } catch (_: Exception) {
+                    UUID.nameUUIDFromBytes(rawUserId.toByteArray()).toString()
+                }
+            } else null
+
             // Optimistic local update
             postDao.toggleLike(postId, true)
 

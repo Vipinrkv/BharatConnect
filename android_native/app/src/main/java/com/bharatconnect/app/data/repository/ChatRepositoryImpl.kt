@@ -420,6 +420,54 @@ class ChatRepositoryImpl : ChatRepository {
         Result.success(conversation)
     }
 
+    override suspend fun getOrCreateGroupConversation(groupId: String, title: String): Result<Conversation> = withContext(Dispatchers.IO) {
+        ensureAuthSession()
+        val currentUserId = resolveCurrentUserId() ?: "local_user"
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        val convId = java.util.UUID.nameUUIDFromBytes("group_$groupId".toByteArray()).toString()
+
+        val conversation = Conversation(
+            id = convId,
+            isGroup = true,
+            title = title,
+            createdBy = currentUserId,
+            lastMessage = "Welcome to $title!",
+            lastMessageTime = timestamp,
+            unreadCount = 0,
+            participantIds = listOf(currentUserId)
+        )
+
+        // 1. Immediately insert/update locally in Room
+        conversationDao.insertOrUpdateConversation(ConversationEntity.fromDomain(conversation))
+
+        // 2. Sync to Supabase remote
+        try {
+            val convDto = ConversationDto(
+                id = convId,
+                type = "group",
+                title = title,
+                createdBy = currentUserId,
+                lastMessage = "Welcome to $title!",
+                lastMessageTime = timestamp,
+                createdAt = timestamp
+            )
+            supabase.postgrest["conversations"].upsert(convDto)
+
+            val memberId = java.util.UUID.nameUUIDFromBytes("${convId}_${currentUserId}".toByteArray()).toString()
+            supabase.postgrest["conversation_members"].upsert(
+                ConversationMemberDto(
+                    id = memberId,
+                    conversationId = convId,
+                    userId = currentUserId,
+                    role = "member",
+                    joinedAt = timestamp
+                )
+            )
+        } catch (_: Exception) {}
+
+        Result.success(conversation)
+    }
+
     private var activeRealtimeChannel: RealtimeChannel? = null
     private var globalRealtimeChannel: RealtimeChannel? = null
 

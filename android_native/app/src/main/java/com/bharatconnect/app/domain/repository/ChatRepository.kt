@@ -13,6 +13,7 @@ interface ChatRepository {
     suspend fun sendMessage(conversationId: String, content: String, mediaUrl: String? = null, mediaType: String? = null): Result<Message>
     suspend fun retryPendingMessages(): Result<Int>
     suspend fun getOrCreateDirectConversation(participantId: String, title: String): Result<Conversation>
+    suspend fun getOrCreateGroupConversation(groupId: String, title: String): Result<Conversation>
     suspend fun subscribeToRealtime(conversationId: String)
     suspend fun unsubscribeRealtime()
     suspend fun subscribeToGlobalUserMessages(onNewMessage: ((Message, String) -> Unit)? = null)

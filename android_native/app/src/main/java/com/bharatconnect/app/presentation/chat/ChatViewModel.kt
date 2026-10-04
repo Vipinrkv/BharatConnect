@@ -243,6 +243,21 @@ class ChatViewModel(
         }
     }
 
+    fun startGroupChat(
+        groupId: String,
+        title: String,
+        onSuccess: (Conversation) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = chatRepo.getOrCreateGroupConversation(groupId, title)
+            result.getOrNull()?.let { conv ->
+                selectConversation(conv)
+                refreshConversations()
+                onSuccess(conv)
+            }
+        }
+    }
+
     fun closeChat() {
         activeChatPollingJob?.cancel()
         messageObservationJob?.cancel()
