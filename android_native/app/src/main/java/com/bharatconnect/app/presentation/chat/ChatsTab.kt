@@ -29,6 +29,25 @@ import com.bharatconnect.app.core.theme.ColorPrimary6367FF
 import com.bharatconnect.app.domain.model.Conversation
 import com.bharatconnect.app.presentation.components.ConversationItemSkeleton
 
+/**
+ * =========================================================================================
+ * CHATS TAB: WHATSAPP-STYLE CONVERSATIONS & CHAT NAVIGATION
+ * =========================================================================================
+ *
+ * Primary messaging hub for BharatConnect, featuring:
+ * 1. Sub-Tabs:
+ *    - Index 0: Individual 1-on-1 direct conversations.
+ *    - Index 1: Active group channels and public group discussions.
+ *    - Index 2: Verified regional & interest community hubs.
+ * 2. Instant Contact Selection:
+ *    - Header '+' button and bottom-right Floating Action Button (FAB).
+ *    - Automatically verifies Android READ_CONTACTS permission before opening the drawer.
+ * 3. Real-Time Pop-Up Synchronization:
+ *    - Conversations are sorted by: Pinned to top first, then by lastMessageTime DESC.
+ *    - Whenever User A texts User B, User A immediately pops to the very top of User B's list.
+ * 4. Context Actions:
+ *    - Long-press context menu to pin, archive, set custom local nicknames, or delete chats.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatsTab(
@@ -44,7 +63,7 @@ fun ChatsTab(
 
     var selectedSubTab by remember { mutableStateOf(0) } // 0: Individual, 1: Groups, 2: Communities
     var searchQuery by remember { mutableStateOf("") }
-    var showNewChatDialog by remember { mutableStateOf(false) }
+    var showNewChatDialog by remember { mutableStateOf(false) } // Select Contact drawer state
 
     // Long press context menu states
     var selectedConversationForMenu by remember { mutableStateOf<Conversation?>(null) }

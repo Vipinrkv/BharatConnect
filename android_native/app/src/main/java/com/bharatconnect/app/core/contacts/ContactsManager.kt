@@ -11,6 +11,19 @@ import kotlinx.coroutines.withContext
 import com.bharatconnect.app.data.remote.dto.ProfileDto
 import io.github.jan.supabase.gotrue.auth
 
+/**
+ * Data representation of a phonebook or platform contact.
+ *
+ * @param id Unique contact identifier (from Android ContactsContract or Supabase UUID).
+ * @param name Display name from device phonebook or profile full name.
+ * @param rawPhone Raw phone number string as typed by user or stored in contacts.
+ * @param normalizedPhone Standardized 10-digit Indian phone number without country prefixes.
+ * @param isRegistered True if this phone number or account is registered on BharatConnect.
+ * @param registeredUserId Remote Supabase user UUID if registered.
+ * @param avatarUrl Remote profile picture URL if available.
+ * @param username Public unique handle (e.g. "@rahul").
+ * @param isPhonebookContact True if found in local device address book; false if external platform member.
+ */
 data class PhoneContact(
     val id: String,
     val name: String,
@@ -23,13 +36,35 @@ data class PhoneContact(
     val isPhonebookContact: Boolean = true
 )
 
+/**
+ * =========================================================================================
+ * CONTACTS MANAGER: PHONEBOOK SYNC, NORMALIZATION & REGISTRATION MATCHING
+ * =========================================================================================
+ *
+ * Implements WhatsApp-style contact discovery, address book synchronization, and name resolution.
+ *
+ * Architectural Features:
+ * 1. Offline-First Address Book: Reads Android ContentResolver and caches names in a concurrent map.
+ * 2. 10-Digit Normalization: Strips country codes (+91, 0091) and leading zeroes so numbers like
+ *    "+91 98765 43210", "09876543210", and "9876543210" map cleanly to the same user.
+ * 3. 3-Tier Categorization:
+ *    - Tier 1 (Pinned Top): Saved contacts from phonebook registered on BharatConnect (Chat button).
+ *    - Tier 2 (Middle): Other registered BharatConnect members (Chat button).
+ *    - Tier 3 (Bottom): Saved contacts not yet on BharatConnect (Native SMS Invite button).
+ * 4. Authoritative Name Resolution: WhatsApp privacy standard where your phonebook contact name
+ *    always takes precedence over the user's remote public profile name.
+ */
 object ContactsManager {
 
+    // Fast in-memory cache mapping normalized phone numbers to device address book names
     private val phoneToNameMap = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     /**
-     * Reads all contacts from the Android device phonebook.
-     * Preserves the authoritative contact name from the user's phonebook.
+     * Reads all contacts from the Android device address book via ContactsContract.
+     * Preserves the authoritative contact name saved locally by the user.
+     *
+     * @param context Android context for ContentResolver queries.
+     * @return List of deduplicated phone contacts with normalized numbers.
      */
     suspend fun getDeviceContacts(context: Context): List<PhoneContact> = withContext(Dispatchers.IO) {
         val contactsMap = LinkedHashMap<String, PhoneContact>()

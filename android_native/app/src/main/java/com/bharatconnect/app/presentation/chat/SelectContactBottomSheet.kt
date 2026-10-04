@@ -31,6 +31,23 @@ import com.bharatconnect.app.core.contacts.PhoneContact
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
 import com.bharatconnect.app.presentation.components.ContactItemSkeleton
 
+/**
+ * =========================================================================================
+ * SELECT CONTACT DRAWER (BOTTOM SHEET)
+ * =========================================================================================
+ *
+ * WhatsApp-style contact picker modal providing a seamless 3-tier contact list:
+ * 1. Pinned Top Tier ("CONTACTS ON BHARATCONNECT"):
+ *    - Phone numbers saved in the device address book that match registered BharatConnect accounts.
+ *    - Marked with a green "Phonebook" badge.
+ *    - Prominent "Chat" button starts an encrypted 1-on-1 direct conversation with 0ms delay.
+ * 2. Middle Tier ("OTHER BHARATCONNECT MEMBERS"):
+ *    - Discoverable registered platform users who are not yet saved in the user's phonebook.
+ *    - Allows chatting with community members via public username or profile.
+ * 3. Bottom Tier ("INVITE TO BHARATCONNECT"):
+ *    - Device phonebook contacts who have not yet registered on BharatConnect.
+ *    - Prominent "Invite" button triggers the native Android SMS app pre-filled with an invite link.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelectContactBottomSheet(

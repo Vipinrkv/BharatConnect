@@ -74,6 +74,21 @@ class ChatRepositoryImpl : ChatRepository {
         }
     }
 
+    /**
+     * Synchronizes and returns the current user's conversations list.
+     *
+     * Flow & Rationale:
+     * 1. Auth Guard: Resolves the logged-in user ID; if unauthenticated, returns local Room cache.
+     * 2. Remote Fetch: Queries Supabase for conversations and memberships where the user belongs.
+     * 3. Direct Message Aggregation: Queries recent messages sent or received by this user.
+     *    - Rationale: Even if the remote 'conversations' table has RLS restrictions or network delay,
+     *      any received message (e.g. User A sent "Hi") must immediately synthesize a conversation
+     *      so User B never misses an incoming chat.
+     * 4. Automatic Decryption & Caching: Decrypts all received messages using SignalEncryptionManager
+     *    and caches them in Room DB (MessageEntity) for instant zero-latency message display.
+     * 5. WhatsApp-Style Name Resolution: Direct chat titles are resolved with authoritative precedence:
+     *    User's Device Phonebook -> Remote Supabase Profile -> Message Sender Name.
+     */
     override suspend fun fetchConversations(): Result<List<Conversation>> = withContext(Dispatchers.IO) {
         ensureAuthSession()
         val currentUserId = resolveCurrentUserId()
@@ -82,7 +97,7 @@ class ChatRepositoryImpl : ChatRepository {
             return@withContext Result.success(local)
         }
         try {
-            // 1. Fetch conversations from remote
+            // 1. Fetch conversations from remote Supabase table
             val remoteConversations = try {
                 supabase.postgrest["conversations"]
                     .select()
@@ -91,7 +106,7 @@ class ChatRepositoryImpl : ChatRepository {
                 emptyList()
             }
 
-            // 2. Fetch user's conversation memberships
+            // 2. Fetch user's conversation memberships to identify counterparts
             val allMembers = try {
                 supabase.postgrest["conversation_members"]
                     .select()
@@ -115,11 +130,12 @@ class ChatRepositoryImpl : ChatRepository {
                 (sent + received)
             } catch (_: Exception) { emptyList() }
 
+            // Group messages by conversation ID to identify the latest message for previews
             val latestMessageByConvId = allUserMessages
                 .groupBy { it.conversationId }
                 .mapValues { (_, msgs) -> msgs.maxByOrNull { it.createdAt ?: "" } }
 
-            // Cache and decrypt recent messages in Room DB
+            // Cache and decrypt recent messages in Room DB for 0ms chat load latency
             try {
                 for (msg in allUserMessages) {
                     val dec = SignalEncryptionManager.decrypt(msg.conversationId, msg.content)
@@ -131,7 +147,7 @@ class ChatRepositoryImpl : ChatRepository {
                 }
             } catch (_: Exception) {}
 
-            // Build unified pool of conversations
+            // Build unified pool of conversations (synthesizing any chat discovered from incoming messages)
             val conversationMap = remoteConversations.associateBy { it.id }.toMutableMap()
             for ((convId, latestMsg) in latestMessageByConvId) {
                 if (!conversationMap.containsKey(convId) && latestMsg != null) {
@@ -248,6 +264,19 @@ class ChatRepositoryImpl : ChatRepository {
         }
     }
 
+    /**
+     * Sends an encrypted chat message with optimistic local storage and delivery tracking.
+     *
+     * WhatsApp-Style Architecture:
+     * 1. Optimistic Local Insert (0ms UI latency): Instantly persists message to local Room DB
+     *    with status="sending" (clock icon '⏱') and updates the conversation's last message preview.
+     * 2. AES-GCM-256 E2EE: Encrypts the plaintext before sending across the network so Supabase
+     *    and any intermediary servers only store ciphertext ("ENC:...").
+     * 3. Cloud Dispatch: Upserts the message to Supabase 'messages' table with recipient_id.
+     * 4. Status Update: Transitions local message status to "sent" (single grey tick '✓').
+     * 5. Offline Queueing: If device is offline, message remains marked with isPendingSync=true
+     *    and is automatically picked up by WorkManager (OfflineSyncWorker) once network returns.
+     */
     override suspend fun sendMessage(
         conversationId: String,
         content: String,
@@ -277,11 +306,11 @@ class ChatRepositoryImpl : ChatRepository {
             isPendingSync = true
         )
 
-        // 1. Instantly save to Room local DB for 0ms UI latency
+        // 1. Instantly save to Room local DB for 0ms UI latency (Message bubble displays with '⏱')
         messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(localMessage))
         conversationDao.updateLastMessage(conversationId, content, "You", timestamp)
 
-        // 2. Dispatch to Supabase
+        // 2. Dispatch encrypted payload to Supabase
         try {
             val convEntity = conversationDao.getConversationById(conversationId)
             val recipientId = convEntity?.participantIds
@@ -400,12 +429,23 @@ class ChatRepositoryImpl : ChatRepository {
         Result.success(successCount)
     }
 
+    /**
+     * Retrieves or creates a 1-on-1 direct conversation between two users.
+     *
+     * Deterministic Conversation Key:
+     * - Problem: If User A chats with User B, and User B chats with User A, we must NOT create
+     *   duplicate conversation rooms.
+     * - Solution: Sorts both user IDs alphabetically (e.g. ["user_A", "user_B"]) and produces a
+     *   deterministic UUID via UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}").
+     * - Outcome: Regardless of who initiates the conversation, both users always map to the exact
+     *   same conversation ID, shared message thread, and AES-GCM encryption key.
+     */
     override suspend fun getOrCreateDirectConversation(participantId: String, title: String): Result<Conversation> = withContext(Dispatchers.IO) {
         ensureAuthSession()
         val currentUserId = resolveCurrentUserId() ?: return@withContext Result.failure(Exception("User not authenticated"))
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
         
-        // Generate deterministic conversation ID for 1-on-1 pairs
+        // Generate deterministic conversation ID for 1-on-1 pairs (alphabetical order of UUIDs)
         val sortedIds = listOf(currentUserId, participantId).sorted()
         val deterministicKey = "${sortedIds[0]}_${sortedIds[1]}"
         val convId = java.util.UUID.nameUUIDFromBytes(deterministicKey.toByteArray()).toString()

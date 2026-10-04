@@ -20,6 +20,24 @@ import coil.request.ImageRequest
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
 import com.bharatconnect.app.domain.model.Message
 
+/**
+ * =========================================================================================
+ * ENCRYPTED MESSAGE BUBBLE WITH WHATSAPP STATUS TICKS
+ * =========================================================================================
+ *
+ * Renders individual chat messages with alignment based on sender/recipient and
+ * WhatsApp-standard delivery status ticks:
+ *
+ * Alignment:
+ * - Outgoing (isMe = true): Right-aligned, primary accent container (ColorPrimary6367FF).
+ * - Incoming (isMe = false): Left-aligned, dark surface container (0xFF1C1A38).
+ *
+ * WhatsApp Delivery Progression:
+ * 1. ⏱ Clock Icon: Message is sending or queued locally in Room DB (offline-first).
+ * 2. ✓ Single Grey Tick: Message successfully dispatched to and acknowledged by Supabase server.
+ * 3. ✓✓ Double Grey Tick: Message delivered to recipient's device and written to their local Room DB.
+ * 4. ✓✓ Double Sky Blue Tick (#38BDF8): Recipient opened the chat screen and read the message.
+ */
 @Composable
 fun MessageBubble(
     msg: Message,
