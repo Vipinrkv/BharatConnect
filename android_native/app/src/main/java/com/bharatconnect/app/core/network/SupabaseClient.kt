@@ -25,12 +25,12 @@ object SupabaseClient {
             supabaseUrl = SUPABASE_URL,
             supabaseKey = SUPABASE_ANON_KEY
         ) {
-            requestTimeout = 60.seconds
+            requestTimeout = 15.seconds
             httpConfig {
                 install(HttpTimeout) {
-                    requestTimeoutMillis = 60_000
-                    connectTimeoutMillis = 30_000
-                    socketTimeoutMillis = 60_000
+                    requestTimeoutMillis = 15_000
+                    connectTimeoutMillis = 5_000
+                    socketTimeoutMillis = 15_000
                 }
             }
             install(Auth) {

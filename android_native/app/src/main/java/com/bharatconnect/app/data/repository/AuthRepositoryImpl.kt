@@ -14,11 +14,14 @@ import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.gotrue.user.UserInfo
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -351,52 +354,54 @@ class AuthRepositoryImpl : AuthRepository {
         val cachedUser = SessionManager.getCachedUserProfile()
         if (cachedUser != null) {
             _currentUserFlow.value = cachedUser
-            // Silently restore tokens if Supabase auth session is not in memory
-            try {
-                if (supabase.auth.currentUserOrNull() == null) {
+            // Silently restore tokens and refresh profile in background without blocking startup
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                try {
                     val (access, refresh) = SessionManager.getAuthTokens()
                     if (!access.isNullOrBlank() && !refresh.isNullOrBlank()) {
-                        supabase.auth.importAuthToken(accessToken = access, refreshToken = refresh)
+                        if (supabase.auth.currentUserOrNull() == null) {
+                            supabase.auth.importAuthToken(accessToken = access, refreshToken = refresh)
+                        }
                     }
-                }
-            } catch (_: Exception) {}
-
-            // In background, refresh profile from remote if session is valid
-            try {
-                val user = supabase.auth.currentUserOrNull()
-                if (user != null) {
-                    val freshProfile = fetchOrCreateProfile(user.id, user.email, null, null, null, null, null)
-                    _currentUserFlow.value = freshProfile
-                    return@withContext freshProfile
-                }
-            } catch (_: Exception) {}
-
+                    val user = supabase.auth.currentUserOrNull()
+                    if (user != null) {
+                        val freshProfile = fetchOrCreateProfile(user.id, user.email, null, null, null, null, null)
+                        _currentUserFlow.value = freshProfile
+                        SessionManager.updateCachedProfile(freshProfile)
+                    }
+                } catch (_: Exception) {}
+            }
             return@withContext cachedUser
         }
 
         // 3. Fallback: check Room Database
         try {
-            val user = supabase.auth.currentUserOrNull()
-            if (user != null) {
-                val dbUser = DatabaseProvider.getDatabase().userDao().getUserById(user.id)
-                if (dbUser != null) {
-                    val domainUser = dbUser.toDomain()
-                    SessionManager.saveSession(domainUser)
-                    _currentUserFlow.value = domainUser
-                    return@withContext domainUser
-                }
+            val dbUser = DatabaseProvider.getDatabase().userDao().getAnyUser()
+            if (dbUser != null) {
+                val domainUser = dbUser.toDomain()
+                SessionManager.saveSession(domainUser)
+                _currentUserFlow.value = domainUser
+                return@withContext domainUser
             }
         } catch (_: Exception) {}
 
-        // 4. Remote Supabase active session
+        // 4. Remote Supabase active session (guarded with strict timeout)
         try {
-            val user = supabase.auth.currentUserOrNull() ?: return@withContext null
-            val profile = fetchOrCreateProfile(user.id, user.email, null, null, null, null, null)
-            _currentUserFlow.value = profile
-            profile
-        } catch (e: Exception) {
-            null
-        }
+            val user = kotlinx.coroutines.withTimeoutOrNull(2000L) {
+                supabase.auth.currentUserOrNull()
+            } ?: return@withContext null
+
+            val profile = kotlinx.coroutines.withTimeoutOrNull(2500L) {
+                fetchOrCreateProfile(user.id, user.email, null, null, null, null, null)
+            }
+            if (profile != null) {
+                _currentUserFlow.value = profile
+                SessionManager.saveSession(profile)
+                return@withContext profile
+            }
+        } catch (_: Exception) {}
+
+        null
     }
 
     override fun isUserLoggedIn(): Boolean {

@@ -66,14 +66,26 @@ class AuthViewModel(
 
     fun checkSession() {
         viewModelScope.launch {
-            _authState.value = AuthState.Loading
-            val user = getCurrentUserUseCase()
-            if (user != null) {
-                _currentUser.value = user
-                _authState.value = AuthState.Authenticated(user)
-            } else {
+            try {
+                _authState.value = AuthState.Loading
+                val user = kotlinx.coroutines.withTimeoutOrNull(2500L) {
+                    getCurrentUserUseCase()
+                }
+                if (user != null) {
+                    _currentUser.value = user
+                    _authState.value = AuthState.Authenticated(user)
+                } else {
+                    _authState.value = AuthState.Idle
+                }
+            } catch (_: Throwable) {
                 _authState.value = AuthState.Idle
             }
+        }
+    }
+
+    fun forceIdleState() {
+        if (_authState.value is AuthState.Loading) {
+            _authState.value = AuthState.Idle
         }
     }
 

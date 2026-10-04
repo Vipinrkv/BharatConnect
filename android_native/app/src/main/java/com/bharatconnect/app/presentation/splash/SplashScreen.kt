@@ -45,8 +45,16 @@ fun SplashScreen(
 
     LaunchedEffect(authState) {
         if (authState is com.bharatconnect.app.domain.model.AuthState.Authenticated) {
-            kotlinx.coroutines.delay(400)
+            kotlinx.coroutines.delay(300)
             onNavigateToHome()
+        }
+    }
+
+    // Failsafe watchdog timer: ensure splash never stays stuck on loading spinner
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(1800)
+        if (authViewModel.authState.value is com.bharatconnect.app.domain.model.AuthState.Loading) {
+            authViewModel.forceIdleState()
         }
     }
 
