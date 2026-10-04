@@ -31,7 +31,10 @@ import com.bharatconnect.app.presentation.components.ConversationItemSkeleton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatsTab(chatViewModel: ChatViewModel) {
+fun ChatsTab(
+    chatViewModel: ChatViewModel,
+    currentUserId: String? = null
+) {
     val context = LocalContext.current
     val conversations by chatViewModel.conversations.collectAsState()
     val isLoadingConversations by chatViewModel.isLoadingConversations.collectAsState()
@@ -116,6 +119,7 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
         ChatDetailScreen(
             conversation = selectedConversation!!,
             chatViewModel = chatViewModel,
+            currentUserId = currentUserId,
             onBack = { chatViewModel.closeChat() }
         )
         return
@@ -127,11 +131,14 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
         (searchQuery.isBlank() ||
          (customNicknames[conv.id] ?: conv.title).contains(searchQuery, ignoreCase = true) ||
          (conv.lastMessage ?: "").contains(searchQuery, ignoreCase = true))
-    }.sortedByDescending { pinnedConvIds.contains(it.id) }
+    }.sortedWith(
+        compareByDescending<Conversation> { pinnedConvIds.contains(it.id) }
+            .thenByDescending { it.lastMessageTime ?: "" }
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Sub-Tabs Header (Individual / Groups / Communities) + Three Dot Menu
+            // Sub-Tabs Header (Individual / Groups / Communities) + Add (+) & Three Dot Menu
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -160,6 +167,21 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                         }
                     }
                 }
+
+                // Plus (+) Button to Select Contacts
+                IconButton(
+                    onClick = {
+                        if (!hasContactPermission) {
+                            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                        }
+                        showNewChatDialog = true
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "New Chat", tint = Color.White)
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
 
                 // Three Dot Menu
                 Box {
@@ -629,6 +651,28 @@ fun ChatsTab(chatViewModel: ChatViewModel) {
                         showNewChatDialog = false
                     }
                 }
+            )
+        }
+
+        // WhatsApp-style Floating Action Button for New Chat (+)
+        FloatingActionButton(
+            onClick = {
+                if (!hasContactPermission) {
+                    permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                }
+                showNewChatDialog = true
+            },
+            containerColor = ColorPrimary6367FF,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 20.dp, end = 20.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "New Chat",
+                modifier = Modifier.size(28.dp)
             )
         }
     }

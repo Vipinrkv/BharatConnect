@@ -37,6 +37,7 @@ import com.bharatconnect.app.core.storage.CloudinaryManager
 import com.bharatconnect.app.core.theme.ColorBackground080616
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
 import com.bharatconnect.app.domain.model.Conversation
+import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -254,10 +255,11 @@ fun ChatDetailScreen(
                 }
 
                 items(items = messages, key = { it.id }) { msg ->
-                    val resolvedUserId = currentUserId ?: SessionManager.getCachedUserProfile()?.id
+                    val resolvedUserId = currentUserId 
+                        ?: SessionManager.getCachedUserProfile()?.id 
+                        ?: com.bharatconnect.app.core.network.SupabaseClient.client.auth.currentUserOrNull()?.id
                     val isMe = (resolvedUserId != null && msg.senderId == resolvedUserId) ||
-                               (msg.senderName == "You") ||
-                               (resolvedUserId == null && msg.senderId != "other")
+                               (msg.senderName == "You")
                     MessageBubble(msg = msg, isMe = isMe)
                 }
             }

@@ -81,6 +81,12 @@ fun SelectContactBottomSheet(
         }
     }
 
+    LaunchedEffect(Unit) {
+        if (!hasContactPermission) {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        }
+    }
+
     val totalRegisteredCount = registeredPhonebookContacts.size + otherRegisteredContacts.size
 
     ModalBottomSheet(
@@ -106,7 +112,7 @@ fun SelectContactBottomSheet(
                 Column {
                     Text("Select Contact", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text(
-                        text = "$totalRegisteredCount registered members available",
+                        text = if (hasContactPermission) "$totalRegisteredCount registered members available" else "Grant contact permission to find friends",
                         color = Color.Gray,
                         fontSize = 12.sp
                     )
@@ -170,7 +176,7 @@ fun SelectContactBottomSheet(
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                         ) {
-                            Text("Sync", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Allow", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -193,7 +199,23 @@ fun SelectContactBottomSheet(
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No contacts found in device phonebook.", color = Color.Gray, fontSize = 14.sp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (!hasContactPermission) "Permission needed to load device contacts." else "No contacts found in device phonebook.",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                        if (!hasContactPermission) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
+                                colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Grant Permission")
+                            }
+                        }
+                    }
                 }
             } else {
                 LazyColumn(

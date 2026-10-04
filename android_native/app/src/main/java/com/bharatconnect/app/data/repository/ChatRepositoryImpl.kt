@@ -105,21 +105,53 @@ class ChatRepositoryImpl : ChatRepository {
                 .associate { it.conversationId to it.userId }
 
             // 3. Find conversations from messages where user sent or received
-            val myMessageConvIds = try {
+            val allUserMessages = try {
                 val sent = supabase.postgrest["messages"].select {
                     filter { eq("sender_id", currentUserId) }
-                }.decodeList<MessageDto>().map { it.conversationId }
+                }.decodeList<MessageDto>()
                 val received = supabase.postgrest["messages"].select {
                     filter { eq("recipient_id", currentUserId) }
-                }.decodeList<MessageDto>().map { it.conversationId }
-                (sent + received).toSet()
-            } catch (_: Exception) { emptySet() }
+                }.decodeList<MessageDto>()
+                (sent + received)
+            } catch (_: Exception) { emptyList() }
+
+            val latestMessageByConvId = allUserMessages
+                .groupBy { it.conversationId }
+                .mapValues { (_, msgs) -> msgs.maxByOrNull { it.createdAt ?: "" } }
+
+            // Cache and decrypt recent messages in Room DB
+            try {
+                for (msg in allUserMessages) {
+                    val dec = SignalEncryptionManager.decrypt(msg.conversationId, msg.content)
+                    messageDao.insertOrUpdateMessage(
+                        com.bharatconnect.app.data.local.room.entity.MessageEntity.fromDomain(
+                            msg.toDomain().copy(content = dec)
+                        )
+                    )
+                }
+            } catch (_: Exception) {}
+
+            // Build unified pool of conversations
+            val conversationMap = remoteConversations.associateBy { it.id }.toMutableMap()
+            for ((convId, latestMsg) in latestMessageByConvId) {
+                if (!conversationMap.containsKey(convId) && latestMsg != null) {
+                    conversationMap[convId] = ConversationDto(
+                        id = convId,
+                        type = if (convId.startsWith("group_")) "group" else "direct",
+                        title = null,
+                        createdBy = latestMsg.senderId,
+                        lastMessage = latestMsg.content,
+                        lastMessageTime = latestMsg.createdAt,
+                        createdAt = latestMsg.createdAt
+                    )
+                }
+            }
 
             // Filter for conversations relevant to this user
-            val myConversations = remoteConversations.filter { conv ->
+            val myConversations = conversationMap.values.filter { conv ->
                 conv.createdBy == currentUserId ||
                 memberConvIds.contains(conv.id) ||
-                myMessageConvIds.contains(conv.id)
+                latestMessageByConvId.containsKey(conv.id)
             }
 
             // Fetch profiles to resolve the other participant's name for direct chats
@@ -129,28 +161,45 @@ class ChatRepositoryImpl : ChatRepository {
                 emptyList()
             }.associateBy { it.id }
 
+            val localUsersMap = try {
+                com.bharatconnect.app.core.database.DatabaseProvider.getDatabase().userDao().getAllUsers().associateBy { it.id }
+            } catch (_: Exception) { emptyMap() }
+
             val entities = myConversations.map { conv ->
-                val otherId = counterpartByConvId[conv.id] ?: if (conv.createdBy != currentUserId) conv.createdBy else null
+                val existingLocal = conversationDao.getConversationById(conv.id)
+                val latestMsg = latestMessageByConvId[conv.id]
+
+                val otherId = counterpartByConvId[conv.id]
+                    ?: latestMsg?.let { if (it.senderId != currentUserId) it.senderId else it.recipientId }
+                    ?: existingLocal?.participantIds?.split(",")?.firstOrNull { it.isNotBlank() && it != currentUserId }
+                    ?: if (conv.createdBy != currentUserId) conv.createdBy else null
+
                 val otherProfile = otherId?.let { allProfiles[it] }
+                val localUser = otherId?.let { localUsersMap[it] }
 
                 val resolvedTitle = if (conv.type == "direct" || conv.id.startsWith("direct_")) {
                     ContactsManager.resolveCounterpartDisplayName(
                         context = BharatConnectApp.appContext,
-                        phoneNumber = otherProfile?.phoneNumber,
-                        fullName = otherProfile?.fullName,
-                        username = otherProfile?.username,
-                        fallbackTitle = conv.title
+                        phoneNumber = otherProfile?.phoneNumber ?: localUser?.phoneNumber,
+                        fullName = otherProfile?.fullName ?: localUser?.fullName,
+                        username = otherProfile?.username ?: localUser?.username,
+                        fallbackTitle = latestMsg?.senderName ?: conv.title
                     )
                 } else {
                     conv.title ?: "Group Conversation"
                 }
 
-                val decryptedLastMsg = conv.lastMessage?.let { SignalEncryptionManager.decrypt(conv.id, it) }
-                val existingLocal = conversationDao.getConversationById(conv.id)
+                val rawLastMsg = conv.lastMessage ?: latestMsg?.content
+                val decryptedLastMsg = rawLastMsg?.let { SignalEncryptionManager.decrypt(conv.id, it) }
+                val effectiveTime = conv.lastMessageTime ?: latestMsg?.createdAt ?: existingLocal?.lastMessageTime
+
                 val unread = try { messageDao.getUnreadCount(conv.id, currentUserId) } catch (_: Exception) { 0 }
-                val effectiveUnread = if (unread > 0) unread else (existingLocal?.unreadCount ?: 0)
+                val isIncomingUnread = latestMsg != null && latestMsg.senderId != currentUserId
+                val effectiveUnread = if (unread > 0) unread else if (isIncomingUnread && (existingLocal?.unreadCount ?: 0) == 0) 1 else (existingLocal?.unreadCount ?: 0)
+
                 val baseDomain = conv.toDomain(resolvedTitle, decryptedLastMsg)
                 val finalDomain = baseDomain.copy(
+                    lastMessageTime = effectiveTime,
                     unreadCount = effectiveUnread,
                     participantIds = listOfNotNull(currentUserId, otherId)
                 )

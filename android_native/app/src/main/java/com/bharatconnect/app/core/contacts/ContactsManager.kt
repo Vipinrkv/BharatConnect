@@ -166,7 +166,7 @@ object ContactsManager {
             }
 
             val phoneIndex = mutableMapOf<String, MatchableProfile>()
-            val nameIndex = mutableMapOf<String, MatchableProfile>()
+            val usernameIndex = mutableMapOf<String, MatchableProfile>()
             val emailIndex = mutableMapOf<String, MatchableProfile>()
 
             for (p in profilePool.values) {
@@ -177,10 +177,7 @@ object ContactsManager {
                     if (fullDigits.isNotEmpty()) phoneIndex[fullDigits] = p
                 }
                 p.username?.let { u ->
-                    if (u.isNotBlank()) nameIndex[u.trim().lowercase()] = p
-                }
-                p.fullName?.let { f ->
-                    if (f.isNotBlank()) nameIndex[f.trim().lowercase()] = p
+                    if (u.isNotBlank()) usernameIndex[u.trim().lowercase().removePrefix("@")] = p
                 }
                 p.email?.let { e ->
                     if (e.isNotBlank()) emailIndex[e.trim().lowercase()] = p
@@ -189,15 +186,15 @@ object ContactsManager {
 
             val matchedRegisteredIds = mutableSetOf<String>()
 
-            // 5. Match device phonebook contacts
+            // 5. Match device phonebook contacts by phone or exact username
             val updatedDeviceContacts = deviceContacts.map { contact ->
                 val norm = normalizePhoneNumber(contact.rawPhone)
                 val fullDigits = contact.rawPhone.filter { it.isDigit() }
-                val contactNameLower = contact.name.trim().lowercase()
+                val cleanName = contact.name.trim().lowercase().removePrefix("@")
 
                 val matched = phoneIndex[norm]
                     ?: phoneIndex[fullDigits]
-                    ?: nameIndex[contactNameLower]
+                    ?: usernameIndex[cleanName]
 
                 if (matched != null) {
                     matchedRegisteredIds.add(matched.id)

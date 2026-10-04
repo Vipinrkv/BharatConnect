@@ -323,7 +323,7 @@ fun HomeScreen(
                     onAddStoryClick = { showCreateStoryDialog = true },
                     onStoryClick = { activeViewingStory = it }
                 )
-                1 -> ChatsTab(chatViewModel = chatViewModel)
+                1 -> ChatsTab(chatViewModel = chatViewModel, currentUserId = currentUser?.id)
                 2 -> NearbyScreen(
                     onStartChat = {
                         selectedTab = 1
