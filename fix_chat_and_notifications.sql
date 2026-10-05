@@ -27,41 +27,16 @@ ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS recipient_id TEXT;
 ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS conversation_id TEXT;
 ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS sender_id TEXT;
 
--- 3. Automatic Trigger for Message Delivery & Notifications
--- Automatically updates conversation snippet and notifies recipient with Superuser privileges
+-- 3. Automatic Trigger for Conversation Last Message & Delivery Sync
+-- Updates conversation last message & timestamp without double-inserting encrypted notifications
 CREATE OR REPLACE FUNCTION public.handle_new_message()
 RETURNS TRIGGER AS $$
-DECLARE
-    recip_id UUID;
-    s_name TEXT;
-    c_type TEXT;
 BEGIN
     -- 1. Update conversation last message & time
     UPDATE public.conversations
     SET last_message = NEW.content,
         last_message_time = NEW.created_at
-    WHERE id::TEXT = NEW.conversation_id::TEXT
-    RETURNING type INTO c_type;
-
-    -- 2. If it's a direct conversation, notify the counterpart
-    IF c_type = 'direct' OR NEW.conversation_id::TEXT LIKE 'direct_%' THEN
-        SELECT COALESCE(full_name, username, 'BharatConnect Member')
-        INTO s_name
-        FROM public.profiles
-        WHERE id = NEW.sender_id;
-
-        -- Find recipient from conversation_members
-        SELECT user_id INTO recip_id
-        FROM public.conversation_members
-        WHERE conversation_id::TEXT = NEW.conversation_id::TEXT
-          AND user_id != NEW.sender_id
-        LIMIT 1;
-
-        IF recip_id IS NOT NULL THEN
-            INSERT INTO public.notifications (user_id, title, description, category, is_read, created_at, conversation_id, sender_id)
-            VALUES (recip_id, COALESCE(s_name, 'New Message'), NEW.content, 'messages', false, NOW(), NEW.conversation_id::TEXT, NEW.sender_id::TEXT);
-        END IF;
-    END IF;
+    WHERE id::TEXT = NEW.conversation_id::TEXT;
 
     RETURN NEW;
 END;
@@ -72,7 +47,11 @@ CREATE TRIGGER on_message_sent
     AFTER INSERT ON public.messages
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_message();
 
--- 4. Ensure Realtime Publication includes all necessary tables
+-- 4. Clean up historical duplicate notifications and notifications sent to oneself
+DELETE FROM public.notifications WHERE user_id::TEXT = sender_id::TEXT;
+DELETE FROM public.notifications WHERE description LIKE 'ENC:%';
+
+-- 5. Ensure Realtime Publication includes all necessary tables
 DO 
 BEGIN
     BEGIN

@@ -92,8 +92,23 @@ object SignalEncryptionManager {
      * @param cipherText The received ciphertext string.
      * @return Decrypted plaintext (e.g. "Hi").
      */
-    fun decrypt(conversationId: String, cipherText: String): String {
+    fun decrypt(conversationId: String, cipherText: String, fallbackConversationId: String? = null): String {
         if (!cipherText.startsWith("ENC:")) return cipherText
+        val primary = tryDecryptWithKey(conversationId, cipherText)
+        if (!primary.startsWith("ENC:")) {
+            return primary
+        }
+        // If primary key failed and fallback conversationId was provided, attempt fallback key
+        if (!fallbackConversationId.isNullOrBlank() && fallbackConversationId != conversationId) {
+            val fallback = tryDecryptWithKey(fallbackConversationId, cipherText)
+            if (!fallback.startsWith("ENC:")) {
+                return fallback
+            }
+        }
+        return cipherText
+    }
+
+    private fun tryDecryptWithKey(convId: String, cipherText: String): String {
         return try {
             val rawBase64 = cipherText.removePrefix("ENC:")
             val combined = Base64.decode(rawBase64, Base64.NO_WRAP)
@@ -107,7 +122,7 @@ object SignalEncryptionManager {
             val cipherBytes = ByteArray(combined.size - IV_LENGTH_BYTE)
             System.arraycopy(combined, IV_LENGTH_BYTE, cipherBytes, 0, cipherBytes.size)
 
-            val key = deriveKey(conversationId)
+            val key = deriveKey(convId)
             val cipher = Cipher.getInstance(ALGORITHM)
             val spec = GCMParameterSpec(TAG_LENGTH_BIT, iv)
             cipher.init(Cipher.DECRYPT_MODE, key, spec)

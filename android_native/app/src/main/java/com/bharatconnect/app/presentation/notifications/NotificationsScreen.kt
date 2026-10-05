@@ -23,6 +23,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
 import com.bharatconnect.app.presentation.components.NotificationItemSkeleton
+import com.bharatconnect.app.core.session.SessionManager
+import com.bharatconnect.app.core.network.SupabaseClient
+import com.bharatconnect.app.core.encryption.SignalEncryptionManager
+import com.bharatconnect.app.core.datetime.DateTimeUtils
+import io.github.jan.supabase.gotrue.auth
 
 import androidx.activity.compose.BackHandler
 
@@ -58,30 +63,66 @@ fun NotificationsScreen(
     }
 
     val notifications = remember(rawNotifications) {
-        rawNotifications.map { dto ->
-            val icon = when (dto.category) {
-                "messages" -> Icons.Default.ChatBubble
-                "likes" -> Icons.Default.Favorite
-                else -> Icons.Default.Notifications
+        val currentUserId = SessionManager.getCachedUserProfile()?.id 
+            ?: try { SupabaseClient.client.auth.currentUserOrNull()?.id } catch (_: Exception) { null }
+        val currentUserName = SessionManager.getCachedUserProfile()?.fullName 
+            ?: SessionManager.getCachedUserProfile()?.username
+
+        rawNotifications
+            // 1. Exclude notifications where sender is the current user
+            .filter { dto ->
+                val isFromMe = (currentUserId != null && dto.senderId != null && dto.senderId == currentUserId) ||
+                               (currentUserName != null && dto.title.equals(currentUserName, ignoreCase = true))
+                !isFromMe
             }
-            val iconBg = when (dto.category) {
-                "messages" -> ColorPrimary6367FF
-                "likes" -> Color(0xFFFF2D55)
-                else -> Color(0xFF007AFF)
+            // 2. Deduplicate notifications
+            .distinctBy { dto ->
+                val conv = dto.conversationId ?: dto.senderId ?: dto.title
+                val desc = dto.description.trim()
+                val time = dto.createdAt?.take(16) ?: ""
+                "$conv-$desc-$time"
             }
-            NotificationItem(
-                id = dto.id ?: "",
-                title = dto.title,
-                description = dto.description,
-                timeAgo = dto.createdAt?.take(16) ?: "Just now",
-                category = dto.category,
-                icon = icon,
-                iconBg = iconBg,
-                isRead = dto.isRead,
-                conversationId = dto.conversationId,
-                senderId = dto.senderId
-            )
-        }
+            .map { dto ->
+                val icon = when (dto.category) {
+                    "messages" -> Icons.Default.ChatBubble
+                    "likes" -> Icons.Default.Favorite
+                    else -> Icons.Default.Notifications
+                }
+                val iconBg = when (dto.category) {
+                    "messages" -> ColorPrimary6367FF
+                    "likes" -> Color(0xFFFF2D55)
+                    else -> Color(0xFF007AFF)
+                }
+
+                // 3. Decrypt description if encrypted with AES
+                val decryptedDescription = if (dto.description.startsWith("ENC:")) {
+                    val fallbackPairId = if (currentUserId != null && !dto.senderId.isNullOrBlank()) {
+                        val sorted = listOf(currentUserId, dto.senderId).sorted()
+                        java.util.UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}".toByteArray()).toString()
+                    } else null
+                    SignalEncryptionManager.decrypt(dto.conversationId ?: "", dto.description, fallbackPairId)
+                } else {
+                    dto.description
+                }
+
+                // 4. Format clean local time
+                val formattedTime = DateTimeUtils.formatMessageTime(dto.createdAt).ifBlank {
+                    dto.createdAt?.take(16) ?: "Just now"
+                }
+
+                NotificationItem(
+                    id = dto.id ?: "",
+                    title = dto.title,
+                    description = decryptedDescription,
+                    timeAgo = formattedTime,
+                    category = dto.category,
+                    icon = icon,
+                    iconBg = iconBg,
+                    isRead = dto.isRead,
+                    conversationId = dto.conversationId,
+                    senderId = dto.senderId
+                )
+            }
     }
 
     val filteredNotifications = notifications.filter {

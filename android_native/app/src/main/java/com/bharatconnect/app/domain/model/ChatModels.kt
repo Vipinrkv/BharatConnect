@@ -7,6 +7,7 @@ data class Conversation(
     val id: String,
     val isGroup: Boolean = false,
     val title: String = "Chat",
+    val avatarUrl: String? = null,
     val createdBy: String? = null,
     val lastMessage: String? = null,
     val lastMessageSenderName: String? = null,

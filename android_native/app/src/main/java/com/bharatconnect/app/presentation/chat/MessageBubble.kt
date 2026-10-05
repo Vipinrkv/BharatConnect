@@ -69,15 +69,25 @@ fun MessageBubble(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                 }
-                if (msg.content.isNotBlank() && (msg.mediaUrl.isNullOrBlank() || msg.content != "📷 Photo")) {
-                    Text(msg.content, color = Color.White, fontSize = 14.sp)
+                val displayContent = androidx.compose.runtime.remember(msg.content) {
+                    if (msg.content.startsWith("ENC:")) {
+                        com.bharatconnect.app.core.encryption.SignalEncryptionManager.decrypt(msg.conversationId, msg.content)
+                    } else {
+                        msg.content
+                    }
+                }
+                if (displayContent.isNotBlank() && (msg.mediaUrl.isNullOrBlank() || displayContent != "📷 Photo")) {
+                    Text(displayContent, color = Color.White, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(2.dp))
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
                 ) {
-                    Text(msg.createdAt.takeLast(8), color = Color(0xFFD1D1E0), fontSize = 10.sp)
+                    val formattedTime = androidx.compose.runtime.remember(msg.createdAt) {
+                        com.bharatconnect.app.core.datetime.DateTimeUtils.formatMessageTime(msg.createdAt)
+                    }
+                    Text(formattedTime, color = Color(0xFFD1D1E0), fontSize = 10.sp)
                     if (isMe) {
                         Spacer(modifier = Modifier.width(4.dp))
                         if (msg.isPendingSync || msg.status == "sending") {

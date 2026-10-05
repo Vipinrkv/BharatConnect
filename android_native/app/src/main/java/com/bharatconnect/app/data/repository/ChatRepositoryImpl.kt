@@ -171,6 +171,17 @@ class ChatRepositoryImpl : ChatRepository {
                 }
             } catch (_: Exception) {}
 
+            // Fetch profiles to resolve participant details, names, and avatars
+            val allProfiles = try {
+                supabase.postgrest["profiles"].select().decodeList<ProfileDto>()
+            } catch (_: Exception) {
+                emptyList()
+            }.associateBy { it.id }
+
+            val localUsersMap = try {
+                com.bharatconnect.app.core.database.DatabaseProvider.getDatabase().userDao().getAllUsers().associateBy { it.id }
+            } catch (_: Exception) { emptyMap() }
+
             // Build unified pool of conversations (synthesizing any chat discovered from incoming messages or notifications)
             val conversationMap = remoteConversations.associateBy { it.id }.toMutableMap()
             for ((convId, latestMsg) in latestMessageByConvId) {
@@ -187,22 +198,44 @@ class ChatRepositoryImpl : ChatRepository {
                 }
             }
 
-            // Synthesize conversations from incoming message notifications
+            // Synthesize conversations from incoming message notifications without creating duplicates
             for (notif in incomingMessageNotifs) {
                 val notifSender = notif.title
                 val notifText = notif.description
                 val notifTime = notif.createdAt ?: SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
+                // 1. If notification contains conversationId that exists, skip synthesis
+                if (!notif.conversationId.isNullOrBlank() && conversationMap.containsKey(notif.conversationId)) {
+                    continue
+                }
+
+                // 2. If notification sender is already in an existing direct conversation, skip
+                if (!notif.senderId.isNullOrBlank()) {
+                    val alreadyHasConv = conversationMap.values.any { conv ->
+                        counterpartByConvId[conv.id] == notif.senderId ||
+                        (conv.createdBy == notif.senderId && conv.type == "direct")
+                    }
+                    if (alreadyHasConv) continue
+                }
+
+                // 3. Resolve true deterministic ID using sender profile if available
                 val targetConvId = notif.conversationId
                     ?: if (!notif.senderId.isNullOrBlank()) {
                         val sorted = listOf(currentUserId, notif.senderId).sorted()
                         java.util.UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}".toByteArray()).toString()
                     } else {
-                        val existing = conversationMap.values.firstOrNull { it.title.equals(notifSender, ignoreCase = true) }
-                        existing?.id ?: java.util.UUID.nameUUIDFromBytes("${currentUserId}_${notifSender}".toByteArray()).toString()
+                        // Check if sender title matches a known profile
+                        val matched = allProfiles.values.firstOrNull {
+                            it.fullName?.equals(notifSender, ignoreCase = true) == true ||
+                            it.username?.equals(notifSender, ignoreCase = true) == true
+                        }
+                        if (matched != null) {
+                            val sorted = listOf(currentUserId, matched.id).sorted()
+                            java.util.UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}".toByteArray()).toString()
+                        } else null
                     }
 
-                if (!conversationMap.containsKey(targetConvId)) {
+                if (targetConvId != null && !conversationMap.containsKey(targetConvId)) {
                     conversationMap[targetConvId] = ConversationDto(
                         id = targetConvId,
                         type = "direct",
@@ -213,24 +246,6 @@ class ChatRepositoryImpl : ChatRepository {
                         createdAt = notifTime
                     )
                 }
-
-                // Also populate messageDao if conversation has no messages cached locally yet
-                try {
-                    val existingLocalMsgs = messageDao.getMessagesByConversation(targetConvId)
-                    if (existingLocalMsgs.isEmpty()) {
-                        val notifMsg = Message(
-                            id = "notif_${notif.id ?: targetConvId}_${notifTime.hashCode()}",
-                            conversationId = targetConvId,
-                            senderId = notif.senderId ?: "sender_${notifSender.hashCode()}",
-                            senderName = notifSender,
-                            content = notifText,
-                            status = "delivered",
-                            createdAt = notifTime,
-                            isPendingSync = false
-                        )
-                        messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(notifMsg))
-                    }
-                } catch (_: Exception) {}
             }
 
             val notifConvIds = incomingMessageNotifs.mapNotNull { it.conversationId }.toSet()
@@ -245,18 +260,7 @@ class ChatRepositoryImpl : ChatRepository {
                 (conv.title != null && notifSenderNames.contains(conv.title.lowercase()))
             }
 
-            // Fetch profiles to resolve the other participant's name for direct chats
-            val allProfiles = try {
-                supabase.postgrest["profiles"].select().decodeList<ProfileDto>()
-            } catch (_: Exception) {
-                emptyList()
-            }.associateBy { it.id }
-
-            val localUsersMap = try {
-                com.bharatconnect.app.core.database.DatabaseProvider.getDatabase().userDao().getAllUsers().associateBy { it.id }
-            } catch (_: Exception) { emptyMap() }
-
-            val entities = myConversations.map { conv ->
+            val rawEntities = myConversations.map { conv ->
                 val existingLocal = conversationDao.getConversationById(conv.id)
                 val latestMsg = latestMessageByConvId[conv.id]
 
@@ -280,6 +284,9 @@ class ChatRepositoryImpl : ChatRepository {
                     conv.title ?: "Group Conversation"
                 }
 
+                // Resolve counterpart's profile avatar URL
+                val resolvedAvatarUrl = otherProfile?.avatarUrl ?: localUser?.avatarUrl ?: conv.avatarUrl
+
                 val rawLastMsg = conv.lastMessage ?: latestMsg?.content
                 val decryptedLastMsg = rawLastMsg?.let { SignalEncryptionManager.decrypt(conv.id, it) }
                 val effectiveTime = conv.lastMessageTime ?: latestMsg?.createdAt ?: existingLocal?.lastMessageTime
@@ -288,13 +295,32 @@ class ChatRepositoryImpl : ChatRepository {
                 val isIncomingUnread = latestMsg != null && latestMsg.senderId != currentUserId
                 val effectiveUnread = if (unread > 0) unread else if (isIncomingUnread && (existingLocal?.unreadCount ?: 0) == 0) 1 else (existingLocal?.unreadCount ?: 0)
 
-                val baseDomain = conv.toDomain(resolvedTitle, decryptedLastMsg)
+                val baseDomain = conv.toDomain(resolvedTitle, decryptedLastMsg, resolvedAvatarUrl)
                 val finalDomain = baseDomain.copy(
+                    avatarUrl = resolvedAvatarUrl,
                     lastMessageTime = effectiveTime,
                     unreadCount = effectiveUnread,
                     participantIds = listOfNotNull(currentUserId, otherId)
                 )
                 ConversationEntity.fromDomain(finalDomain)
+            }
+
+            // Deduplicate so that at most ONE conversation exists per counterpart contact
+            val seenCounterparts = mutableSetOf<String>()
+            val entities = mutableListOf<ConversationEntity>()
+            for (entity in rawEntities) {
+                val counterpart = entity.participantIds.split(",")
+                    .map { it.trim() }
+                    .firstOrNull { it.isNotBlank() && it != currentUserId }
+                if (counterpart != null) {
+                    if (seenCounterparts.contains(counterpart)) {
+                        // Stale duplicate conversation detected; prune it from local database
+                        try { conversationDao.deleteConversation(entity.id) } catch (_: Exception) {}
+                        continue
+                    }
+                    seenCounterparts.add(counterpart)
+                }
+                entities.add(entity)
             }
 
             conversationDao.insertConversations(entities)
@@ -321,8 +347,15 @@ class ChatRepositoryImpl : ChatRepository {
                 .decodeList<MessageDto>()
 
             val currentUserId = resolveCurrentUserId()
+            val convEntity = conversationDao.getConversationById(conversationId)
+            val otherId = convEntity?.participantIds?.split(",")?.firstOrNull { it.isNotBlank() && it != currentUserId }
+            val fallbackId = if (currentUserId != null && otherId != null) {
+                val sorted = listOf(currentUserId, otherId).sorted()
+                java.util.UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}".toByteArray()).toString()
+            } else null
+
             val entities = remoteMessages.map { 
-                val decrypted = SignalEncryptionManager.decrypt(it.conversationId, it.content)
+                val decrypted = SignalEncryptionManager.decrypt(it.conversationId, it.content, fallbackId)
                 if (currentUserId != null && it.senderId != currentUserId && it.status == "sent") {
                     try { acknowledgeMessageDelivered(it.id, conversationId) } catch (_: Exception) {}
                 }

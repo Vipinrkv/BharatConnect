@@ -27,10 +27,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.bharatconnect.app.core.notifications.NotificationHelper
 import com.bharatconnect.app.core.session.SessionManager
 import com.bharatconnect.app.core.storage.CloudinaryManager
@@ -149,7 +152,21 @@ fun ChatDetailScreen(
                                 .background(Color(0xFF2C2856)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(conversation.title.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                            if (!conversation.avatarUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(conversation.avatarUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Avatar",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Text(conversation.title.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {

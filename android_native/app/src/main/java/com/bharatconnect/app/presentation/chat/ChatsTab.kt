@@ -20,11 +20,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
 import com.bharatconnect.app.domain.model.Conversation
 import com.bharatconnect.app.presentation.components.ConversationItemSkeleton
@@ -392,7 +395,21 @@ fun ChatsTab(
                                                 .background(Color(0xFF2C2856)),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(displayName.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                            if (!conv.avatarUrl.isNullOrBlank()) {
+                                                AsyncImage(
+                                                    model = ImageRequest.Builder(LocalContext.current)
+                                                        .data(conv.avatarUrl)
+                                                        .crossfade(true)
+                                                        .build(),
+                                                    contentDescription = "Avatar",
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .clip(CircleShape),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Text(displayName.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                            }
                                         }
                                         Spacer(modifier = Modifier.width(14.dp))
                                         Column(modifier = Modifier.weight(1f)) {
@@ -422,13 +439,7 @@ fun ChatsTab(
                                                     }
                                                 }
                                                 val formattedTime = remember(conv.lastMessageTime) {
-                                                    conv.lastMessageTime?.takeIf { it.isNotBlank() }?.let { t ->
-                                                        if (t.length >= 16 && t.contains(" ")) {
-                                                            t.substring(11, 16)
-                                                        } else if (t.length >= 8) {
-                                                            t.takeLast(8).take(5)
-                                                        } else t
-                                                    } ?: ""
+                                                    com.bharatconnect.app.core.datetime.DateTimeUtils.formatMessageTime(conv.lastMessageTime)
                                                 }
                                                 if (formattedTime.isNotBlank()) {
                                                     Text(
