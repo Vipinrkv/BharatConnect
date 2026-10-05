@@ -157,7 +157,7 @@ fun ChatsTab(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Sub-Tabs Header (Individual / Groups / Communities) + Add (+) & Three Dot Menu
+            // Sub-Tabs Header (Individual / Groups / Communities) & Three Dot Menu
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -181,26 +181,13 @@ fun ChatsTab(
                                 color = if (isSelected) Color.White else Color.Gray,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                             )
                         }
                     }
                 }
-
-                // Plus (+) Button to Select Contacts
-                IconButton(
-                    onClick = {
-                        if (!hasContactPermission) {
-                            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-                        }
-                        showNewChatDialog = true
-                    },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "New Chat", tint = Color.White)
-                }
-
-                Spacer(modifier = Modifier.width(4.dp))
 
                 // Three Dot Menu
                 Box {

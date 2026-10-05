@@ -25,9 +25,11 @@ import io.github.jan.supabase.realtime.decodeRecord
 import io.github.jan.supabase.realtime.decodeOldRecord
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -395,8 +397,50 @@ class ChatRepositoryImpl : ChatRepository {
                 } catch (_: Exception) {}
             }
 
+            if (recipientId == "bharatconnect_support_bot" || conversationId.contains("bharatconnect_support_bot")) {
+                kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                    kotlinx.coroutines.delay(800L)
+                    val replyId = java.util.UUID.randomUUID().toString()
+                    val replyTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                    val replyText = "Namaste! 🙏 Welcome to BharatConnect. We're here to help you connect with your friends, communities, and services across India. Feel free to explore and chat!"
+                    val replyMsg = Message(
+                        id = replyId,
+                        conversationId = conversationId,
+                        senderId = "bharatconnect_support_bot",
+                        senderName = "BharatConnect Support",
+                        content = replyText,
+                        status = "read",
+                        createdAt = replyTime,
+                        isPendingSync = false
+                    )
+                    messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(replyMsg))
+                    conversationDao.updateLastMessage(conversationId, replyText, "BharatConnect Support", replyTime)
+                }
+            }
+
             Result.success(finalMessage)
         } catch (e: Exception) {
+            // Check if messaging support bot in offline mode
+            if (conversationId.contains("bharatconnect_support_bot")) {
+                kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                    kotlinx.coroutines.delay(800L)
+                    val replyId = java.util.UUID.randomUUID().toString()
+                    val replyTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                    val replyText = "Namaste! 🙏 Welcome to BharatConnect. We're here to help you connect with your friends, communities, and services across India. Feel free to explore and chat!"
+                    val replyMsg = Message(
+                        id = replyId,
+                        conversationId = conversationId,
+                        senderId = "bharatconnect_support_bot",
+                        senderName = "BharatConnect Support",
+                        content = replyText,
+                        status = "read",
+                        createdAt = replyTime,
+                        isPendingSync = false
+                    )
+                    messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(replyMsg))
+                    conversationDao.updateLastMessage(conversationId, replyText, "BharatConnect Support", replyTime)
+                }
+            }
             // Keep in Room DB with failed/pending_sync status for WorkManager offline retry
             messageDao.updateMessageStatus(messageId, "failed", true)
             Result.success(localMessage.copy(status = "failed"))

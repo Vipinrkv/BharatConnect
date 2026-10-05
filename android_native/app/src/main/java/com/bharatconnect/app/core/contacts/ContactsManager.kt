@@ -276,6 +276,37 @@ object ContactsManager {
                 }
             }
 
+            // 6b. Always provide official verified BharatConnect Support channel
+            val supportBotId = "bharatconnect_support_bot"
+            if (!matchedRegisteredIds.contains(supportBotId) && currentUserId != supportBotId) {
+                updatedDeviceContacts.add(
+                    PhoneContact(
+                        id = supportBotId,
+                        name = "BharatConnect Support",
+                        rawPhone = "Official Help & Community Desk",
+                        normalizedPhone = "0000000000",
+                        isRegistered = true,
+                        registeredUserId = supportBotId,
+                        avatarUrl = null,
+                        username = "bharatconnect",
+                        isPhonebookContact = false
+                    )
+                )
+                matchedRegisteredIds.add(supportBotId)
+                try {
+                    val supportUser = com.bharatconnect.app.data.local.room.entity.UserEntity(
+                        id = supportBotId,
+                        username = "bharatconnect",
+                        fullName = "BharatConnect Support",
+                        avatarUrl = null,
+                        bio = "Official BharatConnect support & community guide",
+                        phoneNumber = "+91 00000 00000",
+                        isOnline = true
+                    )
+                    com.bharatconnect.app.core.database.DatabaseProvider.getDatabase().userDao().insertOrUpdateUser(supportUser)
+                } catch (_: Exception) {}
+            }
+
             // 7. Sort:
             // 1st: Registered phonebook contacts (Saved contacts on BharatConnect)
             // 2nd: Other registered members on BharatConnect

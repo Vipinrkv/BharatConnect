@@ -11,9 +11,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Contacts
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.*
@@ -128,8 +131,14 @@ fun SelectContactBottomSheet(
             ) {
                 Column {
                     Text("Select Contact", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    val subtitleText = when {
+                        !hasContactPermission -> "Grant contact permission to find friends"
+                        totalRegisteredCount > 0 -> "$totalRegisteredCount on BharatConnect • ${phoneContacts.size} contacts"
+                        phoneContacts.isNotEmpty() -> "${phoneContacts.size} contacts"
+                        else -> "0 contacts found"
+                    }
                     Text(
-                        text = if (hasContactPermission) "$totalRegisteredCount registered members available" else "Grant contact permission to find friends",
+                        text = subtitleText,
                         color = Color.Gray,
                         fontSize = 12.sp
                     )
@@ -240,6 +249,69 @@ fun SelectContactBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
+                    // Quick Action: Direct Chat with Search Query
+                    if (contactSearchQuery.isNotBlank()) {
+                        item {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1A47)),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, ColorPrimary6367FF),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val directContact = PhoneContact(
+                                            id = "custom_${contactSearchQuery.trim()}",
+                                            name = contactSearchQuery.trim(),
+                                            rawPhone = contactSearchQuery.trim(),
+                                            normalizedPhone = ContactsManager.normalizePhoneNumber(contactSearchQuery.trim()),
+                                            isRegistered = true,
+                                            registeredUserId = null,
+                                            isPhonebookContact = false
+                                        )
+                                        onContactSelected(directContact)
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Chat, contentDescription = null, tint = Color(0xFF4EFEAA), modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text("Message \"$contactSearchQuery\"", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text("Start direct encrypted chat", color = Color(0xFF4EFEAA), fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Informational Banner when no phonebook contacts are on the app yet
+                    if (registeredPhonebookContacts.isEmpty() && contactSearchQuery.isBlank()) {
+                        item {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1640)),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, Color(0xFF322A6B)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.GroupAdd, contentDescription = null, tint = ColorPrimary6367FF, modifier = Modifier.size(24.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Invite your contacts to BharatConnect", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                        Text("None of your phone contacts have joined BharatConnect yet. Tap 'Invite' below to send an SMS link, or tap any contact to message them.", color = Color.LightGray, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // 1. Registered Phonebook Contacts Section (PINNED ON TOP)
                     if (registeredPhonebookContacts.isNotEmpty()) {
                         item {
@@ -419,7 +491,9 @@ fun SelectContactBottomSheet(
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF14112E)),
                                 shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onContactSelected(contact) }
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -450,6 +524,7 @@ fun SelectContactBottomSheet(
                                             fontSize = 14.sp
                                         )
                                         Text(contact.rawPhone, color = Color.Gray, fontSize = 12.sp)
+                                        Text("Tap to chat • or invite via SMS", color = Color(0xFF6B7280), fontSize = 10.sp)
                                     }
                                     OutlinedButton(
                                         onClick = {
