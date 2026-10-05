@@ -149,13 +149,23 @@ class ChatViewModel(
     }
 
     fun selectConversation(conversation: Conversation) {
-        _selectedConversation.value = conversation
-        observeMessages(conversation.id)
-        markMessagesAsRead(conversation.id)
+        var effectiveConv = conversation
+        val currentUserId = com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()?.id
+        val counterpart = conversation.participantIds.firstOrNull { it.isNotBlank() && it != currentUserId }
+        if (!conversation.isGroup && currentUserId != null && counterpart != null) {
+            val canonicalId = com.bharatconnect.app.core.encryption.SignalEncryptionManager.getDeterministicConversationId(currentUserId, counterpart)
+            if (conversation.id != canonicalId) {
+                effectiveConv = conversation.copy(id = canonicalId)
+            }
+        }
+
+        _selectedConversation.value = effectiveConv
+        observeMessages(effectiveConv.id)
+        markMessagesAsRead(effectiveConv.id)
         try {
             com.bharatconnect.app.core.notifications.NotificationHelper.clearMessageNotifications(
                 com.bharatconnect.app.BharatConnectApp.appContext,
-                conversation.id
+                effectiveConv.id
             )
         } catch (_: Exception) {}
     }
@@ -332,7 +342,7 @@ class ChatViewModel(
             } ?: run {
                 // Fallback: create conversation locally so user is never blocked from chatting
                 val currentUserId = com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()?.id ?: "me"
-                val convId = conversationId ?: java.util.UUID.nameUUIDFromBytes("${currentUserId}_${finalParticipantId}".toByteArray()).toString()
+                val convId = conversationId ?: com.bharatconnect.app.core.encryption.SignalEncryptionManager.getDeterministicConversationId(currentUserId, finalParticipantId)
                 val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
                 val fallbackConv = Conversation(
                     id = convId,

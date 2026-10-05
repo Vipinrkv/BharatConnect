@@ -12,15 +12,18 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.bharatconnect.app.core.theme.BharatConnectTheme
 import com.bharatconnect.app.presentation.auth.AuthViewModel
+import com.bharatconnect.app.presentation.chat.ChatViewModel
 import com.bharatconnect.app.presentation.navigation.BharatConnectNavGraph
 
 class MainActivity : ComponentActivity() {
 
     private val authViewModel: AuthViewModel by viewModels()
+    private val chatViewModel: ChatViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleDeepLinkIntent(intent)
+        handleNotificationIntent(intent)
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             if (androidx.core.content.ContextCompat.checkSelfPermission(
@@ -44,7 +47,8 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     BharatConnectNavGraph(
                         navController = navController,
-                        authViewModel = authViewModel
+                        authViewModel = authViewModel,
+                        chatViewModel = chatViewModel
                     )
                 }
             }
@@ -55,6 +59,18 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleDeepLinkIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(targetIntent: Intent?) {
+        val convId = targetIntent?.getStringExtra("conversationId")
+        if (!convId.isNullOrBlank()) {
+            targetIntent.removeExtra("conversationId")
+            chatViewModel.openChatFromNotification(
+                senderName = "Chat",
+                conversationId = convId
+            )
+        }
     }
 
     private fun handleDeepLinkIntent(targetIntent: Intent?) {

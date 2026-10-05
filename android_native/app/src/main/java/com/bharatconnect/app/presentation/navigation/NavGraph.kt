@@ -28,7 +28,8 @@ sealed class Screen(val route: String) {
 @Composable
 fun BharatConnectNavGraph(
     navController: NavHostController,
-    authViewModel: AuthViewModel = viewModel()
+    authViewModel: AuthViewModel = viewModel(),
+    chatViewModel: com.bharatconnect.app.presentation.chat.ChatViewModel = viewModel()
 ) {
     NavHost(
         navController = navController,
@@ -97,6 +98,7 @@ fun BharatConnectNavGraph(
         composable(Screen.Home.route) {
             HomeScreen(
                 authViewModel = authViewModel,
+                chatViewModel = chatViewModel,
                 onSignOut = {
                     navController.navigate(Screen.Splash.route) {
                         popUpTo(navController.graph.id) { inclusive = true }

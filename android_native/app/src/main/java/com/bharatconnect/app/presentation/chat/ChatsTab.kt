@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.bharatconnect.app.core.encryption.SignalEncryptionManager
 import com.bharatconnect.app.core.theme.ColorPrimary6367FF
 import com.bharatconnect.app.domain.model.Conversation
 import com.bharatconnect.app.presentation.components.ConversationItemSkeleton
@@ -456,8 +457,17 @@ fun ChatsTab(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
+                                                val previewText = remember(conv.lastMessage, conv.id) {
+                                                    val raw = conv.lastMessage
+                                                    if (raw != null && raw.startsWith("ENC:")) {
+                                                        val dec = SignalEncryptionManager.decrypt(conv.id, raw)
+                                                        if (dec.startsWith("ENC:")) "Message" else dec
+                                                    } else {
+                                                        raw ?: "Tap to start conversation"
+                                                    }
+                                                }
                                                 Text(
-                                                    text = conv.lastMessage ?: "Tap to start conversation",
+                                                    text = previewText,
                                                     color = if (conv.unreadCount > 0) Color.White else Color.Gray,
                                                     fontWeight = if (conv.unreadCount > 0) FontWeight.Medium else FontWeight.Normal,
                                                     fontSize = 13.sp,

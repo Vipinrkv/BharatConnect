@@ -35,6 +35,16 @@ object SignalEncryptionManager {
     private const val SALT = "BharatConnect_Sentinel_E2EE_2026"
 
     /**
+     * Computes the deterministic, canonical UUID for 1-on-1 direct conversations.
+     * Guarantees both participants generate the exact same conversation ID regardless
+     * of who initiated the chat or sent the message.
+     */
+    fun getDeterministicConversationId(user1: String, user2: String): String {
+        val sorted = listOf(user1.trim(), user2.trim()).sorted()
+        return java.util.UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}".toByteArray()).toString()
+    }
+
+    /**
      * Derives a deterministic 256-bit AES key from the conversation ID and application salt.
      * Uses SHA-256 hashing to produce a uniform 32-byte pseudo-random key suitable for AES-256.
      */

@@ -143,11 +143,11 @@ class ChatRepositoryImpl : ChatRepository {
             } catch (_: Exception) { emptyList() }
 
             // 4. Fetch incoming message notifications to synthesize conversations and bridge offline delivery
+            // 4. Fetch incoming message notifications to synthesize conversations and bridge offline delivery
             val incomingMessageNotifs = try {
                 supabase.postgrest["notifications"].select {
                     filter {
                         eq("user_id", currentUserId)
-                        eq("category", "messages")
                     }
                 }.decodeList<NotificationDto>()
             } catch (_: Exception) { emptyList() }
@@ -204,6 +204,11 @@ class ChatRepositoryImpl : ChatRepository {
                 val notifText = notif.description
                 val notifTime = notif.createdAt ?: SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
+                // Ignore corrupt/unassociated encrypted notifications without conversation ID
+                if (notifText.startsWith("ENC:") && notif.conversationId.isNullOrBlank()) {
+                    continue
+                }
+
                 // 1. If notification contains conversationId that exists, skip synthesis
                 if (!notif.conversationId.isNullOrBlank() && conversationMap.containsKey(notif.conversationId)) {
                     continue
@@ -218,20 +223,20 @@ class ChatRepositoryImpl : ChatRepository {
                     if (alreadyHasConv) continue
                 }
 
-                // 3. Resolve true deterministic ID using sender profile if available
+                // 3. Resolve true deterministic ID using sender profile if available (NEVER match currentUserId!)
                 val targetConvId = notif.conversationId
                     ?: if (!notif.senderId.isNullOrBlank()) {
-                        val sorted = listOf(currentUserId, notif.senderId).sorted()
-                        java.util.UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}".toByteArray()).toString()
+                        SignalEncryptionManager.getDeterministicConversationId(currentUserId, notif.senderId)
                     } else {
-                        // Check if sender title matches a known profile
+                        // Check if sender title matches a known profile other than oneself
                         val matched = allProfiles.values.firstOrNull {
-                            it.fullName?.equals(notifSender, ignoreCase = true) == true ||
-                            it.username?.equals(notifSender, ignoreCase = true) == true
+                            it.id != currentUserId && (
+                                it.fullName?.equals(notifSender, ignoreCase = true) == true ||
+                                it.username?.equals(notifSender, ignoreCase = true) == true
+                            )
                         }
                         if (matched != null) {
-                            val sorted = listOf(currentUserId, matched.id).sorted()
-                            java.util.UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}".toByteArray()).toString()
+                            SignalEncryptionManager.getDeterministicConversationId(currentUserId, matched.id)
                         } else null
                     }
 
@@ -261,18 +266,30 @@ class ChatRepositoryImpl : ChatRepository {
             }
 
             val rawEntities = myConversations.map { conv ->
-                val existingLocal = conversationDao.getConversationById(conv.id)
-                val latestMsg = latestMessageByConvId[conv.id]
-
                 val otherId = counterpartByConvId[conv.id]
-                    ?: latestMsg?.let { if (it.senderId != currentUserId) it.senderId else it.recipientId }
-                    ?: existingLocal?.participantIds?.split(",")?.firstOrNull { it.isNotBlank() && it != currentUserId }
+                    ?: latestMessageByConvId[conv.id]?.let { if (it.senderId != currentUserId) it.senderId else it.recipientId }
+                    ?: conversationDao.getConversationById(conv.id)?.participantIds?.split(",")?.firstOrNull { it.isNotBlank() && it != currentUserId }
                     ?: if (conv.createdBy != currentUserId) conv.createdBy else null
+
+                val isDirect = conv.type == "direct" || conv.id.startsWith("direct_") || conv.type != "group"
+                val canonicalId = if (isDirect && otherId != null && otherId != currentUserId) {
+                    SignalEncryptionManager.getDeterministicConversationId(currentUserId, otherId)
+                } else {
+                    conv.id
+                }
+
+                // If conversation had an old non-deterministic ID, prune it from local database
+                if (canonicalId != conv.id) {
+                    try { conversationDao.deleteConversation(conv.id) } catch (_: Exception) {}
+                }
+
+                val existingLocal = conversationDao.getConversationById(canonicalId)
+                val latestMsg = latestMessageByConvId[conv.id] ?: latestMessageByConvId[canonicalId]
 
                 val otherProfile = otherId?.let { allProfiles[it] }
                 val localUser = otherId?.let { localUsersMap[it] }
 
-                val resolvedTitle = if (conv.type == "direct" || conv.id.startsWith("direct_")) {
+                val resolvedTitle = if (isDirect) {
                     ContactsManager.resolveCounterpartDisplayName(
                         context = BharatConnectApp.appContext,
                         phoneNumber = otherProfile?.phoneNumber ?: localUser?.phoneNumber,
@@ -287,17 +304,22 @@ class ChatRepositoryImpl : ChatRepository {
                 // Resolve counterpart's profile avatar URL
                 val resolvedAvatarUrl = otherProfile?.avatarUrl ?: localUser?.avatarUrl ?: conv.avatarUrl
 
-                val rawLastMsg = conv.lastMessage ?: latestMsg?.content
-                val decryptedLastMsg = rawLastMsg?.let { SignalEncryptionManager.decrypt(conv.id, it) }
+                val rawLastMsg = conv.lastMessage ?: latestMsg?.content ?: existingLocal?.lastMessage
+                val decryptedLastMsg = rawLastMsg?.let { raw ->
+                    val d = SignalEncryptionManager.decrypt(conv.id, raw, canonicalId)
+                    if (d.startsWith("ENC:")) "Message" else d
+                }
                 val effectiveTime = conv.lastMessageTime ?: latestMsg?.createdAt ?: existingLocal?.lastMessageTime
 
-                val unread = try { messageDao.getUnreadCount(conv.id, currentUserId) } catch (_: Exception) { 0 }
+                val unread = try { messageDao.getUnreadCount(canonicalId, currentUserId) } catch (_: Exception) { 0 }
                 val isIncomingUnread = latestMsg != null && latestMsg.senderId != currentUserId
                 val effectiveUnread = if (unread > 0) unread else if (isIncomingUnread && (existingLocal?.unreadCount ?: 0) == 0) 1 else (existingLocal?.unreadCount ?: 0)
 
                 val baseDomain = conv.toDomain(resolvedTitle, decryptedLastMsg, resolvedAvatarUrl)
                 val finalDomain = baseDomain.copy(
+                    id = canonicalId,
                     avatarUrl = resolvedAvatarUrl,
+                    lastMessage = decryptedLastMsg,
                     lastMessageTime = effectiveTime,
                     unreadCount = effectiveUnread,
                     participantIds = listOfNotNull(currentUserId, otherId)
@@ -324,10 +346,25 @@ class ChatRepositoryImpl : ChatRepository {
             }
 
             conversationDao.insertConversations(entities)
-            val localConvs = conversationDao.getAllConversations().map { it.toDomain() }
             val remoteIds = entities.map { it.id }.toSet()
-            val merged = entities.map { it.toDomain() } + localConvs.filter { !remoteIds.contains(it.id) }
-            Result.success(merged)
+            val authoritativeCounterparts = entities.mapNotNull { it.participantIds.split(",").firstOrNull { p -> p.isNotBlank() && p != currentUserId } }.toSet()
+
+            // Purge obsolete local Room conversations that share a counterpart or have stale corrupt encrypted previews
+            val localConvs = conversationDao.getAllConversations()
+            for (local in localConvs) {
+                val counterpart = local.participantIds.split(",").firstOrNull { it.isNotBlank() && it != currentUserId }
+                if ((counterpart != null && authoritativeCounterparts.contains(counterpart) && !remoteIds.contains(local.id)) ||
+                    (local.lastMessage?.startsWith("ENC:") == true && !remoteIds.contains(local.id))) {
+                    try {
+                        conversationDao.deleteConversation(local.id)
+                        messageDao.deleteMessagesByConversation(local.id)
+                    } catch (_: Exception) {}
+                }
+            }
+
+            val finalLocal = conversationDao.getAllConversations().map { it.toDomain() }
+            val merged = entities.map { it.toDomain() } + finalLocal.filter { !remoteIds.contains(it.id) }
+            Result.success(merged.distinctBy { it.id })
         } catch (e: Exception) {
             // Offline fallback to Room
             val local = conversationDao.getAllConversations().map { it.toDomain() }
@@ -338,33 +375,45 @@ class ChatRepositoryImpl : ChatRepository {
     override suspend fun fetchMessages(conversationId: String): Result<List<Message>> = withContext(Dispatchers.IO) {
         ensureAuthSession()
         try {
-            val remoteMessages = supabase.postgrest["messages"]
-                .select {
-                    filter {
-                        eq("conversation_id", conversationId)
-                    }
-                }
-                .decodeList<MessageDto>()
-
             val currentUserId = resolveCurrentUserId()
             val convEntity = conversationDao.getConversationById(conversationId)
             val otherId = convEntity?.participantIds?.split(",")?.firstOrNull { it.isNotBlank() && it != currentUserId }
             val fallbackId = if (currentUserId != null && otherId != null) {
-                val sorted = listOf(currentUserId, otherId).sorted()
-                java.util.UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}".toByteArray()).toString()
+                SignalEncryptionManager.getDeterministicConversationId(currentUserId, otherId)
             } else null
 
-            val entities = remoteMessages.map { 
-                val decrypted = SignalEncryptionManager.decrypt(it.conversationId, it.content, fallbackId)
-                if (currentUserId != null && it.senderId != currentUserId && it.status == "sent") {
-                    try { acknowledgeMessageDelivered(it.id, conversationId) } catch (_: Exception) {}
+            val idsToQuery = listOfNotNull(conversationId, fallbackId).distinct()
+            val remoteMessages = supabase.postgrest["messages"]
+                .select {
+                    filter {
+                        isIn("conversation_id", idsToQuery)
+                    }
                 }
-                MessageEntity.fromDomain(it.toDomain().copy(content = decrypted))
+                .decodeList<MessageDto>()
+
+            val entities = remoteMessages.flatMap { msg ->
+                val decrypted = SignalEncryptionManager.decrypt(msg.conversationId, msg.content, fallbackId)
+                if (currentUserId != null && msg.senderId != currentUserId && msg.status == "sent") {
+                    try { acknowledgeMessageDelivered(msg.id, msg.conversationId) } catch (_: Exception) {}
+                }
+                val domainMsg = msg.toDomain().copy(content = decrypted)
+                val list = mutableListOf(MessageEntity.fromDomain(domainMsg))
+                if (conversationId != msg.conversationId) {
+                    list.add(MessageEntity.fromDomain(domainMsg.copy(conversationId = conversationId)))
+                }
+                if (fallbackId != null && fallbackId != msg.conversationId) {
+                    list.add(MessageEntity.fromDomain(domainMsg.copy(conversationId = fallbackId)))
+                }
+                list
             }
             messageDao.insertMessages(entities)
 
             val local = messageDao.getMessagesByConversation(conversationId).map { it.toDomain() }
-            Result.success(local)
+            val effectiveLocal = if (local.isEmpty() && fallbackId != null && fallbackId != conversationId) {
+                messageDao.getMessagesByConversation(fallbackId).map { it.toDomain() }
+            } else local
+
+            Result.success(effectiveLocal)
         } catch (e: Exception) {
             // Offline fallback to Room
             val local = messageDao.getMessagesByConversation(conversationId).map { it.toDomain() }
@@ -598,9 +647,7 @@ class ChatRepositoryImpl : ChatRepository {
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
         
         // Generate deterministic conversation ID for 1-on-1 pairs (alphabetical order of UUIDs)
-        val sortedIds = listOf(currentUserId, participantId).sorted()
-        val deterministicKey = "${sortedIds[0]}_${sortedIds[1]}"
-        val convId = java.util.UUID.nameUUIDFromBytes(deterministicKey.toByteArray()).toString()
+        val convId = SignalEncryptionManager.getDeterministicConversationId(currentUserId, participantId)
 
         val conversation = Conversation(
             id = convId,

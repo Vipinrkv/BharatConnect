@@ -256,7 +256,8 @@ fun NotificationsScreen(
                             .fillMaxWidth()
                             .clickable {
                                 notif.isRead = true
-                                if (notif.category == "messages") {
+                                val isMessage = notif.category == "messages" || !notif.conversationId.isNullOrBlank() || !notif.senderId.isNullOrBlank()
+                                if (isMessage) {
                                     chatViewModel.openChatFromNotification(
                                         senderName = notif.title,
                                         messageSnippet = notif.description,
