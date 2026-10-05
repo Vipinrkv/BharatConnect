@@ -34,7 +34,9 @@ data class NotificationItem(
     val category: String, // messages, likes, system
     val icon: ImageVector,
     val iconBg: Color,
-    var isRead: Boolean = false
+    var isRead: Boolean = false,
+    val conversationId: String? = null,
+    val senderId: String? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,7 +77,9 @@ fun NotificationsScreen(
                 category = dto.category,
                 icon = icon,
                 iconBg = iconBg,
-                isRead = dto.isRead
+                isRead = dto.isRead,
+                conversationId = dto.conversationId,
+                senderId = dto.senderId
             )
         }
     }
@@ -209,7 +213,19 @@ fun NotificationsScreen(
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { notif.isRead = true }
+                            .clickable {
+                                notif.isRead = true
+                                if (notif.category == "messages") {
+                                    chatViewModel.openChatFromNotification(
+                                        senderName = notif.title,
+                                        messageSnippet = notif.description,
+                                        conversationId = notif.conversationId,
+                                        senderId = notif.senderId
+                                    ) {
+                                        onBack()
+                                    }
+                                }
+                            }
                     ) {
                         Row(
                             modifier = Modifier
@@ -256,7 +272,25 @@ fun NotificationsScreen(
                                 )
                             }
 
+                            if (notif.category == "messages") {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    color = ColorPrimary6367FF.copy(alpha = 0.2f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, ColorPrimary6367FF)
+                                ) {
+                                    Text(
+                                        text = "Chat 💬",
+                                        color = ColorPrimary6367FF,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+
                             if (!notif.isRead) {
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)

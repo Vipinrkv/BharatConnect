@@ -101,10 +101,12 @@ ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS content TEXT DEFAULT '';
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS media_url TEXT;
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS media_type TEXT;
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS recipient_id TEXT;
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages (conversation_id, created_at ASC);
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON public.messages (sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_recipient ON public.messages (recipient_id);
 
 -- ============================================================================
 -- 3. SOCIAL FEED (Posts, Likes & Comments)
@@ -274,8 +276,11 @@ ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'system';
 ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS conversation_id TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS sender_id TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_conv ON public.notifications (conversation_id);
 
 CREATE TABLE IF NOT EXISTS public.user_locations (
     user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -373,8 +378,8 @@ BEGIN
         LIMIT 1;
 
         IF recip_id IS NOT NULL THEN
-            INSERT INTO public.notifications (user_id, title, description, category, is_read, created_at)
-            VALUES (recip_id, COALESCE(s_name, 'New Message'), NEW.content, 'messages', false, NOW());
+            INSERT INTO public.notifications (user_id, title, description, category, is_read, created_at, conversation_id, sender_id)
+            VALUES (recip_id, COALESCE(s_name, 'New Message'), NEW.content, 'messages', false, NOW(), NEW.conversation_id::TEXT, NEW.sender_id::TEXT);
         END IF;
     END IF;
 

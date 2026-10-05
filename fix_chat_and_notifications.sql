@@ -22,6 +22,11 @@ ALTER TABLE public.conversation_members DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications DISABLE ROW LEVEL SECURITY;
 
+-- Ensure schema columns exist
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS recipient_id TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS conversation_id TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS sender_id TEXT;
+
 -- 3. Automatic Trigger for Message Delivery & Notifications
 -- Automatically updates conversation snippet and notifies recipient with Superuser privileges
 CREATE OR REPLACE FUNCTION public.handle_new_message()
@@ -53,8 +58,8 @@ BEGIN
         LIMIT 1;
 
         IF recip_id IS NOT NULL THEN
-            INSERT INTO public.notifications (user_id, title, description, category, is_read, created_at)
-            VALUES (recip_id, COALESCE(s_name, 'New Message'), NEW.content, 'messages', false, NOW());
+            INSERT INTO public.notifications (user_id, title, description, category, is_read, created_at, conversation_id, sender_id)
+            VALUES (recip_id, COALESCE(s_name, 'New Message'), NEW.content, 'messages', false, NOW(), NEW.conversation_id::TEXT, NEW.sender_id::TEXT);
         END IF;
     END IF;
 

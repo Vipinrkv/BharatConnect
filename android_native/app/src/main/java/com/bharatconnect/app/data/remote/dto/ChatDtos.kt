@@ -58,7 +58,11 @@ data class NotificationDto(
     @SerialName("is_read")
     val isRead: Boolean = false,
     @SerialName("created_at")
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    @SerialName("conversation_id")
+    val conversationId: String? = null,
+    @SerialName("sender_id")
+    val senderId: String? = null
 )
 
 @Serializable

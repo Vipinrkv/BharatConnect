@@ -14,6 +14,7 @@ import com.bharatconnect.app.domain.usecase.chat.SendMessageUseCase
 import com.bharatconnect.app.domain.usecase.chat.SubscribeToRealtimeUseCase
 import com.bharatconnect.app.domain.usecase.chat.UnsubscribeRealtimeUseCase
 import com.bharatconnect.app.domain.usecase.chat.DeleteConversationUseCase
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -232,13 +233,122 @@ class ChatViewModel(
         onSuccess: (Conversation) -> Unit = {}
     ) {
         viewModelScope.launch {
-            val participantId = contact.registeredUserId ?: "contact_${contact.normalizedPhone}"
+            var participantId = contact.registeredUserId
+            if (participantId.isNullOrBlank()) {
+                // Try looking up in local Room DB by phone number
+                val db = com.bharatconnect.app.core.database.DatabaseProvider.getDatabase()
+                val norm = com.bharatconnect.app.core.contacts.ContactsManager.normalizePhoneNumber(contact.rawPhone)
+                val fullDigits = contact.rawPhone.filter { it.isDigit() }
+                val localUser = db.userDao().getAllUsers().firstOrNull { u ->
+                    val uNorm = u.phoneNumber?.let { com.bharatconnect.app.core.contacts.ContactsManager.normalizePhoneNumber(it) }
+                    val uDigits = u.phoneNumber?.filter { it.isDigit() }
+                    uNorm == norm || uDigits == fullDigits || u.phoneNumber == contact.rawPhone
+                }
+                if (localUser != null) {
+                    participantId = localUser.id
+                } else {
+                    // Try looking up in Supabase profiles table
+                    participantId = try {
+                        val profiles = com.bharatconnect.app.core.network.SupabaseClient.client.postgrest["profiles"]
+                            .select()
+                            .decodeList<com.bharatconnect.app.data.remote.dto.ProfileDto>()
+                        val matched = profiles.firstOrNull { p: com.bharatconnect.app.data.remote.dto.ProfileDto ->
+                            val pNorm = p.phoneNumber?.let { com.bharatconnect.app.core.contacts.ContactsManager.normalizePhoneNumber(it) }
+                            val pDigits = p.phoneNumber?.filter { it.isDigit() }
+                            pNorm == norm || pDigits == fullDigits || p.phoneNumber == contact.rawPhone ||
+                            (!contact.username.isNullOrBlank() && p.username.equals(contact.username, ignoreCase = true))
+                        }
+                        matched?.id
+                    } catch (_: Exception) { null }
+                }
+            }
+
+            val finalParticipantId = participantId ?: "contact_${contact.normalizedPhone}"
             val contactName = contact.name // Authoritative name from user's phonebook
-            val result = chatRepository.getOrCreateDirectConversation(participantId, contactName)
+            val result = chatRepository.getOrCreateDirectConversation(finalParticipantId, contactName)
             result.getOrNull()?.let { conv ->
                 selectConversation(conv)
                 refreshConversations()
                 onSuccess(conv)
+            }
+        }
+    }
+
+    /**
+     * Directs the user from a notification click straight into the target chat room.
+     */
+    fun openChatFromNotification(
+        senderName: String,
+        messageSnippet: String? = null,
+        conversationId: String? = null,
+        senderId: String? = null,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            // 1. Try finding conversation in currently loaded list
+            val existing = _conversations.value.firstOrNull { conv ->
+                (!conversationId.isNullOrBlank() && conv.id == conversationId) ||
+                (!senderId.isNullOrBlank() && conv.participantIds.contains(senderId)) ||
+                conv.title.equals(senderName, ignoreCase = true)
+            }
+
+            if (existing != null) {
+                selectConversation(existing)
+                onSuccess()
+                return@launch
+            }
+
+            // 2. Try fetching from Room DB directly
+            val db = com.bharatconnect.app.core.database.DatabaseProvider.getDatabase()
+            val roomConv = if (!conversationId.isNullOrBlank()) {
+                db.conversationDao().getConversationById(conversationId)?.toDomain()
+            } else {
+                db.conversationDao().getAllConversations()
+                    .map { it.toDomain() }
+                    .firstOrNull { it.title.equals(senderName, ignoreCase = true) }
+            }
+
+            if (roomConv != null) {
+                selectConversation(roomConv)
+                onSuccess()
+                return@launch
+            }
+
+            // 3. Resolve participantId from senderId or local/remote profiles
+            var resolvedParticipantId = senderId
+            if (resolvedParticipantId.isNullOrBlank()) {
+                val localUser = db.userDao().getAllUsers().firstOrNull {
+                    it.fullName.equals(senderName, ignoreCase = true) || it.username.equals(senderName, ignoreCase = true)
+                }
+                resolvedParticipantId = localUser?.id
+            }
+
+            val finalParticipantId = resolvedParticipantId ?: "contact_${senderName.trim().replace(" ", "_")}"
+            val result = chatRepo.getOrCreateDirectConversation(finalParticipantId, senderName)
+            result.getOrNull()?.let { conv ->
+                selectConversation(conv)
+                refreshConversations()
+                onSuccess()
+            } ?: run {
+                // Fallback: create conversation locally so user is never blocked from chatting
+                val currentUserId = com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()?.id ?: "me"
+                val convId = conversationId ?: java.util.UUID.nameUUIDFromBytes("${currentUserId}_${finalParticipantId}".toByteArray()).toString()
+                val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+                val fallbackConv = Conversation(
+                    id = convId,
+                    isGroup = false,
+                    title = senderName,
+                    createdBy = finalParticipantId,
+                    lastMessage = messageSnippet,
+                    lastMessageTime = timestamp,
+                    participantIds = listOf(currentUserId, finalParticipantId)
+                )
+                db.conversationDao().insertOrUpdateConversation(
+                    com.bharatconnect.app.data.local.room.entity.ConversationEntity.fromDomain(fallbackConv)
+                )
+                selectConversation(fallbackConv)
+                refreshConversations()
+                onSuccess()
             }
         }
     }

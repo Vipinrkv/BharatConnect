@@ -122,15 +122,37 @@ class ChatRepositoryImpl : ChatRepository {
                 .associate { it.conversationId to it.userId }
 
             // 3. Find conversations from messages where user sent or received
-            val allUserMessages = try {
-                val sent = supabase.postgrest["messages"].select {
+            val sentMessages = try {
+                supabase.postgrest["messages"].select {
                     filter { eq("sender_id", currentUserId) }
                 }.decodeList<MessageDto>()
-                val received = supabase.postgrest["messages"].select {
+            } catch (_: Exception) { emptyList() }
+
+            val receivedMessages = try {
+                supabase.postgrest["messages"].select {
                     filter { eq("recipient_id", currentUserId) }
                 }.decodeList<MessageDto>()
-                (sent + received)
             } catch (_: Exception) { emptyList() }
+
+            val memberMessages = try {
+                if (memberConvIds.isNotEmpty()) {
+                    supabase.postgrest["messages"].select {
+                        filter { isIn("conversation_id", memberConvIds.toList()) }
+                    }.decodeList<MessageDto>()
+                } else emptyList()
+            } catch (_: Exception) { emptyList() }
+
+            // 4. Fetch incoming message notifications to synthesize conversations and bridge offline delivery
+            val incomingMessageNotifs = try {
+                supabase.postgrest["notifications"].select {
+                    filter {
+                        eq("user_id", currentUserId)
+                        eq("category", "messages")
+                    }
+                }.decodeList<NotificationDto>()
+            } catch (_: Exception) { emptyList() }
+
+            val allUserMessages = (sentMessages + receivedMessages + memberMessages).distinctBy { it.id }
 
             // Group messages by conversation ID to identify the latest message for previews
             val latestMessageByConvId = allUserMessages
@@ -149,7 +171,7 @@ class ChatRepositoryImpl : ChatRepository {
                 }
             } catch (_: Exception) {}
 
-            // Build unified pool of conversations (synthesizing any chat discovered from incoming messages)
+            // Build unified pool of conversations (synthesizing any chat discovered from incoming messages or notifications)
             val conversationMap = remoteConversations.associateBy { it.id }.toMutableMap()
             for ((convId, latestMsg) in latestMessageByConvId) {
                 if (!conversationMap.containsKey(convId) && latestMsg != null) {
@@ -165,11 +187,62 @@ class ChatRepositoryImpl : ChatRepository {
                 }
             }
 
+            // Synthesize conversations from incoming message notifications
+            for (notif in incomingMessageNotifs) {
+                val notifSender = notif.title
+                val notifText = notif.description
+                val notifTime = notif.createdAt ?: SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+
+                val targetConvId = notif.conversationId
+                    ?: if (!notif.senderId.isNullOrBlank()) {
+                        val sorted = listOf(currentUserId, notif.senderId).sorted()
+                        java.util.UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}".toByteArray()).toString()
+                    } else {
+                        val existing = conversationMap.values.firstOrNull { it.title.equals(notifSender, ignoreCase = true) }
+                        existing?.id ?: java.util.UUID.nameUUIDFromBytes("${currentUserId}_${notifSender}".toByteArray()).toString()
+                    }
+
+                if (!conversationMap.containsKey(targetConvId)) {
+                    conversationMap[targetConvId] = ConversationDto(
+                        id = targetConvId,
+                        type = "direct",
+                        title = notifSender,
+                        createdBy = notif.senderId ?: targetConvId,
+                        lastMessage = notifText,
+                        lastMessageTime = notifTime,
+                        createdAt = notifTime
+                    )
+                }
+
+                // Also populate messageDao if conversation has no messages cached locally yet
+                try {
+                    val existingLocalMsgs = messageDao.getMessagesByConversation(targetConvId)
+                    if (existingLocalMsgs.isEmpty()) {
+                        val notifMsg = Message(
+                            id = "notif_${notif.id ?: targetConvId}_${notifTime.hashCode()}",
+                            conversationId = targetConvId,
+                            senderId = notif.senderId ?: "sender_${notifSender.hashCode()}",
+                            senderName = notifSender,
+                            content = notifText,
+                            status = "delivered",
+                            createdAt = notifTime,
+                            isPendingSync = false
+                        )
+                        messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(notifMsg))
+                    }
+                } catch (_: Exception) {}
+            }
+
+            val notifConvIds = incomingMessageNotifs.mapNotNull { it.conversationId }.toSet()
+            val notifSenderNames = incomingMessageNotifs.map { it.title.lowercase() }.toSet()
+
             // Filter for conversations relevant to this user
             val myConversations = conversationMap.values.filter { conv ->
                 conv.createdBy == currentUserId ||
                 memberConvIds.contains(conv.id) ||
-                latestMessageByConvId.containsKey(conv.id)
+                latestMessageByConvId.containsKey(conv.id) ||
+                notifConvIds.contains(conv.id) ||
+                (conv.title != null && notifSenderNames.contains(conv.title.lowercase()))
             }
 
             // Fetch profiles to resolve the other participant's name for direct chats
@@ -391,7 +464,9 @@ class ChatRepositoryImpl : ChatRepository {
                             description = content,
                             category = "messages",
                             isRead = false,
-                            createdAt = timestamp
+                            createdAt = timestamp,
+                            conversationId = conversationId,
+                            senderId = currentUserId
                         )
                     )
                 } catch (_: Exception) {}
