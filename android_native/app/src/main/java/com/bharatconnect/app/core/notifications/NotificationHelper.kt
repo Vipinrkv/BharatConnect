@@ -47,16 +47,20 @@ object NotificationHelper {
         context: Context,
         title: String,
         body: String,
-        conversationId: String? = null
+        conversationId: String? = null,
+        senderId: String? = null
     ) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("conversationId", conversationId)
+            putExtra("senderId", senderId)
+            putExtra("senderName", title)
         }
 
+        val notifId = conversationId?.hashCode() ?: System.currentTimeMillis().toInt()
         val pendingIntent = PendingIntent.getActivity(
             context,
-            0,
+            notifId,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
@@ -71,7 +75,6 @@ object NotificationHelper {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
 
-        val notifId = conversationId?.hashCode() ?: System.currentTimeMillis().toInt()
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(notifId, builder.build())
     }

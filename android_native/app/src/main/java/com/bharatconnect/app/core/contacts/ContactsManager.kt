@@ -130,8 +130,11 @@ object ContactsManager {
     suspend fun matchRegisteredContacts(deviceContacts: List<PhoneContact>): List<PhoneContact> = withContext(Dispatchers.IO) {
         try {
             val supabase = SupabaseClient.client
+            val currentUserProfile = com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()
             val currentUserId = supabase.auth.currentUserOrNull()?.id
-                ?: com.bharatconnect.app.core.session.SessionManager.getCachedUserProfile()?.id
+                ?: currentUserProfile?.id
+            val currentUserPhone = currentUserProfile?.phoneNumber?.let { normalizePhoneNumber(it) }
+            val currentUserDigits = currentUserProfile?.phoneNumber?.filter { it.isDigit() }
 
             // 1. Fetch from local Room DB first for instant offline matching
             val localUsers = try {
@@ -174,9 +177,10 @@ object ContactsManager {
 
             val profilePool = mutableMapOf<String, MatchableProfile>()
 
-            // Add local users
+            // Add local users (strictly excluding self)
             for (u in localUsers) {
                 if (u.id == currentUserId) continue
+                if (!currentUserPhone.isNullOrBlank() && u.phoneNumber?.let { normalizePhoneNumber(it) } == currentUserPhone) continue
                 profilePool[u.id] = MatchableProfile(
                     id = u.id,
                     username = u.username,
@@ -187,9 +191,10 @@ object ContactsManager {
                 )
             }
 
-            // Overlay remote profiles (more up-to-date)
+            // Overlay remote profiles (more up-to-date, strictly excluding self)
             for (p in remoteProfiles) {
                 if (p.id == currentUserId) continue
+                if (!currentUserPhone.isNullOrBlank() && p.phoneNumber?.let { normalizePhoneNumber(it) } == currentUserPhone) continue
                 profilePool[p.id] = MatchableProfile(
                     id = p.id,
                     username = p.username,
@@ -221,8 +226,14 @@ object ContactsManager {
 
             val matchedRegisteredIds = mutableSetOf<String>()
 
-            // 5. Match device phonebook contacts by phone or exact username
-            val updatedDeviceContacts = deviceContacts.map { contact ->
+            // 5. Match device phonebook contacts by phone or exact username (filter out user's own numbers)
+            val updatedDeviceContacts = deviceContacts.filterNot { contact ->
+                val norm = normalizePhoneNumber(contact.rawPhone)
+                val fullDigits = contact.rawPhone.filter { it.isDigit() }
+                (currentUserId != null && contact.registeredUserId == currentUserId) ||
+                (!currentUserPhone.isNullOrBlank() && (norm == currentUserPhone || contact.normalizedPhone == currentUserPhone)) ||
+                (!currentUserDigits.isNullOrBlank() && fullDigits.isNotBlank() && fullDigits == currentUserDigits)
+            }.map { contact ->
                 val norm = normalizePhoneNumber(contact.rawPhone)
                 val fullDigits = contact.rawPhone.filter { it.isDigit() }
                 val cleanName = contact.name.trim().lowercase().removePrefix("@")
@@ -231,7 +242,7 @@ object ContactsManager {
                     ?: phoneIndex[fullDigits]
                     ?: usernameIndex[cleanName]
 
-                if (matched != null) {
+                if (matched != null && matched.id != currentUserId) {
                     matchedRegisteredIds.add(matched.id)
                     contact.copy(
                         isRegistered = true,

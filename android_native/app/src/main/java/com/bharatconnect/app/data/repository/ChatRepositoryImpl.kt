@@ -334,6 +334,15 @@ class ChatRepositoryImpl : ChatRepository {
                 val counterpart = entity.participantIds.split(",")
                     .map { it.trim() }
                     .firstOrNull { it.isNotBlank() && it != currentUserId }
+                val isDirect = !entity.isGroup && !entity.id.startsWith("group_")
+                if (isDirect && (counterpart == null || counterpart == currentUserId)) {
+                    // Stale self-conversation or invalid conversation: purge from local DB
+                    try {
+                        conversationDao.deleteConversation(entity.id)
+                        messageDao.deleteMessagesByConversation(entity.id)
+                    } catch (_: Exception) {}
+                    continue
+                }
                 if (counterpart != null) {
                     if (seenCounterparts.contains(counterpart)) {
                         // Stale duplicate conversation detected; prune it from local database
@@ -352,8 +361,10 @@ class ChatRepositoryImpl : ChatRepository {
             // Purge obsolete local Room conversations that share a counterpart or have stale corrupt encrypted previews
             val localConvs = conversationDao.getAllConversations()
             for (local in localConvs) {
-                val counterpart = local.participantIds.split(",").firstOrNull { it.isNotBlank() && it != currentUserId }
-                if ((counterpart != null && authoritativeCounterparts.contains(counterpart) && !remoteIds.contains(local.id)) ||
+                val counterpart = local.participantIds.split(",").map { it.trim() }.firstOrNull { it.isNotBlank() && it != currentUserId }
+                val isDirect = !local.isGroup && !local.id.startsWith("group_")
+                if ((isDirect && (counterpart == null || counterpart == currentUserId)) ||
+                    (counterpart != null && authoritativeCounterparts.contains(counterpart) && !remoteIds.contains(local.id)) ||
                     (local.lastMessage?.startsWith("ENC:") == true && !remoteIds.contains(local.id))) {
                     try {
                         conversationDao.deleteConversation(local.id)
@@ -644,6 +655,9 @@ class ChatRepositoryImpl : ChatRepository {
     override suspend fun getOrCreateDirectConversation(participantId: String, title: String): Result<Conversation> = withContext(Dispatchers.IO) {
         ensureAuthSession()
         val currentUserId = resolveCurrentUserId() ?: return@withContext Result.failure(Exception("User not authenticated"))
+        if (participantId == currentUserId) {
+            return@withContext Result.failure(Exception("Cannot start conversation with yourself"))
+        }
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
         
         // Generate deterministic conversation ID for 1-on-1 pairs (alphabetical order of UUIDs)
@@ -791,6 +805,9 @@ class ChatRepositoryImpl : ChatRepository {
 
                                 // If receiver is viewing this conversation, mark as read immediately!
                                 if (currentUserId != null && record.senderId != currentUserId) {
+                                    if (record.status == "sent") {
+                                        try { acknowledgeMessageDelivered(record.id, record.conversationId) } catch (_: Exception) {}
+                                    }
                                     markMessagesAsRead(conversationId)
                                 }
                             }

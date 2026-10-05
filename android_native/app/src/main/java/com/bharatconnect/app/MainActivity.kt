@@ -64,11 +64,16 @@ class MainActivity : ComponentActivity() {
 
     private fun handleNotificationIntent(targetIntent: Intent?) {
         val convId = targetIntent?.getStringExtra("conversationId")
-        if (!convId.isNullOrBlank()) {
+        val senderId = targetIntent?.getStringExtra("senderId")
+        val senderName = targetIntent?.getStringExtra("senderName") ?: "Chat"
+        if (!convId.isNullOrBlank() || !senderId.isNullOrBlank()) {
             targetIntent.removeExtra("conversationId")
+            targetIntent.removeExtra("senderId")
+            targetIntent.removeExtra("senderName")
             chatViewModel.openChatFromNotification(
-                senderName = "Chat",
-                conversationId = convId
+                senderName = senderName,
+                conversationId = convId,
+                senderId = senderId
             )
         }
     }

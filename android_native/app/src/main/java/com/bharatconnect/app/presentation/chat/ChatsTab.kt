@@ -151,6 +151,7 @@ fun ChatsTab(
     val filteredConversations = conversations.filter { conv ->
         !conv.isGroup &&
         !archivedConvIds.contains(conv.id) &&
+        (currentUserId == null || conv.participantIds.isEmpty() || conv.participantIds.any { it.isNotBlank() && it != currentUserId }) &&
         (searchQuery.isBlank() ||
          (customNicknames[conv.id] ?: conv.title).contains(searchQuery, ignoreCase = true) ||
          (conv.lastMessage ?: "").contains(searchQuery, ignoreCase = true))

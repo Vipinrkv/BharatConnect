@@ -41,15 +41,17 @@ class BharatConnectFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: "BharatConnect"
+        val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: remoteMessage.data["sender_name"] ?: "BharatConnect"
         val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: "New message received"
-        val conversationId = remoteMessage.data["conversation_id"]
+        val conversationId = remoteMessage.data["conversation_id"] ?: remoteMessage.data["conversationId"]
+        val senderId = remoteMessage.data["sender_id"] ?: remoteMessage.data["senderId"]
 
         NotificationHelper.showMessageNotification(
             context = applicationContext,
             title = title,
             body = body,
-            conversationId = conversationId
+            conversationId = conversationId,
+            senderId = senderId
         )
     }
 }

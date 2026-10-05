@@ -24,7 +24,9 @@ class SyncWorker(
                 NotificationHelper.showMessageNotification(
                     context = appContext,
                     title = latest.title,
-                    body = latest.description
+                    body = latest.description,
+                    conversationId = latest.conversationId,
+                    senderId = latest.senderId
                 )
             }
             Result.success()
