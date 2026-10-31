@@ -1,10 +1,12 @@
 package com.bharatconnect.app.core.connectors
 
+import com.bharatconnect.app.core.audio.AudioRecordManager
 import com.bharatconnect.app.core.contacts.ContactsManager
 import com.bharatconnect.app.core.database.DatabaseProvider
 import com.bharatconnect.app.core.encryption.SignalEncryptionManager
 import com.bharatconnect.app.core.network.SupabaseClient
 import com.bharatconnect.app.core.notifications.NotificationHelper
+import com.bharatconnect.app.core.security.SecurityManager
 import com.bharatconnect.app.core.session.SessionManager
 import com.bharatconnect.app.core.storage.CloudinaryManager
 import com.bharatconnect.app.core.sync.SyncManager
@@ -101,4 +103,14 @@ object AppConnectors {
      * SupabaseClient: Main client gateway for Supabase GoTrue Auth, PostgREST, Realtime WebSockets, and Storage.
      */
     val network = SupabaseClient
+
+    /**
+     * SecurityManager: Sovereign biometric authentication, PIN guard, and screenshot prevention.
+     */
+    val security = SecurityManager
+
+    /**
+     * AudioRecordManager: High-fidelity voice notes, audio compression, and pitch-preserving variable speed playback.
+     */
+    val audio = AudioRecordManager
 }

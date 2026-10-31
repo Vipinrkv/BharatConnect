@@ -22,6 +22,12 @@ object NetworkMonitor {
     private val _isOnline = MutableStateFlow(true)
     val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
 
+    private val _isMetered = MutableStateFlow(true)
+    val isMetered: StateFlow<Boolean> = _isMetered.asStateFlow()
+
+    private val _connectionType = MutableStateFlow("CELLULAR")
+    val connectionType: StateFlow<String> = _connectionType.asStateFlow()
+
     private var connectivityManager: ConnectivityManager? = null
 
     fun initialize(context: Context) {
@@ -31,7 +37,7 @@ object NetworkMonitor {
         connectivityManager = cm
 
         if (cm != null) {
-            _isOnline.value = checkCurrentConnectivity(cm)
+            updateNetworkState(cm)
 
             val request = NetworkRequest.Builder()
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -40,18 +46,50 @@ object NetworkMonitor {
             cm.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     _isOnline.value = true
+                    updateNetworkState(cm)
                 }
 
                 override fun onLost(network: Network) {
                     _isOnline.value = checkCurrentConnectivity(cm)
+                    if (!_isOnline.value) {
+                        _connectionType.value = "NONE"
+                    }
                 }
 
                 override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
                     val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
                             networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
                     _isOnline.value = hasInternet
+                    _isMetered.value = !networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                    _connectionType.value = when {
+                        networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "WIFI"
+                        networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "CELLULAR"
+                        else -> "OTHER"
+                    }
                 }
             })
+        }
+    }
+
+    private fun updateNetworkState(cm: ConnectivityManager) {
+        val activeNetwork = cm.activeNetwork
+        if (activeNetwork == null) {
+            _isOnline.value = false
+            _connectionType.value = "NONE"
+            return
+        }
+        val caps = cm.getNetworkCapabilities(activeNetwork)
+        if (caps == null) {
+            _isOnline.value = false
+            _connectionType.value = "NONE"
+            return
+        }
+        _isOnline.value = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        _isMetered.value = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+        _connectionType.value = when {
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "WIFI"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "CELLULAR"
+            else -> "OTHER"
         }
     }
 
@@ -64,7 +102,9 @@ object NetworkMonitor {
     /**
      * For tests or mock environments to simulate network drops
      */
-    fun setOnlineForTesting(online: Boolean) {
+    fun setOnlineForTesting(online: Boolean, metered: Boolean = false, type: String = "WIFI") {
         _isOnline.value = online
+        _isMetered.value = metered
+        _connectionType.value = type
     }
 }

@@ -60,6 +60,47 @@ object SecurityManager {
         _isAppLocked.value = false
     }
 
+    private var lastActiveTimestamp: Long = System.currentTimeMillis()
+
+    fun updateLastActive(now: Long = System.currentTimeMillis()) {
+        lastActiveTimestamp = now
+    }
+
+    /**
+     * Checks if the app was backgrounded longer than timeoutSec.
+     */
+    fun shouldAutoLock(currentTimeMillis: Long = System.currentTimeMillis(), timeoutSec: Long = 60L): Boolean {
+        if (!_isBiometricLockEnabled.value || storedPinHash == null) return false
+        val elapsedSec = (currentTimeMillis - lastActiveTimestamp) / 1000L
+        return elapsedSec >= timeoutSec
+    }
+
+    /**
+     * Lightweight sovereign environment check to detect rooted/tampered environments without third-party bloat.
+     */
+    fun checkEnvironmentIntegrity(): Boolean {
+        val suPaths = arrayOf(
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/sbin/su",
+            "/system/sd/xbin/su",
+            "/system/bin/failsafe/su",
+            "/data/local/xbin/su",
+            "/data/local/bin/su",
+            "/data/local/su"
+        )
+        for (path in suPaths) {
+            if (java.io.File(path).exists()) {
+                return false // Compromised environment detected
+            }
+        }
+        val buildTags = android.os.Build.TAGS
+        if (buildTags != null && buildTags.contains("test-keys")) {
+            return false // Custom ROM or insecure test keys
+        }
+        return true // Environment is clean
+    }
+
     private fun hashPin(pin: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest("BHARAT_PIN_SALT:$pin".toByteArray(Charsets.UTF_8))

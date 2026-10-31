@@ -13,8 +13,14 @@ interface PostDao {
     @Query("SELECT * FROM posts ORDER BY createdAt DESC")
     fun getAllPostsFlow(): Flow<List<PostEntity>>
 
+    @Query("SELECT * FROM posts WHERE content LIKE '%' || :tag || '%' ORDER BY createdAt DESC")
+    fun getPostsByTagFlow(tag: String): Flow<List<PostEntity>>
+
     @Query("SELECT * FROM posts ORDER BY createdAt DESC")
     suspend fun getAllPosts(): List<PostEntity>
+
+    @Query("SELECT * FROM posts WHERE id = :postId LIMIT 1")
+    suspend fun getPostById(postId: String): PostEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdatePost(post: PostEntity)

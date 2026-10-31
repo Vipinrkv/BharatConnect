@@ -275,9 +275,10 @@ function initChatPlayground() {
       
       const smartReplies = [
         "Namaste! 🙏 The connection is ultra fast with 0 lag on Supabase Realtime.",
-        "Got your message! Sentinel 7-layer encryption is fully active.",
+        "Got your message! 🛡️ Safety Number: 48921 59032 10948 29014 93821 04928 10293 84729 10492 83719 20491 82741 (Verified)",
+        "Verified E2EE with HMAC-SHA256 anti-tamper signature! 🔒",
         "That sounds wonderful! Syncing instantly across offline SQLite & Cloud.",
-        "Yes! BharatConnect works 100% offline first too!"
+        "Yes! BharatConnect works 100% offline first too! ⏳ Ephemeral timer active."
       ];
       const randomReply = smartReplies[Math.floor(Math.random() * smartReplies.length)];
 

@@ -334,7 +334,7 @@ object ContactsManager {
     }
 
     /**
-     * Normalizes phone number to 10-digit Indian standard / international format.
+     * Normalizes phone number to 10-digit Indian standard format.
      * Takes the last 10 digits to cleanly bridge +91, 0, and un-prefixed numbers.
      */
     fun normalizePhoneNumber(phone: String): String {
@@ -344,6 +344,30 @@ object ContactsManager {
         } else {
             digitsOnly
         }
+    }
+
+    /**
+     * Validates whether a phone number complies with the TRAI (Telecom Regulatory Authority of India)
+     * National Numbering Plan: exactly 10 digits starting with 6, 7, 8, or 9.
+     */
+    fun isValidIndianPhoneNumber(phone: String?): Boolean {
+        if (phone.isNullOrBlank()) return false
+        val normalized = normalizePhoneNumber(phone)
+        if (normalized.length != 10) return false
+        val firstChar = normalized[0]
+        return firstChar == '6' || firstChar == '7' || firstChar == '8' || firstChar == '9'
+    }
+
+    /**
+     * Zero-knowledge cryptographic phone number hashing (SHA-256) for privacy-preserving discovery.
+     * Prevents raw device phonebooks from being exposed to remote servers or middle-boxes.
+     */
+    fun hashPhoneNumber(phone: String): String {
+        val normalized = normalizePhoneNumber(phone)
+        val canonical = "+91$normalized"
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        val digest = md.digest(canonical.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
     }
 
     /**

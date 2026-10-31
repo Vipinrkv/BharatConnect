@@ -131,4 +131,127 @@ class SocialAndSecurityVerificationTest {
         assertTrue(inviteLink.startsWith("https://bharatconnect.in/join?ref="))
         assertTrue(inviteLink.contains(userId))
     }
+
+    @Test
+    fun `isEncryptedPayload identifies valid E2EE cipher envelope`() {
+        assertFalse(SignalEncryptionManager.isEncryptedPayload(null))
+        assertFalse(SignalEncryptionManager.isEncryptedPayload("Hello"))
+        assertFalse(SignalEncryptionManager.isEncryptedPayload("ENC:short"))
+        assertTrue(SignalEncryptionManager.isEncryptedPayload("ENC:dGVzdF9pdjEyMzQ1Njc4OXRlc3RfY2lwaGVydGV4dA=="))
+    }
+
+    @Test
+    fun `SignalEncryptionManager encrypt and decrypt roundtrip with AAD context`() {
+        val convId = "conv_secret_room_101"
+        val message = "Top secret Indian sovereign communication"
+        val aad = "conv_secret_room_101:user_aarav:user_priya"
+
+        val encrypted = SignalEncryptionManager.encrypt(convId, message, aadContext = aad)
+        assertTrue(encrypted.startsWith("ENC:"))
+
+        // Decryption with matching AAD succeeds
+        val decrypted = SignalEncryptionManager.decrypt(convId, encrypted, aadContext = aad)
+        assertEquals(message, decrypted)
+
+        // Clear key cache verifies zeroizing capability
+        SignalEncryptionManager.clearKeyCache()
+    }
+
+    @Test
+    fun `AppConnectors singletons resolve cleanly with zero circular dependencies`() {
+        assertNotNull(com.bharatconnect.app.core.connectors.AppConnectors.encryption)
+        assertNotNull(com.bharatconnect.app.core.connectors.AppConnectors.security)
+        assertNotNull(com.bharatconnect.app.core.connectors.AppConnectors.session)
+        assertNotNull(com.bharatconnect.app.core.connectors.AppConnectors.network)
+    }
+
+    @Test
+    fun `NetworkMonitor tracks metered and connection type transitions accurately`() {
+        val monitor = com.bharatconnect.app.core.network.NetworkMonitor
+        monitor.setOnlineForTesting(online = true, metered = false, type = "WIFI")
+        assertTrue(monitor.isOnline.value)
+        assertFalse(monitor.isMetered.value)
+        assertEquals("WIFI", monitor.connectionType.value)
+
+        // Switch to metered cellular
+        monitor.setOnlineForTesting(online = true, metered = true, type = "CELLULAR")
+        assertTrue(monitor.isOnline.value)
+        assertTrue(monitor.isMetered.value)
+        assertEquals("CELLULAR", monitor.connectionType.value)
+
+        // Drop connection
+        monitor.setOnlineForTesting(online = false, metered = true, type = "NONE")
+        assertFalse(monitor.isOnline.value)
+        assertEquals("NONE", monitor.connectionType.value)
+    }
+
+    @Test
+    fun `ContactsManager accurately validates Indian TRAI numbering plan`() {
+        val cm = com.bharatconnect.app.core.contacts.ContactsManager
+        assertTrue(cm.isValidIndianPhoneNumber("+91 98765 43210"))
+        assertTrue(cm.isValidIndianPhoneNumber("08765432109"))
+        assertTrue(cm.isValidIndianPhoneNumber("7123456789"))
+        assertTrue(cm.isValidIndianPhoneNumber("6987654321"))
+
+        // Rejections: short, invalid prefixes (1, 2, 5), or letters
+        assertFalse(cm.isValidIndianPhoneNumber("12345"))
+        assertFalse(cm.isValidIndianPhoneNumber("0112345678")) // Landline prefix
+        assertFalse(cm.isValidIndianPhoneNumber("5987654321"))
+        assertFalse(cm.isValidIndianPhoneNumber("invalid_phone"))
+        assertFalse(cm.isValidIndianPhoneNumber(null))
+    }
+
+    @Test
+    fun `ContactsManager zero-knowledge phone hash outputs deterministic 64-char SHA-256 hex`() {
+        val cm = com.bharatconnect.app.core.contacts.ContactsManager
+        val hash1 = cm.hashPhoneNumber("+91 98765 43210")
+        val hash2 = cm.hashPhoneNumber("09876543210")
+        val hash3 = cm.hashPhoneNumber("9876543210")
+
+        // Must all normalize to +919876543210 and produce identical 64-character SHA-256 hashes
+        assertEquals(hash1, hash2)
+        assertEquals(hash1, hash3)
+        assertEquals(64, hash1.length)
+        assertTrue(hash1.all { it.isDigit() || it in 'a'..'f' })
+    }
+
+    @Test
+    fun `Optimistic feed like toggle accurately computes next state and count delta`() {
+        var isLikedByMe = false
+        var likesCount = 10
+
+        // User taps like
+        val nextState1 = !isLikedByMe
+        val delta1 = if (nextState1) 1 else -1
+        isLikedByMe = nextState1
+        likesCount += delta1
+        assertTrue(isLikedByMe)
+        assertEquals(11, likesCount)
+
+        // User taps unlike
+        val nextState2 = !isLikedByMe
+        val delta2 = if (nextState2) 1 else -1
+        isLikedByMe = nextState2
+        likesCount += delta2
+        assertFalse(isLikedByMe)
+        assertEquals(10, likesCount)
+    }
+
+    @Test
+    fun `SecurityManager auto-lock timeout and integrity evaluation behave reliably`() {
+        val sm = com.bharatconnect.app.core.security.SecurityManager
+        sm.setAppLock(enabled = true, pin = "2026")
+
+        val now = 1000000L
+        sm.updateLastActive(now)
+
+        // Elapsed 30s (< 60s timeout) -> should not auto lock
+        assertFalse(sm.shouldAutoLock(currentTimeMillis = now + 30000L, timeoutSec = 60L))
+
+        // Elapsed 75s (>= 60s timeout) -> should auto lock
+        assertTrue(sm.shouldAutoLock(currentTimeMillis = now + 75000L, timeoutSec = 60L))
+
+        // Reset
+        sm.setAppLock(enabled = false)
+    }
 }

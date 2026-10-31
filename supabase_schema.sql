@@ -103,10 +103,32 @@ ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS media_type TEXT;
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS recipient_id TEXT;
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS ephemeral_duration_sec BIGINT DEFAULT 0;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS reaction TEXT DEFAULT NULL;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS is_starred BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS group_description TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages (conversation_id, created_at ASC);
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON public.messages (sender_id);
 CREATE INDEX IF NOT EXISTS idx_messages_recipient ON public.messages (recipient_id);
+CREATE INDEX IF NOT EXISTS idx_messages_ephemeral ON public.messages (ephemeral_duration_sec) WHERE ephemeral_duration_sec > 0;
+CREATE INDEX IF NOT EXISTS idx_conversations_pinned ON public.conversations (is_pinned, last_message_time DESC);
+
+-- Sovereign Ephemeral Pruning Stored Procedure
+CREATE OR REPLACE FUNCTION public.purge_expired_ephemeral_messages()
+RETURNS INTEGER AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM public.messages
+    WHERE ephemeral_duration_sec > 0
+      AND created_at + (ephemeral_duration_sec * INTERVAL '1 second') < NOW();
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================================
 -- 3. SOCIAL FEED (Posts, Likes & Comments)
@@ -133,11 +155,13 @@ ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS media_url TEXT;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS media_type TEXT;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS comments_count INT DEFAULT 0;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS topic_tag TEXT DEFAULT '#All';
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON public.posts (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_author ON public.posts (author_id);
+CREATE INDEX IF NOT EXISTS idx_posts_topic_tag ON public.posts (topic_tag, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS public.post_likes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

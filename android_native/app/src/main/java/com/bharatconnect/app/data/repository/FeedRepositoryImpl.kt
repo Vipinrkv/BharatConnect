@@ -122,8 +122,10 @@ class FeedRepositoryImpl : FeedRepository {
                 }
             } else null
 
-            // Optimistic local update
-            postDao.toggleLike(postId, true)
+            // Optimistic local update based on current state
+            val currentPost = postDao.getPostById(postId)
+            val newLikedState = !(currentPost?.isLikedByMe ?: false)
+            postDao.toggleLike(postId, newLikedState)
 
             // Remote sync if user is authenticated
             if (currentUserId != null) {
