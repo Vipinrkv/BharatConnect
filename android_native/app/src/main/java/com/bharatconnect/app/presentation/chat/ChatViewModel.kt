@@ -439,4 +439,41 @@ class ChatViewModel(
             onComplete()
         }
     }
+
+    fun togglePinConversation(conversationId: String, currentPinned: Boolean) {
+        viewModelScope.launch {
+            val db = com.bharatconnect.app.core.database.DatabaseProvider.getDatabase()
+            val newPinnedState = !currentPinned
+            db.conversationDao().updatePinned(conversationId, newPinnedState)
+            _conversations.value = _conversations.value.map { conv ->
+                if (conv.id == conversationId) conv.copy(isPinned = newPinnedState) else conv
+            }.sortedWith(
+                compareByDescending<Conversation> { it.isPinned }
+                    .thenByDescending { it.lastMessageTime ?: "" }
+            )
+        }
+    }
+
+    fun reactToMessage(messageId: String, emoji: String) {
+        viewModelScope.launch {
+            val db = com.bharatconnect.app.core.database.DatabaseProvider.getDatabase()
+            val currentReaction = _messages.value.firstOrNull { it.id == messageId }?.reaction
+            val newReaction = if (currentReaction == emoji) null else emoji
+            db.messageDao().updateReaction(messageId, newReaction)
+            _messages.value = _messages.value.map { msg ->
+                if (msg.id == messageId) msg.copy(reaction = newReaction) else msg
+            }
+        }
+    }
+
+    fun toggleStarMessage(messageId: String, currentStarred: Boolean) {
+        viewModelScope.launch {
+            val db = com.bharatconnect.app.core.database.DatabaseProvider.getDatabase()
+            val newStarred = !currentStarred
+            db.messageDao().updateStarred(messageId, newStarred)
+            _messages.value = _messages.value.map { msg ->
+                if (msg.id == messageId) msg.copy(isStarred = newStarred) else msg
+            }
+        }
+    }
 }

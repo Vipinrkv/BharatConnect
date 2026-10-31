@@ -15,7 +15,8 @@ data class ConversationEntity(
     val lastMessageSenderName: String? = null,
     val lastMessageTime: String? = null,
     val unreadCount: Int = 0,
-    val participantIds: String = "" // Comma-separated user IDs
+    val participantIds: String = "", // Comma-separated user IDs
+    val isPinned: Boolean = false
 ) {
     fun toDomain(): Conversation {
         return Conversation(
@@ -28,7 +29,8 @@ data class ConversationEntity(
             lastMessageSenderName = lastMessageSenderName,
             lastMessageTime = lastMessageTime,
             unreadCount = unreadCount,
-            participantIds = participantIds.split(",").filter { it.isNotBlank() }
+            participantIds = participantIds.split(",").filter { it.isNotBlank() },
+            isPinned = isPinned
         )
     }
 
@@ -44,7 +46,8 @@ data class ConversationEntity(
                 lastMessageSenderName = conv.lastMessageSenderName,
                 lastMessageTime = conv.lastMessageTime,
                 unreadCount = conv.unreadCount,
-                participantIds = conv.participantIds.joinToString(",")
+                participantIds = conv.participantIds.joinToString(","),
+                isPinned = conv.isPinned
             )
         }
     }

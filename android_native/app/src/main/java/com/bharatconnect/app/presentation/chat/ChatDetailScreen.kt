@@ -41,6 +41,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.bharatconnect.app.core.audio.AudioRecordManager
 import com.bharatconnect.app.core.notifications.NotificationHelper
+import com.bharatconnect.app.core.network.NetworkMonitor
 import com.bharatconnect.app.core.payments.UpiPaymentData
 import com.bharatconnect.app.core.payments.UpiPaymentManager
 import com.bharatconnect.app.core.session.SessionManager
@@ -271,6 +272,29 @@ fun ChatDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            val isOnline by NetworkMonitor.isOnline.collectAsState()
+            if (!isOnline) {
+                Surface(
+                    color = Color(0xFFB91C1C),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Waiting for network... Messages will sync automatically.",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
             val listState = rememberLazyListState()
 
             LaunchedEffect(messages.size) {
@@ -329,7 +353,12 @@ fun ChatDetailScreen(
                         ?: com.bharatconnect.app.core.network.SupabaseClient.client.auth.currentUserOrNull()?.id
                     val isMe = (resolvedUserId != null && msg.senderId == resolvedUserId) ||
                                (msg.senderName == "You")
-                    MessageBubble(msg = msg, isMe = isMe)
+                    MessageBubble(
+                        msg = msg,
+                        isMe = isMe,
+                        onReact = { emoji -> chatViewModel.reactToMessage(msg.id, emoji) },
+                        onToggleStar = { chatViewModel.toggleStarMessage(msg.id, msg.isStarred) }
+                    )
                 }
             }
 
@@ -762,14 +791,24 @@ fun ChatDetailScreen(
                         )
                     )
 
-                    Row(
+                    val smartPresets = listOf(
+                        Triple("☕ Chai", "20", "Chai & Nashta"),
+                        Triple("🚕 Auto", "50", "Auto fare split"),
+                        Triple("🍛 Lunch", "150", "Lunch split"),
+                        Triple("🛒 Kirana", "500", "Kirana & Groceries"),
+                        Triple("💸 Shagun", "501", "Shagun & Best Wishes")
+                    )
+                    LazyRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf("₹50", "₹100", "₹500", "₹1000", "₹2000").forEach { preset ->
+                        items(smartPresets) { (label, amt, note) ->
                             AssistChip(
-                                onClick = { upiAmountText = preset.removePrefix("₹") },
-                                label = { Text(preset, fontSize = 11.sp, color = Color.White) },
+                                onClick = {
+                                    upiAmountText = amt
+                                    upiNoteText = note
+                                },
+                                label = { Text("$label ₹$amt", fontSize = 11.sp, color = Color.White) },
                                 colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF24204A))
                             )
                         }

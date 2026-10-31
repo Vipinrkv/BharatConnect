@@ -236,10 +236,21 @@ object CloudinaryManager {
                 BitmapFactory.decodeStream(stream, null, decodeOptions)
             } ?: return null
 
+            val scaledBitmap = if (decodedBitmap.width > maxDimension || decodedBitmap.height > maxDimension) {
+                val ratio = decodedBitmap.width.toFloat() / decodedBitmap.height.toFloat()
+                val targetW = if (ratio > 1f) maxDimension else (maxDimension * ratio).toInt().coerceAtLeast(1)
+                val targetH = if (ratio > 1f) (maxDimension / ratio).toInt().coerceAtLeast(1) else maxDimension
+                val scaled = Bitmap.createScaledBitmap(decodedBitmap, targetW, targetH, true)
+                if (scaled != decodedBitmap) decodedBitmap.recycle()
+                scaled
+            } else {
+                decodedBitmap
+            }
+
             val out = ByteArrayOutputStream()
-            decodedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
+            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
             val result = out.toByteArray()
-            decodedBitmap.recycle()
+            scaledBitmap.recycle()
             result
         } catch (_: Exception) {
             null

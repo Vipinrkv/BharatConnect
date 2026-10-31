@@ -44,9 +44,12 @@ import com.bharatconnect.app.domain.model.Message
 @Composable
 fun MessageBubble(
     msg: Message,
-    isMe: Boolean
+    isMe: Boolean,
+    onReact: ((String) -> Unit)? = null,
+    onToggleStar: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    var showReactionPicker by remember { mutableStateOf(false) }
 
     val displayContent = remember(msg.content) {
         if (msg.content.startsWith("ENC:")) {
@@ -64,23 +67,78 @@ fun MessageBubble(
         (msg.mediaType?.startsWith("audio") == true) && !msg.mediaUrl.isNullOrBlank()
     }
 
-    Box(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        contentAlignment = if (isMe) Alignment.CenterEnd else Alignment.CenterStart
+        horizontalAlignment = if (isMe) Alignment.End else Alignment.Start
     ) {
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = when {
-                    upiPaymentData != null -> Color(0xFF191438)
-                    isMe -> ColorPrimary6367FF
-                    else -> Color(0xFF1C1A38)
+        // Quick Reaction Picker Bar
+        if (showReactionPicker) {
+            Surface(
+                color = Color(0xFF1F1B3E),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color(0xFF3E3966)),
+                modifier = Modifier
+                    .padding(bottom = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val quickEmojis = listOf("🙏", "❤️", "👍", "😂", "😮", "🇮🇳")
+                    quickEmojis.forEach { emoji ->
+                        Text(
+                            text = emoji,
+                            fontSize = 18.sp,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable {
+                                    onReact?.invoke(emoji)
+                                    showReactionPicker = false
+                                }
+                                .padding(4.dp)
+                        )
+                    }
+
+                    if (onToggleStar != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(if (msg.isStarred) Color(0xFFFFD700).copy(alpha = 0.2f) else Color.Transparent)
+                                .clickable {
+                                    onToggleStar.invoke()
+                                    showReactionPicker = false
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(if (msg.isStarred) "★" else "☆", color = Color(0xFFFFD700), fontSize = 16.sp)
+                        }
+                    }
                 }
-            ),
-            shape = RoundedCornerShape(16.dp),
-            border = if (upiPaymentData != null) BorderStroke(1.dp, Color(0xFF4EFEAA)) else null,
+            }
+        }
+
+        Box(
             modifier = Modifier.widthIn(max = 320.dp)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = when {
+                        upiPaymentData != null -> Color(0xFF191438)
+                        isMe -> ColorPrimary6367FF
+                        else -> Color(0xFF1C1A38)
+                    }
+                ),
+                shape = RoundedCornerShape(16.dp),
+                border = if (upiPaymentData != null) BorderStroke(1.dp, Color(0xFF4EFEAA)) else null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        showReactionPicker = !showReactionPicker
+                    }
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
 
                 // 1. Photo Media Content
                 if (!msg.mediaUrl.isNullOrBlank() && !isVoiceNote) {
@@ -163,9 +221,26 @@ fun MessageBubble(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "Voice message",
+                                        text = "Voice note",
                                         color = if (isMe) Color(0xFFD1D1E0) else Color.LightGray,
                                         fontSize = 11.sp
+                                    )
+                                }
+
+                                val playbackSpeed by AudioPlayerManager.playbackSpeed.collectAsState()
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isMe) Color.White.copy(alpha = 0.2f) else Color(0xFF2C2856),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { AudioPlayerManager.cyclePlaybackSpeed() }
+                                ) {
+                                    Text(
+                                        text = if (playbackSpeed == 1.0f) "1x" else if (playbackSpeed == 1.5f) "1.5x" else "2x",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
                             }
@@ -267,6 +342,15 @@ fun MessageBubble(
                     val formattedTime = remember(msg.createdAt) {
                         com.bharatconnect.app.core.datetime.DateTimeUtils.formatMessageTime(msg.createdAt)
                     }
+
+                    if (msg.isStarred) {
+                        Text(
+                            text = "⭐",
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                    }
+
                     Text(formattedTime, color = Color(0xFFD1D1E0), fontSize = 10.sp)
 
                     if (isMe) {
@@ -314,6 +398,26 @@ fun MessageBubble(
                             }
                         }
                     }
+                }
+            }
+        }
+
+            // Reaction Badge Chip
+            if (!msg.reaction.isNullOrBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF28244D),
+                    border = BorderStroke(1.dp, Color(0xFF3E3966)),
+                    modifier = Modifier
+                        .align(if (isMe) Alignment.BottomStart else Alignment.BottomEnd)
+                        .offset(y = 10.dp)
+                        .clickable { onReact?.invoke(msg.reaction) }
+                ) {
+                    Text(
+                        text = msg.reaction,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
                 }
             }
         }

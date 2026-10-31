@@ -13,6 +13,10 @@ class SyncWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
+        if (runAttemptCount > 5) {
+            // Cap retries to prevent battery drain on prolonged outages
+            return Result.failure()
+        }
         return try {
             val chatRepo = ChatRepositoryImpl()
             chatRepo.retryPendingMessages()

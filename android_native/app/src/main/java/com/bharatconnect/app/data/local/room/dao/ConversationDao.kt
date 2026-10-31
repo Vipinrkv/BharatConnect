@@ -10,11 +10,14 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ConversationDao {
-    @Query("SELECT * FROM conversations ORDER BY lastMessageTime DESC")
+    @Query("SELECT * FROM conversations ORDER BY isPinned DESC, lastMessageTime DESC")
     fun getAllConversationsFlow(): Flow<List<ConversationEntity>>
 
-    @Query("SELECT * FROM conversations ORDER BY lastMessageTime DESC")
+    @Query("SELECT * FROM conversations ORDER BY isPinned DESC, lastMessageTime DESC")
     suspend fun getAllConversations(): List<ConversationEntity>
+
+    @Query("UPDATE conversations SET isPinned = :isPinned WHERE id = :conversationId")
+    suspend fun updatePinned(conversationId: String, isPinned: Boolean)
 
     @Query("SELECT * FROM conversations WHERE id = :conversationId LIMIT 1")
     suspend fun getConversationById(conversationId: String): ConversationEntity?

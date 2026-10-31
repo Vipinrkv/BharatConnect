@@ -156,7 +156,7 @@ fun ChatsTab(
          (customNicknames[conv.id] ?: conv.title).contains(searchQuery, ignoreCase = true) ||
          (conv.lastMessage ?: "").contains(searchQuery, ignoreCase = true))
     }.sortedWith(
-        compareByDescending<Conversation> { pinnedConvIds.contains(it.id) }
+        compareByDescending<Conversation> { it.isPinned || pinnedConvIds.contains(it.id) }
             .thenByDescending { it.lastMessageTime ?: "" }
     )
 
@@ -375,7 +375,7 @@ fun ChatsTab(
                             contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
                             items(items = filteredConversations, key = { it.id }) { conv ->
-                                val isPinned = pinnedConvIds.contains(conv.id)
+                                val isPinned = conv.isPinned || pinnedConvIds.contains(conv.id)
                                 val displayName = customNicknames[conv.id] ?: conv.title
 
                                 Surface(
@@ -547,7 +547,7 @@ fun ChatsTab(
         // Long Press / Options Dialog
         if (selectedConversationForMenu != null) {
             val conv = selectedConversationForMenu!!
-            val isPinned = pinnedConvIds.contains(conv.id)
+            val isPinned = conv.isPinned || pinnedConvIds.contains(conv.id)
             AlertDialog(
                 onDismissRequest = { selectedConversationForMenu = null },
                 title = { Text(customNicknames[conv.id] ?: conv.title, color = Color.White, fontWeight = FontWeight.Bold) },
@@ -555,6 +555,7 @@ fun ChatsTab(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(
                             onClick = {
+                                chatViewModel.togglePinConversation(conv.id, isPinned)
                                 if (isPinned) pinnedConvIds.remove(conv.id) else pinnedConvIds.add(conv.id)
                                 selectedConversationForMenu = null
                             },

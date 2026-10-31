@@ -42,4 +42,19 @@ interface MessageDao {
 
     @Query("SELECT COUNT(*) FROM messages WHERE conversationId = :conversationId AND senderId != :currentUserId AND status != 'read'")
     suspend fun getUnreadCount(conversationId: String, currentUserId: String): Int
+
+    @Query("UPDATE messages SET reaction = :reaction WHERE id = :messageId")
+    suspend fun updateReaction(messageId: String, reaction: String?)
+
+    @Query("SELECT * FROM messages WHERE content LIKE '%' || :query || '%' ORDER BY createdAt DESC LIMIT 50")
+    suspend fun searchMessages(query: String): List<MessageEntity>
+
+    @Query("UPDATE messages SET isStarred = :isStarred WHERE id = :messageId")
+    suspend fun updateStarred(messageId: String, isStarred: Boolean)
+
+    @Query("SELECT * FROM messages WHERE isStarred = 1 ORDER BY createdAt DESC")
+    suspend fun getStarredMessages(): List<MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAt ASC LIMIT :limit OFFSET :offset")
+    suspend fun getMessagesPaged(conversationId: String, limit: Int, offset: Int): List<MessageEntity>
 }

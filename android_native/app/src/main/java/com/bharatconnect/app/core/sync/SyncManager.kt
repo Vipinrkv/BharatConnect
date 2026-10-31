@@ -21,6 +21,11 @@ object SyncManager {
 
         val periodicSyncRequest = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
             .setConstraints(constraints)
+            .setBackoffCriteria(
+                androidx.work.BackoffPolicy.EXPONENTIAL,
+                15,
+                TimeUnit.SECONDS
+            )
             .build()
 
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
@@ -37,6 +42,11 @@ object SyncManager {
 
         val oneTimeSyncRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(constraints)
+            .setBackoffCriteria(
+                androidx.work.BackoffPolicy.EXPONENTIAL,
+                10,
+                TimeUnit.SECONDS
+            )
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(

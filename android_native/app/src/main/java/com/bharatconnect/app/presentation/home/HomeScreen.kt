@@ -319,13 +319,41 @@ fun HomeScreen(
         },
         containerColor = ColorBackground080616
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (selectedTab) {
-                0 -> FeedTab(
+            val isOnline by com.bharatconnect.app.core.network.NetworkMonitor.isOnline.collectAsState()
+            if (!isOnline) {
+                Surface(
+                    color = Color(0xFFB91C1C),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Waiting for network... Working in offline mode.",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                when (selectedTab) {
+                    0 -> FeedTab(
                     feedViewModel = feedViewModel,
                     stories = stories,
                     currentUser = currentUser,
@@ -355,6 +383,7 @@ fun HomeScreen(
             }
         }
     }
+}
 
     if (showCreateStoryDialog) {
         CreateStoryDialog(

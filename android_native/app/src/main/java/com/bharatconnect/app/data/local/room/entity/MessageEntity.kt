@@ -19,7 +19,9 @@ data class MessageEntity(
     val mediaType: String? = null,
     val status: String = "sent", // sending, sent, delivered, read, failed
     val createdAt: String,
-    val isPendingSync: Boolean = false
+    val isPendingSync: Boolean = false,
+    val reaction: String? = null,
+    val isStarred: Boolean = false
 ) {
     fun toDomain(): Message {
         return Message(
@@ -32,7 +34,9 @@ data class MessageEntity(
             mediaType = mediaType,
             status = status,
             createdAt = createdAt,
-            isPendingSync = isPendingSync
+            isPendingSync = isPendingSync,
+            reaction = reaction,
+            isStarred = isStarred
         )
     }
 
@@ -48,7 +52,9 @@ data class MessageEntity(
                 mediaType = msg.mediaType,
                 status = msg.status,
                 createdAt = msg.createdAt,
-                isPendingSync = msg.isPendingSync
+                isPendingSync = msg.isPendingSync,
+                reaction = msg.reaction,
+                isStarred = msg.isStarred
             )
         }
     }

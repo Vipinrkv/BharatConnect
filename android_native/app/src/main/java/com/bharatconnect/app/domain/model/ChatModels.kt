@@ -13,7 +13,8 @@ data class Conversation(
     val lastMessageSenderName: String? = null,
     val lastMessageTime: String? = null,
     val unreadCount: Int = 0,
-    val participantIds: List<String> = emptyList()
+    val participantIds: List<String> = emptyList(),
+    val isPinned: Boolean = false
 )
 
 @Serializable
@@ -26,8 +27,10 @@ data class Message(
     val mediaUrl: String? = null,
     val mediaType: String? = null,
     val status: String = "sent", // sending, sent, delivered, read, failed
-    val createdAt: String,
-    val isPendingSync: Boolean = false
+    val createdAt: String = "",
+    val isPendingSync: Boolean = false,
+    val reaction: String? = null,
+    val isStarred: Boolean = false
 )
 
 @Serializable

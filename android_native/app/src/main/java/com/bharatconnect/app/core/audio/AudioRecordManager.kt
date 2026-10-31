@@ -131,6 +131,32 @@ object AudioPlayerManager {
     private val _currentPositionMs = MutableStateFlow(0L)
     val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
 
+    private val _playbackSpeed = MutableStateFlow(1.0f)
+    val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
+
+    fun cyclePlaybackSpeed(): Float {
+        val nextSpeed = when (_playbackSpeed.value) {
+            1.0f -> 1.5f
+            1.5f -> 2.0f
+            else -> 1.0f
+        }
+        setPlaybackSpeed(nextSpeed)
+        return nextSpeed
+    }
+
+    fun setPlaybackSpeed(speed: Float) {
+        _playbackSpeed.value = speed
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                mediaPlayer?.let { player ->
+                    if (player.isPlaying) {
+                        player.playbackParams = player.playbackParams.setSpeed(speed)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     fun play(
         audioUrl: String,
         onCompletion: () -> Unit = {}
@@ -151,6 +177,11 @@ object AudioPlayerManager {
             val player = MediaPlayer().apply {
                 setDataSource(audioUrl)
                 setOnPreparedListener { mp ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && _playbackSpeed.value != 1.0f) {
+                        try {
+                            mp.playbackParams = mp.playbackParams.setSpeed(_playbackSpeed.value)
+                        } catch (_: Exception) {}
+                    }
                     mp.start()
                     _currentPlayingUrl.value = audioUrl
                     _isPlaying.value = true

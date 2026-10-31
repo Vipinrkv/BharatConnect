@@ -40,5 +40,7 @@ class BharatConnectApp : Application() {
         NotificationHelper.createNotificationChannels(this)
         // Schedule Offline Sync Engine
         SyncManager.scheduleBackgroundSync(this)
+        // Initialize Real-Time Network Monitor
+        com.bharatconnect.app.core.network.NetworkMonitor.initialize(this)
     }
 }

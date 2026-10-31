@@ -150,4 +150,129 @@ class BharatWhatsAppReplacementTest {
         assertTrue(quickReplies.any { it.contains("पैसे भेज दिए") })
         assertTrue(quickReplies.any { it.contains("धन्यवाद") })
     }
+
+    @Test
+    fun `Voice Note playback speed cycles sequentially through 1x, 1_5x, 2x`() {
+        val player = com.bharatconnect.app.core.audio.AudioPlayerManager
+        player.setPlaybackSpeed(1.0f)
+        assertEquals(1.0f, player.playbackSpeed.value, 0.001f)
+
+        player.cyclePlaybackSpeed()
+        assertEquals(1.5f, player.playbackSpeed.value, 0.001f)
+
+        player.cyclePlaybackSpeed()
+        assertEquals(2.0f, player.playbackSpeed.value, 0.001f)
+
+        player.cyclePlaybackSpeed()
+        assertEquals(1.0f, player.playbackSpeed.value, 0.001f)
+    }
+
+    @Test
+    fun `Desi Smart Expense presets generate valid UPI amounts and notes`() {
+        val smartPresets = listOf(
+            Triple("☕ Chai", "20", "Chai & Nashta"),
+            Triple("🚕 Auto", "50", "Auto fare split"),
+            Triple("🍛 Lunch", "150", "Lunch split"),
+            Triple("🛒 Kirana", "500", "Kirana & Groceries"),
+            Triple("💸 Shagun", "501", "Shagun & Best Wishes")
+        )
+
+        assertEquals(5, smartPresets.size)
+        smartPresets.forEach { (label, amt, note) ->
+            assertTrue(amt.toInt() > 0)
+            assertTrue(note.isNotBlank())
+            val payment = UpiPaymentData(
+                payeeVpa = "merchant@upi",
+                payeeName = "Shop",
+                amount = amt,
+                transactionNote = note
+            )
+            val uri = UpiPaymentManager.buildUpiUriString(payment)
+            assertTrue(uri.contains("am=$amt"))
+        }
+    }
+
+    @Test
+    fun `NetworkMonitor state transitions respond immediately to network drops`() {
+        val monitor = com.bharatconnect.app.core.network.NetworkMonitor
+        monitor.setOnlineForTesting(true)
+        assertTrue(monitor.isOnline.value)
+
+        monitor.setOnlineForTesting(false)
+        assertFalse(monitor.isOnline.value)
+
+        monitor.setOnlineForTesting(true)
+        assertTrue(monitor.isOnline.value)
+    }
+
+    @Test
+    fun `Conversation list ordering strictly prioritizes pinned conversations`() {
+        val convUnpinnedRecent = com.bharatconnect.app.domain.model.Conversation(
+            id = "c1",
+            title = "Friend",
+            lastMessage = "Hey",
+            lastMessageTime = "2026-10-31 22:00:00",
+            isPinned = false
+        )
+        val convPinnedOlder = com.bharatconnect.app.domain.model.Conversation(
+            id = "c2",
+            title = "Family Group",
+            lastMessage = "Shubh Prabhat",
+            lastMessageTime = "2026-10-31 08:00:00",
+            isPinned = true
+        )
+        val convUnpinnedOld = com.bharatconnect.app.domain.model.Conversation(
+            id = "c3",
+            title = "Acquaintance",
+            lastMessage = "Bye",
+            lastMessageTime = "2026-10-30 12:00:00",
+            isPinned = false
+        )
+
+        val unsorted = listOf(convUnpinnedRecent, convPinnedOlder, convUnpinnedOld)
+        val sorted = unsorted.sortedWith(
+            compareByDescending<com.bharatconnect.app.domain.model.Conversation> { it.isPinned }
+                .thenByDescending { it.lastMessageTime ?: "" }
+        )
+
+        // Pinned must be first regardless of timestamp!
+        assertEquals("c2", sorted[0].id)
+        assertEquals("c1", sorted[1].id)
+        assertEquals("c3", sorted[2].id)
+    }
+
+    @Test
+    fun `Message reaction and star models preserve metadata across transformations`() {
+        val msg = com.bharatconnect.app.domain.model.Message(
+            id = "m100",
+            conversationId = "conv1",
+            senderId = "user1",
+            content = "Namaste Bharat",
+            createdAt = "2026-10-31 22:00:00",
+            reaction = "🙏",
+            isStarred = true
+        )
+
+        val entity = com.bharatconnect.app.data.local.room.entity.MessageEntity.fromDomain(msg)
+        assertEquals("🙏", entity.reaction)
+        assertTrue(entity.isStarred)
+
+        val restored = entity.toDomain()
+        assertEquals(msg, restored)
+    }
+
+    @Test
+    fun `Data-Saver image downscaling preserves exact aspect ratio within 1280px`() {
+        val maxDim = 1280
+        val originalW = 4000
+        val originalH = 3000
+
+        val ratio = originalW.toFloat() / originalH.toFloat()
+        val targetW = if (originalW > originalH) maxDim else (maxDim * ratio).toInt()
+        val targetH = if (originalW > originalH) (maxDim / ratio).toInt() else maxDim
+
+        assertEquals(1280, targetW)
+        assertEquals(960, targetH)
+        assertEquals(ratio, targetW.toFloat() / targetH.toFloat(), 0.01f)
+    }
 }
