@@ -242,10 +242,13 @@ function initRadarPlayground() {
   });
 }
 
+let simRatchetSeq = 1;
+
 function initChatPlayground() {
   const chatInput = document.getElementById('simChatInput');
   const chatSendBtn = document.getElementById('simChatSendBtn');
   const messagesBox = document.getElementById('simChatMessages');
+  const ratchetBadge = document.getElementById('simRatchetBadge');
 
   if (!chatInput || !chatSendBtn || !messagesBox) return;
 
@@ -256,16 +259,22 @@ function initChatPlayground() {
     playHapticSound('send');
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Append sent message
+    // Append sent message with ratchet sequence and anti-tamper tag
     const msgDiv = document.createElement('div');
     msgDiv.className = 'chat-bubble bubble-sent';
     msgDiv.innerHTML = `
       <p>${escapeHTML(text)}</p>
-      <span class="chat-time">${timeStr} · 🔐 Sentinel E2E ✓✓</span>
+      <span class="chat-time">${timeStr} · 🔐 Ratchet #${simRatchetSeq} · HMAC ✓✓</span>
     `;
     messagesBox.appendChild(msgDiv);
     chatInput.value = '';
     messagesBox.scrollTop = messagesBox.scrollHeight;
+
+    // Advance forward secrecy ratchet
+    simRatchetSeq++;
+    if (ratchetBadge) {
+      ratchetBadge.textContent = `🔑 Ratchet #${simRatchetSeq}`;
+    }
 
     // Simulate smart auto reply
     setTimeout(() => {
@@ -278,13 +287,14 @@ function initChatPlayground() {
         "Got your message! 🛡️ Safety Number: 48921 59032 10948 29014 93821 04928 10293 84729 10492 83719 20491 82741 (Verified)",
         "Verified E2EE with HMAC-SHA256 anti-tamper signature! 🔒",
         "That sounds wonderful! Syncing instantly across offline SQLite & Cloud.",
+        "🤝 Mutual contact confirmed. All profile & status privileges granted.",
         "Yes! BharatConnect works 100% offline first too! ⏳ Ephemeral timer active."
       ];
       const randomReply = smartReplies[Math.floor(Math.random() * smartReplies.length)];
 
       replyDiv.innerHTML = `
         <p>${randomReply}</p>
-        <span class="chat-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        <span class="chat-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · 🛡️ Verified</span>
       `;
       messagesBox.appendChild(replyDiv);
       messagesBox.scrollTop = messagesBox.scrollHeight;

@@ -33,7 +33,8 @@ data class PhoneContact(
     val registeredUserId: String? = null,
     val avatarUrl: String? = null,
     val username: String? = null,
-    val isPhonebookContact: Boolean = true
+    val isPhonebookContact: Boolean = true,
+    val isMutualConnection: Boolean = false
 )
 
 /**
@@ -368,6 +369,16 @@ object ContactsManager {
         val md = java.security.MessageDigest.getInstance("SHA-256")
         val digest = md.digest(canonical.toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Evaluates whether two users share a mutual address-book handshake (User A saved User B, and User B saved User A).
+     * Enables WhatsApp-style privacy settings (e.g. Profile Picture & Status visible to "My Contacts Only").
+     */
+    fun isMutualHandshake(userAContactsHashed: Set<String>, userBContactsHashed: Set<String>, userAPhone: String, userBPhone: String): Boolean {
+        val hashA = hashPhoneNumber(userAPhone)
+        val hashB = hashPhoneNumber(userBPhone)
+        return userAContactsHashed.contains(hashB) && userBContactsHashed.contains(hashA)
     }
 
     /**

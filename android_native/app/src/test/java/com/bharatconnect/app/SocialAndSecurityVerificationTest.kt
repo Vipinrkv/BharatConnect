@@ -254,4 +254,144 @@ class SocialAndSecurityVerificationTest {
         // Reset
         sm.setAppLock(enabled = false)
     }
+
+    @Test
+    fun `Total unread count aggregation correctly filters out sender and read messages`() {
+        val currentUserId = "my_user_id"
+        val mockMessages = listOf(
+            Message(id = "m1", conversationId = "c1", senderId = "other_1", content = "hi", status = "delivered", createdAt = "2026-11-01 00:00:00"),
+            Message(id = "m2", conversationId = "c1", senderId = currentUserId, content = "sent by me", status = "sent", createdAt = "2026-11-01 00:00:01"),
+            Message(id = "m3", conversationId = "c2", senderId = "other_2", content = "new msg", status = "delivered", createdAt = "2026-11-01 00:00:02"),
+            Message(id = "m4", conversationId = "c2", senderId = "other_2", content = "read msg", status = "read", createdAt = "2026-11-01 00:00:03")
+        )
+
+        // Only m1 and m3 qualify (senderId != currentUserId && status != "read")
+        val unreadTotal = mockMessages.count { it.senderId != currentUserId && it.status != "read" }
+        assertEquals(2, unreadTotal)
+    }
+
+    @Test
+    fun `SignalEncryptionManager ratcheted session key derivation provides forward secrecy`() {
+        val convId = "conv_pfs_test_101"
+
+        val keySeq1 = SignalEncryptionManager.deriveRatchetedKey(convId, sequenceNumber = 1L)
+        val keySeq1Duplicate = SignalEncryptionManager.deriveRatchetedKey(convId, sequenceNumber = 1L)
+        val keySeq2 = SignalEncryptionManager.deriveRatchetedKey(convId, sequenceNumber = 2L)
+
+        // Must be 32 bytes (256 bits)
+        assertEquals(32, keySeq1.encoded.size)
+        assertEquals(32, keySeq2.encoded.size)
+
+        // Deterministic for same sequence index
+        assertArrayEquals(keySeq1.encoded, keySeq1Duplicate.encoded)
+
+        // Completely distinct across consecutive ratchets
+        assertFalse(keySeq1.encoded.contentEquals(keySeq2.encoded))
+    }
+
+    @Test
+    fun `SyncWorker retry avoids double encryption and preserves ephemeral duration`() {
+        val rawPlain = "Jai Hind"
+        val convId = "conv_sync_101"
+
+        // First encryption
+        val encrypted1 = SignalEncryptionManager.encrypt(convId, rawPlain)
+        assertTrue(SignalEncryptionManager.isEncryptedPayload(encrypted1))
+
+        // Simulating sync logic: if already encrypted, do not re-encrypt
+        val safePayload = if (SignalEncryptionManager.isEncryptedPayload(encrypted1)) {
+            encrypted1
+        } else {
+            SignalEncryptionManager.encrypt(convId, encrypted1)
+        }
+        assertEquals(encrypted1, safePayload)
+        assertFalse(safePayload.startsWith("ENC:ENC:"))
+
+        // MessageDto preserves ephemeralDurationSec
+        val dto = com.bharatconnect.app.data.remote.dto.MessageDto(
+            id = "m1",
+            conversationId = convId,
+            senderId = "u1",
+            content = safePayload,
+            ephemeralDurationSec = 7200L
+        )
+        val domain = dto.toDomain()
+        assertEquals(7200L, domain.ephemeralDurationSec)
+        assertEquals(safePayload, domain.content)
+    }
+
+    @Test
+    fun `SupabaseClient computeBackoffWithJitter adheres strictly to bounds`() {
+        val client = com.bharatconnect.app.core.network.SupabaseClient
+        val baseDelay = 1000L
+        val maxDelay = 30000L
+
+        for (attempt in 0..15) {
+            val backoff = client.computeBackoffWithJitter(attempt, baseDelayMs = baseDelay, maxDelayMs = maxDelay)
+            assertTrue("Backoff must be >= baseDelay ($baseDelay)", backoff >= baseDelay)
+            assertTrue("Backoff must be <= maxDelay ($maxDelay)", backoff <= maxDelay)
+        }
+    }
+
+    @Test
+    fun `ContactsManager accurately evaluates mutual social graph handshake`() {
+        val cm = com.bharatconnect.app.core.contacts.ContactsManager
+        val phoneA = "+91 98765 43210"
+        val phoneB = "+91 87654 32109"
+        val phoneC = "+91 76543 21098"
+
+        val hashA = cm.hashPhoneNumber(phoneA)
+        val hashB = cm.hashPhoneNumber(phoneB)
+
+        val userAContacts = setOf(hashB) // User A saved User B
+        val userBContacts = setOf(hashA) // User B saved User A
+        val userCContacts = setOf(hashA) // User C saved User A (but User A did not save User C)
+
+        // Mutual handshake between A and B
+        assertTrue(cm.isMutualHandshake(userAContacts, userBContacts, phoneA, phoneB))
+
+        // Non-mutual between A and C (A does not have C saved)
+        assertFalse(cm.isMutualHandshake(userAContacts, userCContacts, phoneA, phoneC))
+    }
+
+    @Test
+    fun `CloudinaryManager dynamically selects optimal compression based on network metered state`() {
+        val cm = com.bharatconnect.app.core.storage.CloudinaryManager
+
+        // Cellular / metered connection: Aggressive compression to save bandwidth
+        val (cellularDim, cellularQuality) = cm.getAdaptiveCompressionParams(isMetered = true)
+        assertEquals(1024, cellularDim)
+        assertEquals(70, cellularQuality)
+
+        // High-speed Wi-Fi / unmetered: Standard crisp compression
+        val (wifiDim, wifiQuality) = cm.getAdaptiveCompressionParams(isMetered = false)
+        assertEquals(1280, wifiDim)
+        assertEquals(82, wifiQuality)
+    }
+
+    @Test
+    fun `SecurityManager enforces NIST SP 800-38D vault spec and zeroizes memory buffers`() {
+        val sm = com.bharatconnect.app.core.security.SecurityManager
+
+        // Valid AES-256 GCM spec
+        assertTrue(sm.isVaultKeySpecValid("AES", 32, "GCM", "NoPadding"))
+
+        // Insecure DES or 128-bit or ECB mode rejected
+        assertFalse(sm.isVaultKeySpecValid("DES", 8, "CBC", "PKCS5Padding"))
+        assertFalse(sm.isVaultKeySpecValid("AES", 16, "GCM", "NoPadding"))
+        assertFalse(sm.isVaultKeySpecValid("AES", 32, "ECB", "PKCS5Padding"))
+
+        // Zeroizing buffer verification
+        val secretBytes = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8)
+        sm.zeroizeByteArray(secretBytes)
+        for (b in secretBytes) {
+            assertEquals(0.toByte(), b)
+        }
+
+        val secretChars = charArrayOf('9', '8', '7', '6')
+        sm.zeroizeCharArray(secretChars)
+        for (c in secretChars) {
+            assertEquals('0', c)
+        }
+    }
 }

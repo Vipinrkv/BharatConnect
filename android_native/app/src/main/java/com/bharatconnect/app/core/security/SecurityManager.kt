@@ -101,6 +101,33 @@ object SecurityManager {
         return true // Environment is clean
     }
 
+    const val HARDWARE_KEY_ALIAS = "BharatConnect_Master_Vault_Key"
+
+    /**
+     * Verifies key specification validity for Android KeyStore AES-256 GCM vault encryption.
+     * Ensures key meets NIST SP 800-38D and CERT-In / RBI security guidelines (256-bit AES, GCM, NoPadding).
+     */
+    fun isVaultKeySpecValid(algorithm: String, keySizeBytes: Int, mode: String, padding: String): Boolean {
+        return algorithm.equals("AES", ignoreCase = true) &&
+                keySizeBytes == 32 && // 256 bits
+                mode.equals("GCM", ignoreCase = true) &&
+                padding.equals("NoPadding", ignoreCase = true)
+    }
+
+    /**
+     * Zeroizes in-memory credential byte arrays to prevent RAM inspection and memory scrapers.
+     */
+    fun zeroizeByteArray(array: ByteArray) {
+        array.fill(0)
+    }
+
+    /**
+     * Zeroizes in-memory PIN character arrays.
+     */
+    fun zeroizeCharArray(array: CharArray) {
+        array.fill('0')
+    }
+
     private fun hashPin(pin: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest("BHARAT_PIN_SALT:$pin".toByteArray(Charsets.UTF_8))

@@ -88,7 +88,9 @@ data class MessageDto(
     @SerialName("created_at")
     val createdAt: String? = null,
     @SerialName("recipient_id")
-    val recipientId: String? = null
+    val recipientId: String? = null,
+    @SerialName("ephemeral_duration_sec")
+    val ephemeralDurationSec: Long = 0L
 ) {
     fun toDomain(overrideSenderName: String? = null): Message {
         return Message(
@@ -101,7 +103,8 @@ data class MessageDto(
             mediaType = mediaType,
             status = status,
             createdAt = createdAt ?: java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()),
-            isPendingSync = false
+            isPendingSync = false,
+            ephemeralDurationSec = ephemeralDurationSec
         )
     }
 }

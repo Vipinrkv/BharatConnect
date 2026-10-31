@@ -24,6 +24,8 @@ app.add_middleware(
 )
 
 # Security & Telemetry Headers Middleware
+seen_request_ids = set()
+
 @app.middleware("http")
 async def add_security_and_telemetry_headers(request: Request, call_next):
     start_time = time.perf_counter()
@@ -34,6 +36,7 @@ async def add_security_and_telemetry_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Keep-Alive"] = "timeout=30, max=1000"
     return response
 
 # Pydantic Schemas for Cryptographic Security & High Integrity
@@ -142,14 +145,30 @@ def get_messages(limit: int = 50):
     ]
 
 @app.post("/rest/v1/messages")
-def post_message(message: MessageSendRequest):
+def post_message(message: MessageSendRequest, response: Response):
+    is_duplicate = message.id in seen_request_ids
+    if not is_duplicate:
+        if len(seen_request_ids) > 10000:
+            seen_request_ids.clear()
+        seen_request_ids.add(message.id)
+    response.headers["X-Idempotent-Replay"] = "true" if is_duplicate else "false"
     return {
         "status": "sent",
         "id": message.id,
         "conversation_id": message.conversation_id,
         "ephemeral_duration_sec": message.ephemeral_duration_sec,
         "signature_verified": bool(message.signature),
+        "is_duplicate": is_duplicate,
         "received_at": time.time()
+    }
+
+@app.get("/api/diagnostics")
+def diagnostics():
+    return {
+        "pool_health": "nominal",
+        "active_dedup_cache": len(seen_request_ids),
+        "keep_alive_timeout_sec": 30,
+        "protocol": "HTTP/1.1 Keep-Alive + TLS 1.3"
     }
 
 @app.get("/rest/v1/posts")

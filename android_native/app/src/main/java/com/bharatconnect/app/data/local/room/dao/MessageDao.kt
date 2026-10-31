@@ -43,6 +43,9 @@ interface MessageDao {
     @Query("SELECT COUNT(*) FROM messages WHERE conversationId = :conversationId AND senderId != :currentUserId AND status != 'read'")
     suspend fun getUnreadCount(conversationId: String, currentUserId: String): Int
 
+    @Query("SELECT COUNT(*) FROM messages WHERE senderId != :currentUserId AND status != 'read'")
+    suspend fun getTotalUnreadCount(currentUserId: String): Int
+
     @Query("UPDATE messages SET reaction = :reaction WHERE id = :messageId")
     suspend fun updateReaction(messageId: String, reaction: String?)
 

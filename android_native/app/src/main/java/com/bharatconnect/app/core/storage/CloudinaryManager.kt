@@ -44,17 +44,32 @@ object CloudinaryManager {
     }
 
     /**
+     * Adaptive compression quality and max dimension selector based on network metered state.
+     * Cellular/metered uses 1024px max dimension and 70% quality (~70-120KB) to ensure rapid delivery across 2G/3G/4G.
+     * Wi-Fi/unmetered uses 1280px max dimension and 82% quality (~200-400KB).
+     */
+    fun getAdaptiveCompressionParams(isMetered: Boolean): Pair<Int, Int> {
+        return if (isMetered) {
+            Pair(1024, 70)
+        } else {
+            Pair(1280, 82)
+        }
+    }
+
+    /**
      * Direct media upload with retry capability and fast response parsing.
      */
     suspend fun uploadMedia(
         context: Context,
         uri: Uri,
-        mimeType: String
+        mimeType: String,
+        isMetered: Boolean = false
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val isImage = mimeType.startsWith("image")
+            val (maxDim, quality) = getAdaptiveCompressionParams(isMetered)
             val bytes = if (isImage) {
-                compressImageForUpload(context, uri, maxDimension = 1280, quality = 82)
+                compressImageForUpload(context, uri, maxDimension = maxDim, quality = quality)
                     ?: context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                     ?: return@withContext Result.failure(Exception("Could not read media file"))
             } else {
@@ -75,7 +90,8 @@ object CloudinaryManager {
     fun processAndUploadMedia(
         context: Context,
         uri: Uri,
-        mimeType: String
+        mimeType: String,
+        isMetered: Boolean = false
     ): Flow<MediaUploadTask> = flow {
         val taskId = UUID.randomUUID().toString()
         val isImage = mimeType.startsWith("image")
@@ -111,8 +127,9 @@ object CloudinaryManager {
         task = task.copy(originalSizeBytes = originalBytes.size.toLong(), status = UploadStatus.COMPRESSING, progress = 0.45f)
         emit(task)
 
+        val (maxDim, quality) = getAdaptiveCompressionParams(isMetered)
         val uploadBytes = if (isImage) {
-            compressImageForUpload(context, uri, maxDimension = 1280, quality = 82) ?: originalBytes
+            compressImageForUpload(context, uri, maxDimension = maxDim, quality = quality) ?: originalBytes
         } else {
             originalBytes
         }

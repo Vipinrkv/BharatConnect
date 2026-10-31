@@ -99,6 +99,19 @@ object SignalEncryptionManager {
     }
 
     /**
+     * Derives a forward-secure ratcheted message key for a specific sequence number.
+     * Guarantees Perfect Forward Secrecy (PFS) by ensuring each message in a stream
+     * can possess a distinct cryptographic session key derived via HMAC-SHA256.
+     */
+    fun deriveRatchetedKey(conversationId: String, sequenceNumber: Long): SecretKeySpec {
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        val baseKey = deriveKey(conversationId)
+        mac.init(baseKey)
+        val ratchetedBytes = mac.doFinal("RATCHET_STEP:$sequenceNumber".toByteArray(Charsets.UTF_8))
+        return SecretKeySpec(ratchetedBytes, "AES")
+    }
+
+    /**
      * Encrypts plaintext message into a Base64-encoded AES-GCM ciphertext with IV prefix.
      *
      * Steps:

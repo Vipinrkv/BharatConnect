@@ -29,7 +29,7 @@ object SupabaseClient {
             httpConfig {
                 install(HttpTimeout) {
                     requestTimeoutMillis = 15_000
-                    connectTimeoutMillis = 5_000
+                    connectTimeoutMillis = 10_000
                     socketTimeoutMillis = 15_000
                 }
             }
@@ -40,5 +40,16 @@ object SupabaseClient {
             install(Postgrest)
             install(Realtime)
         }
+    }
+
+    /**
+     * Truncated exponential backoff with full jitter to prevent thundering herd on Indian cell-tower recoveries.
+     */
+    fun computeBackoffWithJitter(attempt: Int, baseDelayMs: Long = 1000L, maxDelayMs: Long = 30000L): Long {
+        val safeAttempt = if (attempt < 0) 0 else if (attempt > 10) 10 else attempt
+        val exponential = baseDelayMs * (1L shl safeAttempt)
+        val capped = minOf(exponential, maxDelayMs)
+        // Full jitter in range [baseDelayMs, capped]
+        return (baseDelayMs + (Math.random() * (capped - baseDelayMs + 1)).toLong())
     }
 }

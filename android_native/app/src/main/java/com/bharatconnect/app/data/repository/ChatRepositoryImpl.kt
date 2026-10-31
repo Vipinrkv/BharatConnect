@@ -621,7 +621,11 @@ class ChatRepositoryImpl : ChatRepository {
 
         for (msg in pending) {
             try {
-                val encryptedContent = SignalEncryptionManager.encrypt(msg.conversationId, msg.content)
+                val encryptedContent = if (SignalEncryptionManager.isEncryptedPayload(msg.content)) {
+                    msg.content
+                } else {
+                    SignalEncryptionManager.encrypt(msg.conversationId, msg.content)
+                }
                 val messageDto = MessageDto(
                     id = msg.id,
                     conversationId = msg.conversationId,
@@ -631,7 +635,8 @@ class ChatRepositoryImpl : ChatRepository {
                     mediaUrl = msg.mediaUrl,
                     mediaType = msg.mediaType,
                     status = "sent",
-                    createdAt = msg.createdAt
+                    createdAt = msg.createdAt,
+                    ephemeralDurationSec = msg.ephemeralDurationSec
                 )
                 supabase.postgrest["messages"].upsert(messageDto)
                 messageDao.updateMessageStatus(msg.id, "sent", false)
