@@ -81,7 +81,7 @@ object SignalEncryptionManager {
             System.arraycopy(iv, 0, combined, 0, iv.size)
             System.arraycopy(cipherText, 0, combined, iv.size, cipherText.size)
 
-            "ENC:" + Base64.encodeToString(combined, Base64.NO_WRAP)
+            "ENC:" + encodeBase64(combined)
         } catch (_: Exception) {
             plainText
         }
@@ -121,7 +121,7 @@ object SignalEncryptionManager {
     private fun tryDecryptWithKey(convId: String, cipherText: String): String {
         return try {
             val rawBase64 = cipherText.removePrefix("ENC:")
-            val combined = Base64.decode(rawBase64, Base64.NO_WRAP)
+            val combined = decodeBase64(rawBase64)
             if (combined.size <= IV_LENGTH_BYTE) return cipherText
 
             // Extract the 12-byte IV from the front
@@ -141,6 +141,22 @@ object SignalEncryptionManager {
             String(plainBytes, Charsets.UTF_8)
         } catch (_: Exception) {
             cipherText
+        }
+    }
+
+    private fun encodeBase64(bytes: ByteArray): String {
+        return try {
+            java.util.Base64.getEncoder().encodeToString(bytes)
+        } catch (_: Throwable) {
+            Base64.encodeToString(bytes, Base64.NO_WRAP)
+        }
+    }
+
+    private fun decodeBase64(str: String): ByteArray {
+        return try {
+            java.util.Base64.getDecoder().decode(str)
+        } catch (_: Throwable) {
+            Base64.decode(str, Base64.NO_WRAP)
         }
     }
 }

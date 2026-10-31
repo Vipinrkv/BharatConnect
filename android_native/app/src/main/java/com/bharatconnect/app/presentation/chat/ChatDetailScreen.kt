@@ -1,5 +1,8 @@
 package com.bharatconnect.app.presentation.chat
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -9,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -32,9 +36,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.bharatconnect.app.core.audio.AudioRecordManager
 import com.bharatconnect.app.core.notifications.NotificationHelper
+import com.bharatconnect.app.core.payments.UpiPaymentData
+import com.bharatconnect.app.core.payments.UpiPaymentManager
 import com.bharatconnect.app.core.session.SessionManager
 import com.bharatconnect.app.core.storage.CloudinaryManager
 import com.bharatconnect.app.core.theme.ColorBackground080616
@@ -101,9 +109,49 @@ fun ChatDetailScreen(
     var showChatMenu by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
+    // Audio Voice Note & UPI States
+    var isRecordingAudio by remember { mutableStateOf(false) }
+    var recordingDurationSec by remember { mutableIntStateOf(0) }
+    var showUpiPaymentDialog by remember { mutableStateOf(false) }
+    var upiAmountText by remember { mutableStateOf("100") }
+    var upiNoteText by remember { mutableStateOf("Payment via BharatConnect") }
+    var upiVpaText by remember {
+        mutableStateOf("${conversation.title.filter { it.isLetterOrDigit() }.lowercase()}@okhdfcbank")
+    }
+
+    LaunchedEffect(isRecordingAudio) {
+        if (isRecordingAudio) {
+            recordingDurationSec = 0
+            while (isRecordingAudio) {
+                kotlinx.coroutines.delay(1000L)
+                recordingDurationSec++
+            }
+        }
+    }
+
+    val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            val startRes = AudioRecordManager.startRecording(context)
+            if (startRes.isSuccess) {
+                isRecordingAudio = true
+            } else {
+                Toast.makeText(context, "Could not start audio recorder", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Audio recording permission is required for voice notes", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // WhatsApp-style hierarchical back handling
     BackHandler {
         when {
+            isRecordingAudio -> {
+                AudioRecordManager.cancelRecording()
+                isRecordingAudio = false
+            }
+            showUpiPaymentDialog -> showUpiPaymentDialog = false
             showEmojiDrawer -> showEmojiDrawer = false
             showAttachmentSheet -> showAttachmentSheet = false
             showCallNoticeDialog != null -> showCallNoticeDialog = null
@@ -181,6 +229,9 @@ fun ChatDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showUpiPaymentDialog = true }) {
+                        Icon(Icons.Default.CurrencyRupee, contentDescription = "UPI Transfer", tint = Color(0xFF4EFEAA))
+                    }
                     IconButton(onClick = { showCallNoticeDialog = "Starting Encrypted Voice Call with ${conversation.title}..." }) {
                         Icon(Icons.Default.Phone, contentDescription = "Call", tint = Color.White)
                     }
@@ -386,83 +437,238 @@ fun ChatDetailScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text("Location", color = Color.LightGray, fontSize = 11.sp)
                             }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                IconButton(
+                                    onClick = {
+                                        showAttachmentSheet = false
+                                        showUpiPaymentDialog = true
+                                    },
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(Color(0xFF1E3A2B), CircleShape)
+                                ) {
+                                    Icon(Icons.Default.CurrencyRupee, contentDescription = "UPI Transfer", tint = Color(0xFF4EFEAA))
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("UPI Pay", color = Color.LightGray, fontSize = 11.sp)
+                            }
                         }
                     }
                 }
             }
 
-            // Input Bar
+            // Desi Quick Replies Row
+            val desiReplies = remember {
+                listOf("नमस्ते 🙏", "हाँ, ठीक है 👍", "पैसे भेज दिए 💸", "कॉल करो 📞", "रास्ते में हूँ 🚗", "धन्यवाद! ✨")
+            }
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(desiReplies) { chip ->
+                    AssistChip(
+                        onClick = {
+                            chatViewModel.sendMessage(conversation.id, chip)
+                        },
+                        label = { Text(chip, fontSize = 11.sp, color = Color.White) },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = Color(0xFF1E1A3C),
+                            labelColor = Color.White
+                        ),
+                        border = BorderStroke(0.6.dp, Color(0xFF3F3A66))
+                    )
+                }
+            }
+
+            // Input Bar with Voice Note & Text Modes
             Surface(
                 color = Color(0xFF14122A),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = { showEmojiDrawer = !showEmojiDrawer },
-                        modifier = Modifier.size(36.dp)
+                if (isRecordingAudio) {
+                    // Active Voice Note Recording Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Mood, contentDescription = "Emoji", tint = if (showEmojiDrawer) ColorPrimary6367FF else Color.Gray)
-                    }
-
-                    IconButton(
-                        onClick = { showAttachmentSheet = !showAttachmentSheet },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(Icons.Default.AttachFile, contentDescription = "Attach", tint = if (showAttachmentSheet) ColorPrimary6367FF else Color.Gray)
-                    }
-
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        placeholder = { Text("Message...", color = Color.Gray, fontSize = 14.sp) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFF1C1A38),
-                            unfocusedContainerColor = Color(0xFF1C1A38),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = ColorPrimary6367FF,
-                            unfocusedBorderColor = Color.Transparent
-                        ),
-                        maxLines = 4
-                    )
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    if (isUploadingMedia) {
-                        CircularProgressIndicator(
-                            color = ColorPrimary6367FF,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    } else {
                         IconButton(
                             onClick = {
-                                if (inputText.isNotBlank()) {
-                                    chatViewModel.sendMessage(conversation.id, inputText.trim())
-                                    inputText = ""
+                                AudioRecordManager.cancelRecording()
+                                isRecordingAudio = false
+                            },
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Cancel Recording", tint = Color(0xFFFF5252))
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(Color(0xFF2B1F3C), RoundedCornerShape(24.dp))
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFF3B30))
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            val min = recordingDurationSec / 60
+                            val sec = recordingDurationSec % 60
+                            Text(
+                                text = String.format("%02d:%02d", min, sec),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Recording Voice Note...",
+                                color = Color.LightGray,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        IconButton(
+                            onClick = {
+                                val stopRes = AudioRecordManager.stopRecording()
+                                isRecordingAudio = false
+                                stopRes.onSuccess { (file, durationMs) ->
+                                    val durationSec = (durationMs / 1000).coerceAtLeast(1)
+                                    isUploadingMedia = true
+                                    Toast.makeText(context, "Sending voice note...", Toast.LENGTH_SHORT).show()
+                                    coroutineScope.launch {
+                                        val uploadResult = CloudinaryManager.uploadMedia(
+                                            context,
+                                            Uri.fromFile(file),
+                                            "audio/mp4"
+                                        )
+                                        isUploadingMedia = false
+                                        uploadResult.onSuccess { mediaUrl ->
+                                            chatViewModel.sendMessage(
+                                                conversationId = conversation.id,
+                                                text = "🎤 Voice Note (${durationSec}s)",
+                                                mediaUrl = mediaUrl,
+                                                mediaType = "audio/mp4"
+                                            )
+                                        }.onFailure { err ->
+                                            Toast.makeText(context, "Voice note failed: ${err.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }.onFailure { err ->
+                                    Toast.makeText(context, "Recording failed: ${err.message}", Toast.LENGTH_SHORT).show()
                                 }
                             },
-                            enabled = inputText.isNotBlank(),
                             modifier = Modifier
                                 .size(42.dp)
-                                .background(
-                                    if (inputText.isNotBlank()) ColorPrimary6367FF else Color(0xFF232045),
-                                    CircleShape
-                                )
+                                .background(ColorPrimary6367FF, CircleShape)
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Send",
-                                tint = if (inputText.isNotBlank()) Color.White else Color.Gray,
+                                contentDescription = "Send Voice Note",
+                                tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
+                        }
+                    }
+                } else {
+                    // Regular Text & Mic Input Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { showEmojiDrawer = !showEmojiDrawer },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.Mood, contentDescription = "Emoji", tint = if (showEmojiDrawer) ColorPrimary6367FF else Color.Gray)
+                        }
+
+                        IconButton(
+                            onClick = { showAttachmentSheet = !showAttachmentSheet },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.AttachFile, contentDescription = "Attach", tint = if (showAttachmentSheet) ColorPrimary6367FF else Color.Gray)
+                        }
+
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            placeholder = { Text("Message...", color = Color.Gray, fontSize = 14.sp) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF1C1A38),
+                                unfocusedContainerColor = Color(0xFF1C1A38),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = ColorPrimary6367FF,
+                                unfocusedBorderColor = Color.Transparent
+                            ),
+                            maxLines = 4
+                        )
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        if (isUploadingMedia) {
+                            CircularProgressIndicator(
+                                color = ColorPrimary6367FF,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        } else if (inputText.isNotBlank()) {
+                            IconButton(
+                                onClick = {
+                                    chatViewModel.sendMessage(conversation.id, inputText.trim())
+                                    inputText = ""
+                                },
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .background(ColorPrimary6367FF, CircleShape)
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = "Send",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        } else {
+                            // WhatsApp-style Voice Note Mic button when input is empty
+                            IconButton(
+                                onClick = {
+                                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                        val startRes = AudioRecordManager.startRecording(context)
+                                        if (startRes.isSuccess) {
+                                            isRecordingAudio = true
+                                        } else {
+                                            Toast.makeText(context, "Could not start recording", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } else {
+                                        recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .background(Color(0xFF2C2856), CircleShape)
+                            ) {
+                                Icon(
+                                    Icons.Default.Mic,
+                                    contentDescription = "Voice Note",
+                                    tint = Color(0xFF4EFEAA),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -487,6 +693,117 @@ fun ChatDetailScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF)
                 ) {
                     Text("OK")
+                }
+            },
+            containerColor = Color(0xFF16142E),
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    if (showUpiPaymentDialog) {
+        AlertDialog(
+            onDismissRequest = { showUpiPaymentDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🇮🇳", fontSize = 22.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("1-Tap Bharat UPI Pay", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Instant bank-to-bank settlement via NPCI UPI (GPay, PhonePe, Paytm, BHIM).",
+                        color = Color.LightGray,
+                        fontSize = 12.sp
+                    )
+
+                    OutlinedTextField(
+                        value = upiVpaText,
+                        onValueChange = { upiVpaText = it },
+                        label = { Text("Receiver UPI ID (VPA)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = ColorPrimary6367FF
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = upiAmountText,
+                        onValueChange = { upiAmountText = it },
+                        label = { Text("Amount (₹ INR)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF4EFEAA)
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = upiNoteText,
+                        onValueChange = { upiNoteText = it },
+                        label = { Text("Payment Note / Remarks") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf("₹50", "₹100", "₹500", "₹1000", "₹2000").forEach { preset ->
+                            AssistChip(
+                                onClick = { upiAmountText = preset.removePrefix("₹") },
+                                label = { Text(preset, fontSize = 11.sp, color = Color.White) },
+                                colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF24204A))
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showUpiPaymentDialog = false
+                        val cleanAmount = upiAmountText.trim().ifEmpty { "1" }
+                        val paymentData = UpiPaymentData(
+                            payeeVpa = upiVpaText.trim(),
+                            payeeName = conversation.title,
+                            amount = cleanAmount,
+                            transactionNote = upiNoteText.trim()
+                        )
+                        UpiPaymentManager.launchUpiPayment(context, paymentData)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF138808))
+                ) {
+                    Text("Pay via UPI App ⚡", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showUpiPaymentDialog = false
+                        val cleanAmount = upiAmountText.trim().ifEmpty { "1" }
+                        val paymentData = UpiPaymentData(
+                            payeeVpa = upiVpaText.trim(),
+                            payeeName = conversation.title,
+                            amount = cleanAmount,
+                            transactionNote = upiNoteText.trim()
+                        )
+                        val cardMsg = UpiPaymentManager.encodePaymentMessage(paymentData)
+                        chatViewModel.sendMessage(conversation.id, cardMsg)
+                    }
+                ) {
+                    Text("Send Request Card", color = Color(0xFF4EFEAA))
                 }
             },
             containerColor = Color(0xFF16142E),

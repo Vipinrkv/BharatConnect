@@ -34,6 +34,7 @@ import com.bharatconnect.app.presentation.feed.FeedTab
 import com.bharatconnect.app.presentation.feed.FeedViewModel
 import com.bharatconnect.app.presentation.marketplace.MarketplaceScreen
 import com.bharatconnect.app.presentation.nearby.NearbyScreen
+import com.bharatconnect.app.presentation.components.BharatUtilitiesModal
 import com.bharatconnect.app.presentation.notifications.NotificationsScreen
 import com.bharatconnect.app.presentation.profile.ProfileTab
 import com.bharatconnect.app.presentation.story.CreateStoryDialog
@@ -62,6 +63,7 @@ fun HomeScreen(
     }
     var activeViewingStory by remember { mutableStateOf<StoryItem?>(null) }
     var showCreateStoryDialog by remember { mutableStateOf(false) }
+    var showBharatUtilitiesModal by remember { mutableStateOf(false) }
 
     val notificationsList by chatViewModel.notifications.collectAsState()
     val unreadNotifCount = remember(notificationsList) { notificationsList.count { !it.isRead } }
@@ -70,6 +72,9 @@ fun HomeScreen(
     // WhatsApp-style device back button prevention
     BackHandler {
         when {
+            showBharatUtilitiesModal -> {
+                showBharatUtilitiesModal = false
+            }
             showNotificationsScreen -> {
                 showNotificationsScreen = false
             }
@@ -156,6 +161,10 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showBharatUtilitiesModal = true }) {
+                        Text("🇮🇳", fontSize = 20.sp)
+                    }
+
                     IconButton(onClick = { showNotificationsScreen = true }) {
                         if (unreadNotifCount > 0) {
                             BadgedBox(
@@ -370,6 +379,12 @@ fun HomeScreen(
         StoryViewerDialog(
             story = activeViewingStory!!,
             onDismiss = { activeViewingStory = null }
+        )
+    }
+
+    if (showBharatUtilitiesModal) {
+        BharatUtilitiesModal(
+            onDismiss = { showBharatUtilitiesModal = false }
         )
     }
 }

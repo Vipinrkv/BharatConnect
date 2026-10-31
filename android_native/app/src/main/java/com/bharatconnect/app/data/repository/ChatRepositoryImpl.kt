@@ -942,7 +942,8 @@ class ChatRepositoryImpl : ChatRepository {
                                         context = BharatConnectApp.appContext,
                                         title = senderName,
                                         body = decrypted,
-                                        conversationId = record.conversationId
+                                        conversationId = record.conversationId,
+                                        senderId = record.senderId
                                     )
                                 }
                             }
