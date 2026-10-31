@@ -14,7 +14,10 @@ data class Conversation(
     val lastMessageTime: String? = null,
     val unreadCount: Int = 0,
     val participantIds: List<String> = emptyList(),
-    val isPinned: Boolean = false
+    val isPinned: Boolean = false,
+    val adminIds: List<String> = emptyList(),
+    val groupDescription: String? = null,
+    val ephemeralDefaultDurationSec: Long = 0L
 )
 
 @Serializable
@@ -30,7 +33,8 @@ data class Message(
     val createdAt: String = "",
     val isPendingSync: Boolean = false,
     val reaction: String? = null,
-    val isStarred: Boolean = false
+    val isStarred: Boolean = false,
+    val ephemeralDurationSec: Long = 0L
 )
 
 @Serializable

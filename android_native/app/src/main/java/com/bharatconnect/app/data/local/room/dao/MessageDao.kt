@@ -57,4 +57,7 @@ interface MessageDao {
 
     @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAt ASC LIMIT :limit OFFSET :offset")
     suspend fun getMessagesPaged(conversationId: String, limit: Int, offset: Int): List<MessageEntity>
+
+    @Query("DELETE FROM messages WHERE ephemeralDurationSec > 0 AND (strftime('%s', 'now') - strftime('%s', createdAt)) > ephemeralDurationSec")
+    suspend fun purgeExpiredMessages(): Int
 }

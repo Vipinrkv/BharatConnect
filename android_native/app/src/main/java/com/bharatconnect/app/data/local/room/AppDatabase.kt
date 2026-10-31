@@ -18,7 +18,7 @@ import com.bharatconnect.app.data.local.room.entity.UserEntity
         MessageEntity::class,
         PostEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

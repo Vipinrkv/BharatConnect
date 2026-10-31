@@ -30,6 +30,7 @@ fun PostCard(
     onLikeClick: () -> Unit,
     onFollowClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
+    onShareClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
     Card(
@@ -124,7 +125,7 @@ fun PostCard(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("${post.commentsCount} Comments", color = Color.Gray, fontSize = 12.sp)
                 }
-                IconButton(onClick = {}, modifier = Modifier.size(24.dp)) {
+                IconButton(onClick = onShareClick, modifier = Modifier.size(24.dp)) {
                     Icon(
                         Icons.Default.Share,
                         contentDescription = "Share",

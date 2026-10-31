@@ -351,6 +351,14 @@ fun MessageBubble(
                         )
                     }
 
+                    if (msg.ephemeralDurationSec > 0) {
+                        Text(
+                            text = "⏳",
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                    }
+
                     Text(formattedTime, color = Color(0xFFD1D1E0), fontSize = 10.sp)
 
                     if (isMe) {

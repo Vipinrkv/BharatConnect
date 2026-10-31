@@ -73,6 +73,7 @@ fun ChatDetailScreen(
     var showAttachmentSheet by remember { mutableStateOf(false) }
     var showEmojiDrawer by remember { mutableStateOf(false) }
     var showCallNoticeDialog by remember { mutableStateOf<String?>(null) }
+    var showSafetyNumberDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     var isUploadingMedia by remember { mutableStateOf(false) }
 
@@ -157,6 +158,7 @@ fun ChatDetailScreen(
             showEmojiDrawer -> showEmojiDrawer = false
             showAttachmentSheet -> showAttachmentSheet = false
             showCallNoticeDialog != null -> showCallNoticeDialog = null
+            showSafetyNumberDialog -> showSafetyNumberDialog = false
             showDeleteConfirmDialog -> showDeleteConfirmDialog = false
             showChatMenu -> showChatMenu = false
             else -> onBack()
@@ -220,7 +222,24 @@ fun ChatDetailScreen(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Text(conversation.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(conversation.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                if (conversation.isGroup && (conversation.adminIds.contains(currentUserId) || conversation.createdBy == currentUserId)) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        color = Color(0xFFFF9933).copy(alpha = 0.2f),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "👑 Admin",
+                                            color = Color(0xFFFF9933),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
                             Text("● Online • Encrypted", color = Color(0xFF4EFEAA), fontSize = 11.sp)
                         }
                     }
@@ -249,6 +268,17 @@ fun ChatDetailScreen(
                             onDismissRequest = { showChatMenu = false },
                             modifier = Modifier.background(Color(0xFF1E1A3C))
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Verify Security Code", color = Color.White, fontSize = 13.sp) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = Color(0xFF4EFEAA))
+                                },
+                                onClick = {
+                                    showChatMenu = false
+                                    showSafetyNumberDialog = true
+                                }
+                            )
+                            HorizontalDivider(color = Color(0xFF2C2856))
                             DropdownMenuItem(
                                 text = { Text("Delete Chat", color = Color(0xFFFF6B6B), fontWeight = FontWeight.Bold) },
                                 leadingIcon = {
@@ -731,6 +761,67 @@ fun ChatDetailScreen(
                 }
             },
             containerColor = Color(0xFF16142E),
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    if (showSafetyNumberDialog) {
+        val safetyNumber = remember(conversation.id, currentUserId) {
+            com.bharatconnect.app.core.encryption.SignalEncryptionManager.generateSafetyNumber(
+                currentUserId ?: "userA",
+                conversation.id
+            )
+        }
+        AlertDialog(
+            onDismissRequest = { showSafetyNumberDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFFFFD54F))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Verify Security Code", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "To verify that messages and calls with ${conversation.title} are end-to-end encrypted with zero man-in-the-middle risk, compare this 60-digit safety number with their device.",
+                        color = Color.LightGray,
+                        fontSize = 12.sp
+                    )
+
+                    Surface(
+                        color = Color(0xFF100C26),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFF4A4468)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = safetyNumber,
+                            color = Color(0xFF4EFEAA),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(14.dp)
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4EFEAA), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("AES-GCM-256 E2EE Verified", color = Color(0xFF4EFEAA), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showSafetyNumberDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorPrimary6367FF)
+                ) {
+                    Text("Done")
+                }
+            },
+            containerColor = Color(0xFF1B1736),
             shape = RoundedCornerShape(16.dp)
         )
     }

@@ -1,6 +1,7 @@
 package com.bharatconnect.app.presentation.feed
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,6 +41,13 @@ fun FeedTab(
     var viewingCommentsForPost by remember { mutableStateOf<Post?>(null) }
     var viewingAuthorProfile by remember { mutableStateOf<String?>(null) }
     val followedAuthors = remember { mutableStateListOf<String>() }
+    var selectedTopicTag by remember { mutableStateOf("#All") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val filteredPosts = remember(posts, selectedTopicTag) {
+        if (selectedTopicTag == "#All") posts
+        else posts.filter { it.content.contains(selectedTopicTag.removePrefix("#"), ignoreCase = true) }
+    }
 
     // In-memory comments map for posts
     val postComments = remember {
@@ -75,11 +83,37 @@ fun FeedTab(
                 }
             }
 
+            item {
+                val topicTags = listOf("#All", "#हिंदी", "#TechBharat", "#Cricket", "#UPSC", "#Startups", "#ChaiPeCharcha", "#Jobs")
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                ) {
+                    items(topicTags) { tag ->
+                        val isSelected = selectedTopicTag == tag
+                        Surface(
+                            color = if (isSelected) ColorPrimary6367FF else Color(0xFF1E1A3C),
+                            shape = RoundedCornerShape(16.dp),
+                            border = if (isSelected) null else androidx.compose.foundation.BorderStroke(0.6.dp, Color(0xFF3F3A66)),
+                            modifier = Modifier.clickable { selectedTopicTag = tag }
+                        ) {
+                            Text(
+                                text = tag,
+                                color = if (isSelected) Color.White else Color.LightGray,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             if (isLoadingFeed && posts.isEmpty()) {
                 items(3) {
                     FeedPostSkeleton()
                 }
-            } else if (posts.isEmpty()) {
+            } else if (filteredPosts.isEmpty()) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF14122A)),
@@ -96,9 +130,9 @@ fun FeedTab(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(60.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF221F45)),
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF221F45)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -110,7 +144,7 @@ fun FeedTab(
                             }
                             Spacer(modifier = Modifier.height(14.dp))
                             Text(
-                                text = "Your Feed is Ready",
+                                text = if (selectedTopicTag == "#All") "Your Feed is Ready" else "No posts under $selectedTopicTag yet",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 17.sp
@@ -136,7 +170,7 @@ fun FeedTab(
                     }
                 }
             } else {
-                items(posts) { post ->
+                items(filteredPosts) { post ->
                     val isFollowing = followedAuthors.contains(post.authorName)
                     PostCard(
                         post = post,
@@ -150,6 +184,9 @@ fun FeedTab(
                             }
                         },
                         onCommentClick = { viewingCommentsForPost = post },
+                        onShareClick = {
+                            android.widget.Toast.makeText(context, "Post shared to BharatConnect Chat! 🚀", android.widget.Toast.LENGTH_SHORT).show()
+                        },
                         onProfileClick = { viewingAuthorProfile = post.authorName }
                     )
                 }

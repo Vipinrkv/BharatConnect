@@ -21,7 +21,8 @@ data class MessageEntity(
     val createdAt: String,
     val isPendingSync: Boolean = false,
     val reaction: String? = null,
-    val isStarred: Boolean = false
+    val isStarred: Boolean = false,
+    val ephemeralDurationSec: Long = 0L
 ) {
     fun toDomain(): Message {
         return Message(
@@ -36,7 +37,8 @@ data class MessageEntity(
             createdAt = createdAt,
             isPendingSync = isPendingSync,
             reaction = reaction,
-            isStarred = isStarred
+            isStarred = isStarred,
+            ephemeralDurationSec = ephemeralDurationSec
         )
     }
 
@@ -54,7 +56,8 @@ data class MessageEntity(
                 createdAt = msg.createdAt,
                 isPendingSync = msg.isPendingSync,
                 reaction = msg.reaction,
-                isStarred = msg.isStarred
+                isStarred = msg.isStarred,
+                ephemeralDurationSec = msg.ephemeralDurationSec
             )
         }
     }

@@ -367,6 +367,26 @@ fun ChatsTab(
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("Select from Contacts")
                                 }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(
+                                                android.content.Intent.EXTRA_TEXT,
+                                                "नमस्ते! I'm using BharatConnect for ultra-fast encrypted chats and 1-tap UPI payments. Join me: https://bharatconnect.in/join?ref=${currentUserId ?: "member"}"
+                                            )
+                                        }
+                                        context.startActivity(android.content.Intent.createChooser(shareIntent, "Invite Friends via"))
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4EFEAA))
+                                ) {
+                                    Text("🇮🇳", fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Invite via WhatsApp / SMS", color = Color(0xFF4EFEAA), fontSize = 13.sp)
+                                }
                             }
                         }
                     } else {

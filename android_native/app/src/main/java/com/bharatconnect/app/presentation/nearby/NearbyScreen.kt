@@ -796,18 +796,13 @@ fun NearbyScreen(
                                     )
                                 }
 
-                                IconButton(
+                                Button(
                                     onClick = { onStartChat(user.name) },
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF1F1C3F))
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2C2856)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ChatBubble,
-                                        contentDescription = "Chat",
-                                        tint = ColorPrimary6367FF,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    Text("Namaste 🙏", fontSize = 11.sp, color = Color(0xFF4EFEAA), fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
