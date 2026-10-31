@@ -44,14 +44,19 @@ object SignalEncryptionManager {
         return java.util.UUID.nameUUIDFromBytes("${sorted[0]}_${sorted[1]}".toByteArray()).toString()
     }
 
+    private val keyCache = java.util.concurrent.ConcurrentHashMap<String, SecretKeySpec>()
+
     /**
      * Derives a deterministic 256-bit AES key from the conversation ID and application salt.
      * Uses SHA-256 hashing to produce a uniform 32-byte pseudo-random key suitable for AES-256.
+     * Cached in ConcurrentHashMap for sub-millisecond crypto performance under heavy message streams.
      */
     private fun deriveKey(conversationId: String): SecretKeySpec {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val keyBytes = digest.digest("$conversationId:$SALT".toByteArray(Charsets.UTF_8))
-        return SecretKeySpec(keyBytes, "AES")
+        return keyCache.computeIfAbsent(conversationId) { id ->
+            val digest = MessageDigest.getInstance("SHA-256")
+            val keyBytes = digest.digest("$id:$SALT".toByteArray(Charsets.UTF_8))
+            SecretKeySpec(keyBytes, "AES")
+        }
     }
 
     /**

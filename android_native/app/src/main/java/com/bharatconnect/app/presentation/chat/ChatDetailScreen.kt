@@ -68,6 +68,7 @@ fun ChatDetailScreen(
     }
 
     var inputText by remember { mutableStateOf("") }
+    var lastSendTime by remember { mutableLongStateOf(0L) }
     var showAttachmentSheet by remember { mutableStateOf(false) }
     var showEmojiDrawer by remember { mutableStateOf(false) }
     var showCallNoticeDialog by remember { mutableStateOf<String?>(null) }
@@ -629,8 +630,13 @@ fun ChatDetailScreen(
                         } else if (inputText.isNotBlank()) {
                             IconButton(
                                 onClick = {
-                                    chatViewModel.sendMessage(conversation.id, inputText.trim())
-                                    inputText = ""
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastSendTime > 300L) {
+                                        lastSendTime = now
+                                        val textToSend = inputText.trim()
+                                        inputText = ""
+                                        chatViewModel.sendMessage(conversation.id, textToSend)
+                                    }
                                 },
                                 modifier = Modifier
                                     .size(42.dp)
