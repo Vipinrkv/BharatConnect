@@ -553,7 +553,7 @@ function initApkDownload() {
   if (copyHashBtn) {
     copyHashBtn.addEventListener('click', () => {
       playHapticSound('click');
-      const hash = "af7bb24ea06de1a0ab333092f54834848e180a7b53fe74ec2c9add3d8341347d";
+      const hash = "4a62dbafbd937c776214973a9d34d038923faf9a0088b704ea70c5d54ea19c08";
       navigator.clipboard.writeText(hash).then(() => {
         showToast('✅ SHA-256 Checksum copied to clipboard!');
       }).catch(() => {
