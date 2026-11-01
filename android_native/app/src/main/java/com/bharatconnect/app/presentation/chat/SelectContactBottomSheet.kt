@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Contacts
@@ -275,7 +275,7 @@ fun SelectContactBottomSheet(
                                     modifier = Modifier.padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.Chat, contentDescription = null, tint = Color(0xFF4EFEAA), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = Color(0xFF4EFEAA), modifier = Modifier.size(20.dp))
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column {
                                         Text("Message \"$contactSearchQuery\"", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)

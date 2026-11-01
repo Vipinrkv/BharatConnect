@@ -51,6 +51,7 @@ class FeedRepositoryImpl : FeedRepository {
         mediaUrl: String?,
         mediaType: String?
     ): Result<Post> = withContext(Dispatchers.IO) {
+        SupabaseClient.ensureAuthenticatedSession()
         val cachedUser = SessionManager.getCachedUserProfile()
         val rawUserId = supabase.auth.currentUserOrNull()?.id ?: cachedUser?.id
         val currentUserId = if (!rawUserId.isNullOrBlank()) {
@@ -112,6 +113,7 @@ class FeedRepositoryImpl : FeedRepository {
 
     override suspend fun toggleLike(postId: String): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
+            SupabaseClient.ensureAuthenticatedSession()
             val rawUserId = supabase.auth.currentUserOrNull()?.id ?: SessionManager.getCachedUserProfile()?.id
             val currentUserId = if (!rawUserId.isNullOrBlank()) {
                 try {

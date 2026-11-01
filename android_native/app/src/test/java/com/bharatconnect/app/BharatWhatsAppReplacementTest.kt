@@ -179,6 +179,7 @@ class BharatWhatsAppReplacementTest {
 
         assertEquals(5, smartPresets.size)
         smartPresets.forEach { (label, amt, note) ->
+            assertTrue(label.isNotBlank())
             assertTrue(amt.toInt() > 0)
             assertTrue(note.isNotBlank())
             val payment = UpiPaymentData(

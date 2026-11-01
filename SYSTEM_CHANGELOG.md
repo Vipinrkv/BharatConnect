@@ -825,4 +825,44 @@
     - Expanded feature matrix to a 9-card grid highlighting UPI payments, Voice Notes, and Bharat Seva Citizen Hub.
 
 ---
+
+### 🔹 Entry #037 — 10-Cycle System Audit, Adversarial Hardening, Session Rotation Capture & Clean Release Verification
+- **Date & Time**: `2026-11-01 14:15:00 IST` (`2026-11-01T08:45:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/core/network/SupabaseClient.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/core/network/SupabaseClient.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/BharatConnectApp.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/BharatConnectApp.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/FeedRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/FeedRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatDetailScreen.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatDetailScreen.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/SelectContactBottomSheet.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/SelectContactBottomSheet.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/components/BharatUtilitiesModal.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/components/BharatUtilitiesModal.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/feed/PostCommentsBottomSheet.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/feed/PostCommentsBottomSheet.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/SocialAndSecurityVerificationTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/SocialAndSecurityVerificationTest.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/BharatWhatsAppReplacementTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/BharatWhatsAppReplacementTest.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`web/index.html`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/index.html)
+  - [`web/app.js`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/app.js)
+  - [`README.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/README.md)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **GoTrue Session Rotation & Authentication Persistence**:
+    - Centralized `ensureAuthenticatedSession()` in `SupabaseClient.kt` to rehydrate credentials whenever the in-memory GoTrue session is vacant.
+    - Integrated background session status observation in `BharatConnectApp.kt` via `SupabaseClient.client.auth.sessionStatus.collect`, persisting rotated `accessToken` and `refreshToken` pairs to `SessionManager` to prevent `Invalid Refresh Token` cold-start logouts.
+    - Integrated session rehydration into `retryPendingMessages()` in `ChatRepositoryImpl.kt` and `createPost()` / `toggleLike()` in `FeedRepositoryImpl.kt` to prevent unauthenticated 403 RLS rejections.
+  - **Touchscreen Ergonomics & Debounce Fortification**:
+    - Enforced 400 ms debounce gating on all Desi Quick Reply `AssistChip` tap handlers in `ChatDetailScreen.kt`, eliminating accidental duplicate message transmissions on touch jitter.
+  - **Compiler Hygiene & Deprecation Cleanup**:
+    - Replaced deprecated `Icons.Default.Chat` and `Icons.Default.OpenInNew` with RTL-aware `Icons.AutoMirrored.Filled.*` equivalents.
+    - Added contextual post preview card inside `PostCommentsBottomSheet.kt`.
+    - Achieved 100% warning-free Kotlin compilation across all app and test modules.
+  - **Adversarial & Regression Test Expansion**:
+    - Added comprehensive fault-injection and boundary tests in `SocialAndSecurityVerificationTest.kt` verifying that malformed Base64, truncated envelopes (`< 28` bytes), and mutated ciphertexts fail gracefully without unhandled exceptions.
+    - System-wide regression test suite executed with 66/66 unit and integration tests passing with 0 failures and 0 errors.
+  - **Release Binary Packaging**:
+    - Clean Gradle compilation (`assembleDebug`) producing standalone Android package `BharatConnect-Native.apk` (26.1 MB, 26,125,906 bytes).
+    - Final Cryptographic SHA-256 Checksum: `7f6ddc50c3ba9584c3795e99ab4b563496565bc6ab882ad1fe047f58829658e8`.
+    - Synchronized identical release binary and checksums across project root, `web/` distribution directory, and portal web pages.
+
+---
 *(Append all future system changes below this line)*

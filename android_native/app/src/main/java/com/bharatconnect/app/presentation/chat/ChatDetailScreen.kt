@@ -530,7 +530,11 @@ fun ChatDetailScreen(
                 items(desiReplies) { chip ->
                     AssistChip(
                         onClick = {
-                            chatViewModel.sendMessage(conversation.id, chip)
+                            val now = System.currentTimeMillis()
+                            if (now - lastSendTime > 400L) {
+                                lastSendTime = now
+                                chatViewModel.sendMessage(conversation.id, chip)
+                            }
                         },
                         label = { Text(chip, fontSize = 11.sp, color = Color.White) },
                         colors = AssistChipDefaults.assistChipColors(

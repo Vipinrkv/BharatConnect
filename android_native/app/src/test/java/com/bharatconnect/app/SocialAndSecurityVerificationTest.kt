@@ -394,4 +394,79 @@ class SocialAndSecurityVerificationTest {
             assertEquals('0', c)
         }
     }
+
+    @Test
+    fun `SupabaseClient computeBackoffWithJitter maintains strict boundaries with full jitter`() {
+        val client = com.bharatconnect.app.core.network.SupabaseClient
+        val baseDelay = 1000L
+        val maxDelay = 30000L
+
+        for (attempt in 0..15) {
+            for (sample in 0..10) {
+                val delay = client.computeBackoffWithJitter(attempt, baseDelay, maxDelay)
+                assertTrue("Delay ($delay) must be >= baseDelay ($baseDelay)", delay >= baseDelay)
+                assertTrue("Delay ($delay) must be <= maxDelay ($maxDelay)", delay <= maxDelay)
+            }
+        }
+    }
+
+    @Test
+    fun `SignalEncryptionManager isolates ratchet chains across independent conversations`() {
+        val convA = "direct_userA_userB"
+        val convB = "direct_userA_userC"
+
+        val plainA = "Confidential Message for B"
+        val plainB = "Confidential Message for C"
+
+        val encA = SignalEncryptionManager.encrypt(convA, plainA)
+        val encB = SignalEncryptionManager.encrypt(convB, plainB)
+
+        // Decrypting with correct conversation must match
+        assertEquals(plainA, SignalEncryptionManager.decrypt(convA, encA))
+        assertEquals(plainB, SignalEncryptionManager.decrypt(convB, encB))
+
+        // Decrypting with wrong conversation key MUST fail or produce error fallback
+        val crossDecrypt = SignalEncryptionManager.decrypt(convB, encA)
+        assertNotEquals(plainA, crossDecrypt)
+    }
+
+    @Test
+    fun `Adversarial malformed or truncated ciphertexts do not throw unhandled exceptions`() {
+        val conv = "conv_adversarial_test"
+
+        // Invalid Base64
+        val invalidBase64 = "ENC:@@##!!invalid_base64%%^^"
+        val res1 = SignalEncryptionManager.decrypt(conv, invalidBase64)
+        assertEquals(invalidBase64, res1)
+
+        // Truncated payload (< 28 bytes for IV + GCM tag)
+        val truncated = "ENC:YWJjZGVm"
+        val res2 = SignalEncryptionManager.decrypt(conv, truncated)
+        assertEquals(truncated, res2)
+
+        // Empty ciphertext
+        val emptyCipher = "ENC:"
+        val res3 = SignalEncryptionManager.decrypt(conv, emptyCipher)
+        assertEquals(emptyCipher, res3)
+    }
+
+    @Test
+    fun `Adversarial bit-flip in ciphertext triggers GCM authentication failure`() {
+        val conv = "conv_tamper_detect"
+        val original = "Sovereign communication payload"
+        val encrypted = SignalEncryptionManager.encrypt(conv, original)
+
+        assertTrue(encrypted.startsWith("ENC:"))
+
+        // Mutate a character in the Base64 ciphertext (simulate bit-flip in transit)
+        val chars = encrypted.toCharArray()
+        val targetIdx = chars.size - 5
+        chars[targetIdx] = if (chars[targetIdx] == 'A') 'B' else 'A'
+        val tamperedEncrypted = String(chars)
+
+        // Decryption of tampered ciphertext MUST fail GCM integrity check and return the fallback string
+        val decrypted = SignalEncryptionManager.decrypt(conv, tamperedEncrypted)
+        assertNotEquals("Decrypted message must not match original when tampered", original, decrypted)
+        assertEquals(tamperedEncrypted, decrypted)
+    }
 }

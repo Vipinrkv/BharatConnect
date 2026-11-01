@@ -45,6 +45,19 @@ fun PostCommentsBottomSheet(
                     .fillMaxWidth()
                     .heightIn(max = 350.dp)
             ) {
+                Surface(
+                    color = Color(0xFF1E293B),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                ) {
+                    Text(
+                        text = "${post.authorName}: ${post.content.take(60)}${if (post.content.length > 60) "..." else ""}",
+                        color = Color.LightGray,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+
                 if (commentsList.isEmpty()) {
                     Text(
                         text = "No comments yet. Be the first to start the conversation!",

@@ -52,4 +52,19 @@ object SupabaseClient {
         // Full jitter in range [baseDelayMs, capped]
         return (baseDelayMs + (Math.random() * (capped - baseDelayMs + 1)).toLong())
     }
+
+    /**
+     * Rehydrates GoTrue session from SessionManager tokens if in-memory session is vacant.
+     */
+    suspend fun ensureAuthenticatedSession() {
+        if (!::client.isInitialized) return
+        if (client.pluginManager.getPluginOrNull(Auth)?.currentUserOrNull() == null) {
+            val (access, refresh) = com.bharatconnect.app.core.session.SessionManager.getAuthTokens()
+            if (!access.isNullOrBlank() && !refresh.isNullOrBlank()) {
+                try {
+                    client.pluginManager.getPluginOrNull(Auth)?.importAuthToken(access, refresh)
+                } catch (_: Exception) {}
+            }
+        }
+    }
 }

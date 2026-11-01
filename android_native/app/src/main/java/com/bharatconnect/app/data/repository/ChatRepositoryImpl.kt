@@ -616,6 +616,7 @@ class ChatRepositoryImpl : ChatRepository {
     }
 
     override suspend fun retryPendingMessages(): Result<Int> = withContext(Dispatchers.IO) {
+        ensureAuthSession()
         val pending = messageDao.getPendingSyncMessages()
         var successCount = 0
 

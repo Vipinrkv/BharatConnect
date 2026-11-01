@@ -27,12 +27,28 @@ class BharatConnectApp : Application() {
         SupabaseClient.init(this)
         // Initialize Local Room Database
         DatabaseProvider.init(this)
-        // Asynchronously warm up Supabase auth session if cached tokens exist
+        // Asynchronously warm up Supabase auth session if cached tokens exist and observe session rotation
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val (access, refresh) = SessionManager.getAuthTokens()
                 if (!access.isNullOrBlank() && !refresh.isNullOrBlank()) {
                     SupabaseClient.client.auth.importAuthToken(access, refresh)
+                }
+            } catch (_: Exception) {}
+
+            try {
+                SupabaseClient.client.auth.sessionStatus.collect { status ->
+                    if (status is io.github.jan.supabase.gotrue.SessionStatus.Authenticated) {
+                        val session = status.session
+                        val cachedUser = SessionManager.getCachedUserProfile()
+                        if (cachedUser != null) {
+                            SessionManager.saveSession(
+                                user = cachedUser,
+                                accessToken = session.accessToken,
+                                refreshToken = session.refreshToken
+                            )
+                        }
+                    }
                 }
             } catch (_: Exception) {}
         }
