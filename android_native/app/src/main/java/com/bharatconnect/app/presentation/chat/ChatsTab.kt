@@ -212,6 +212,7 @@ fun ChatsTab(
                             text = { Text("Mark all read", color = Color.White, fontSize = 13.sp) },
                             onClick = {
                                 showThreeDotMenu = false
+                                chatViewModel.markAllConversationsRead()
                                 headerNoticeMessage = "All chats marked as read"
                             }
                         )
@@ -241,7 +242,9 @@ fun ChatsTab(
                             text = { Text("Clear all chats", color = Color(0xFFFF6B6B), fontSize = 13.sp) },
                             onClick = {
                                 showThreeDotMenu = false
-                                headerNoticeMessage = "Chats cleared"
+                                chatViewModel.clearAllConversations {
+                                    headerNoticeMessage = "All chats cleared"
+                                }
                             }
                         )
                     }

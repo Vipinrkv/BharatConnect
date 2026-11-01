@@ -31,7 +31,7 @@ The script will compile the app via Gradle and output the final binary to:
 - **`BharatConnect-Native.apk`** (in project root, ~26.2 MB)
 - **`web/BharatConnect-Native.apk`** (web portal download distribution)
 
-**SHA-256 Checksum**: `4a62dbafbd937c776214973a9d34d038923faf9a0088b704ea70c5d54ea19c08`
+**SHA-256 Checksum**: `e4f1d8c2c7937bcdc856bc5ea6df8adf6bf21eeed655d9763cd6e7fba1377186`
 
 ---
 

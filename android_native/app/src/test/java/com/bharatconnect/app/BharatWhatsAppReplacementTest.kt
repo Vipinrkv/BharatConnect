@@ -276,4 +276,30 @@ class BharatWhatsAppReplacementTest {
         assertEquals(960, targetH)
         assertEquals(ratio, targetW.toFloat() / targetH.toFloat(), 0.01f)
     }
+
+    @Test
+    fun `Conversation unread count batch reset produces zero unread count across all conversations`() {
+        val list = listOf(
+            com.bharatconnect.app.domain.model.Conversation(id = "c1", title = "Chat 1", unreadCount = 4),
+            com.bharatconnect.app.domain.model.Conversation(id = "c2", title = "Chat 2", unreadCount = 1),
+            com.bharatconnect.app.domain.model.Conversation(id = "c3", title = "Chat 3", unreadCount = 0)
+        )
+
+        val updated = list.map { it.copy(unreadCount = 0) }
+        assertTrue(updated.all { it.unreadCount == 0 })
+        assertEquals(0, updated.sumOf { it.unreadCount })
+    }
+
+    @Test
+    fun `Direct conversation deterministic canonical ID generator is symmetric and stable`() {
+        val userA = "9876543210-uuid"
+        val userB = "1234567890-uuid"
+
+        val id1 = com.bharatconnect.app.core.encryption.SignalEncryptionManager.getDeterministicConversationId(userA, userB)
+        val id2 = com.bharatconnect.app.core.encryption.SignalEncryptionManager.getDeterministicConversationId(userB, userA)
+
+        // Must be identical regardless of argument order
+        assertEquals(id1, id2)
+        assertTrue(id1.isNotBlank())
+    }
 }

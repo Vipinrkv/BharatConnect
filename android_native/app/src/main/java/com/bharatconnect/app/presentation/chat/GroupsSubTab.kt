@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -72,7 +72,7 @@ fun GroupsSubTab(
                             Text(conv.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Text(conv.lastMessage ?: "Active group chat", color = Color.LightGray, fontSize = 12.sp, maxLines = 1)
                         }
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Open group", tint = Color.Gray, modifier = Modifier.size(16.dp))
                     }
                 }
             }

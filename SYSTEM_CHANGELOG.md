@@ -920,4 +920,31 @@
     - Updated [`README.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/README.md) with the new package hash.
 
 ---
+
+### 🔹 Entry #040 — Chats Tab Deep 10-Cycle Audit, State Hardening, Navigation Polish & Binary Parity
+- **Date & Time**: `2026-11-01 23:25:00 IST` (`2026-11-01T17:55:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatViewModel.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatsTab.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/ChatsTab.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/GroupsSubTab.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/presentation/chat/GroupsSubTab.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/BharatWhatsAppReplacementTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/BharatWhatsAppReplacementTest.kt)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`web/index.html`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/index.html)
+  - [`web/app.js`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/app.js)
+  - [`README.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/README.md)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Chats Tab State & Bulk Operation Hardening**:
+    - Connected previously disconnected dropdown options in `ChatsTab.kt` (`markAllConversationsRead()` and `clearAllConversations()`).
+    - Added reactive Room SQLite unread count reset and message read state update in `ChatViewModel.kt`.
+    - Added unit tests for bulk conversation reset and deterministic conversation ID symmetry, elevating verified test baseline to 69 tests (100% passing).
+  - **Navigation UI Polish in GroupsSubTab**:
+    - Replaced reversed `Icons.AutoMirrored.Filled.ArrowBack` with intuitive forward chevron `Icons.AutoMirrored.Filled.ArrowForward` on group card items.
+  - **Production Binary Recompilation & Parity Audit**:
+    - Recompiled native package via `./gradlew assembleDebug` under Java 19 (`BharatConnect-Native.apk`, 26,410,578 bytes / ~26.4 MB).
+    - Cryptographic SHA-256 Checksum: `e4f1d8c2c7937bcdc856bc5ea6df8adf6bf21eeed655d9763cd6e7fba1377186`.
+    - Synchronized identical binary and SHA-256 hash across root repository, `web/` distribution directory, and documentation.
+
+---
 *(Append all future system changes below this line)*

@@ -476,4 +476,34 @@ class ChatViewModel(
             }
         }
     }
+
+    /**
+     * Marks all conversations as read both in local Room DB and in-memory StateFlow.
+     */
+    fun markAllConversationsRead() {
+        viewModelScope.launch {
+            val db = com.bharatconnect.app.core.database.DatabaseProvider.getDatabase()
+            val currentList = _conversations.value
+            currentList.forEach { conv ->
+                if (conv.unreadCount > 0) {
+                    db.conversationDao().resetUnreadCount(conv.id)
+                    chatRepo.markMessagesAsRead(conv.id)
+                }
+            }
+            _conversations.value = currentList.map { it.copy(unreadCount = 0) }
+        }
+    }
+
+    /**
+     * Clears all local conversation entries from Room DB and resets in-memory state.
+     */
+    fun clearAllConversations(onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            closeChat()
+            val db = com.bharatconnect.app.core.database.DatabaseProvider.getDatabase()
+            db.conversationDao().clearAll()
+            _conversations.value = emptyList()
+            onComplete()
+        }
+    }
 }
