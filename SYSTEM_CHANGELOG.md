@@ -947,4 +947,40 @@
     - Synchronized identical binary and SHA-256 hash across root repository, `web/` distribution directory, and documentation.
 
 ---
+
+### 🔹 Entry #041 — Cycle 2 Deep Architecture, Chat State Machine & Connectivity Contract Formalization
+- **Date & Time**: `2026-11-01 23:42:00 IST` (`2026-11-01T18:12:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/model/state/MessageStatus.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/model/state/MessageStatus.kt) (NEW)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/connectivity/ChatConnectivity.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/connectivity/ChatConnectivity.kt) (NEW)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/BharatWhatsAppReplacementTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/BharatWhatsAppReplacementTest.kt)
+  - [`docs/audit/cycle-02.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/audit/cycle-02.md) (NEW)
+  - [`docs/audit/chat-state-machine.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/audit/chat-state-machine.md) (NEW)
+  - [`docs/audit/chat-dependency-map.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/audit/chat-dependency-map.md) (NEW)
+  - [`docs/audit/connectivity-map.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/audit/connectivity-map.md)
+  - [`docs/audit/issue-register.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/audit/issue-register.md)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`web/index.html`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/index.html)
+  - [`web/app.js`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/app.js)
+  - [`README.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/README.md)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **Message Status State Machine (`MessageStatus.kt`)**:
+    - Modeled 8 strongly typed lifecycle states: `Draft` (0), `Pending` (1), `Sending` (2), `Sent` (3), `Delivered` (4), `Read` (5), `Failed` (-1), `Retrying` (2).
+    - Enforced `canTransition()` logic with strict downgrade prevention (terminal `Read` cannot be overwritten by delayed network delivery ACKs).
+  - **Domain Connectivity Contract (`ChatConnectivity.kt`)**:
+    - Decoupled UI and background sync from concrete Supabase/Room implementations, providing observable connection streams, delivery/read ACKs, Realtime lifecycle hooks, and canonical conversation ID resolution.
+  - **Cryptographic Model Audit (`SignalEncryptionManager.kt`)**:
+    - Formally audited AES-GCM-256 payload encryption, 12-byte random IV generation, and HMAC-SHA256 anti-tamper signing. Documented deterministic session key derivation in issue register (ISS-005).
+  - **Automated Test Suite Expansion**:
+    - Added comprehensive state machine transition and fallback parsing tests in `BharatWhatsAppReplacementTest.kt`.
+    - Executed `./gradlew testDebugUnitTest` under Java 19; 100% passed (71 of 71 tests passing across 8 suites, 0 failures, 0 skipped).
+  - **Native Compilation & Production Distribution**:
+    - Recompiled native package via `./gradlew assembleDebug` (`BharatConnect-Native.apk`, 26,410,578 bytes / ~26.4 MB).
+    - Cryptographic SHA-256 Checksum: `e11b2f886935272271a75e9086011d2f2e5c9c17eebcf67b5396fbcbef6be860`.
+    - Synchronized identical binary, checksum, and size across root, web portal, and documentation.
+
+---
 *(Append all future system changes below this line)*
+

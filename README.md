@@ -71,7 +71,7 @@ BharatConnect/
 │   ├── app.js                # Interactive radar, chat & marketplace simulator
 │   ├── BharatConnect-Native.apk # Distribution APK
 │   └── vercel.json           # Vercel deployment & MIME type configuration
-├── BharatConnect-Native.apk  # Standalone Compiled Native Android APK (~26.2 MB)
+├── BharatConnect-Native.apk  # Standalone Compiled Native Android APK (~26.4 MB)
 ├── build_native_apk.bat      # 1-Click build launcher
 └── README.md                 # Project documentation
 ```

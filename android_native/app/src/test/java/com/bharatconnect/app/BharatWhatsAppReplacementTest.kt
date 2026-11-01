@@ -302,4 +302,54 @@ class BharatWhatsAppReplacementTest {
         assertEquals(id1, id2)
         assertTrue(id1.isNotBlank())
     }
+
+    @Test
+    fun `MessageStatus state machine enforces forward progression and prevents invalid downgrades`() {
+        val draft = com.bharatconnect.app.domain.model.state.MessageStatus.Draft
+        val pending = com.bharatconnect.app.domain.model.state.MessageStatus.Pending
+        val sending = com.bharatconnect.app.domain.model.state.MessageStatus.Sending
+        val sent = com.bharatconnect.app.domain.model.state.MessageStatus.Sent
+        val delivered = com.bharatconnect.app.domain.model.state.MessageStatus.Delivered
+        val read = com.bharatconnect.app.domain.model.state.MessageStatus.Read
+        val failed = com.bharatconnect.app.domain.model.state.MessageStatus.Failed
+        val retrying = com.bharatconnect.app.domain.model.state.MessageStatus.Retrying
+
+        // Valid forward transitions
+        assertTrue(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(draft, pending))
+        assertTrue(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(pending, sending))
+        assertTrue(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(sending, sent))
+        assertTrue(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(sent, delivered))
+        assertTrue(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(delivered, read))
+
+        // Idempotent transitions
+        assertTrue(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(read, read))
+        assertTrue(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(delivered, delivered))
+
+        // Strict downgrade prevention: Late ACK cannot downgrade Read back to Sent or Delivered
+        assertFalse(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(read, delivered))
+        assertFalse(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(read, sent))
+        assertFalse(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(delivered, sent))
+        assertFalse(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(sent, pending))
+
+        // Failure and retry transitions
+        assertTrue(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(sending, failed))
+        assertTrue(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(failed, retrying))
+        assertTrue(com.bharatconnect.app.domain.model.state.MessageStatus.canTransition(failed, pending))
+    }
+
+    @Test
+    fun `MessageStatus string mapping correctly parses valid and fallback values`() {
+        assertEquals(com.bharatconnect.app.domain.model.state.MessageStatus.Draft, com.bharatconnect.app.domain.model.state.MessageStatus.fromString("draft"))
+        assertEquals(com.bharatconnect.app.domain.model.state.MessageStatus.Pending, com.bharatconnect.app.domain.model.state.MessageStatus.fromString("pending"))
+        assertEquals(com.bharatconnect.app.domain.model.state.MessageStatus.Sending, com.bharatconnect.app.domain.model.state.MessageStatus.fromString("sending"))
+        assertEquals(com.bharatconnect.app.domain.model.state.MessageStatus.Sent, com.bharatconnect.app.domain.model.state.MessageStatus.fromString("sent"))
+        assertEquals(com.bharatconnect.app.domain.model.state.MessageStatus.Delivered, com.bharatconnect.app.domain.model.state.MessageStatus.fromString("delivered"))
+        assertEquals(com.bharatconnect.app.domain.model.state.MessageStatus.Read, com.bharatconnect.app.domain.model.state.MessageStatus.fromString("read"))
+        assertEquals(com.bharatconnect.app.domain.model.state.MessageStatus.Failed, com.bharatconnect.app.domain.model.state.MessageStatus.fromString("failed"))
+        assertEquals(com.bharatconnect.app.domain.model.state.MessageStatus.Retrying, com.bharatconnect.app.domain.model.state.MessageStatus.fromString("retrying"))
+
+        // Safe fallback for null/unknown
+        assertEquals(com.bharatconnect.app.domain.model.state.MessageStatus.Sent, com.bharatconnect.app.domain.model.state.MessageStatus.fromString(null))
+        assertEquals(com.bharatconnect.app.domain.model.state.MessageStatus.Sent, com.bharatconnect.app.domain.model.state.MessageStatus.fromString("unknown_status"))
+    }
 }
