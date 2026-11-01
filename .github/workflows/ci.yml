@@ -1,0 +1,71 @@
+﻿name: BharatConnect CI - Quality & Binary Integrity
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-verify:
+    name: Unit Tests & Checksum Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant Execute Permission to Gradlew
+        run: chmod +x android_native/gradlew
+
+      - name: Run Clean Unit & Integration Tests (66 Tests)
+        run: |
+          cd android_native
+          ./gradlew testDebugUnitTest --rerun-tasks --no-daemon
+
+      - name: Build Native Android APK
+        run: |
+          cd android_native
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Verify APK Binary Existence and Integrity
+        run: |
+          ROOT_APK="BharatConnect-Native.apk"
+          WEB_APK="web/BharatConnect-Native.apk"
+
+          if [ ! -f "$ROOT_APK" ]; then
+            echo "❌ Error: Root $ROOT_APK missing!"
+            exit 1
+          fi
+
+          if [ ! -f "$WEB_APK" ]; then
+            echo "❌ Error: Web $WEB_APK missing!"
+            exit 1
+          fi
+
+          ROOT_HASH=$(sha256sum "$ROOT_APK" | awk '{print $1}')
+          WEB_HASH=$(sha256sum "$WEB_APK" | awk '{print $1}')
+
+          echo "Root APK SHA-256: $ROOT_HASH"
+          echo "Web APK  SHA-256: $WEB_HASH"
+
+          if [ "$ROOT_HASH" != "$WEB_HASH" ]; then
+            echo "❌ Error: Root APK and Web APK checksums do not match!"
+            exit 1
+          fi
+
+          echo "✅ Integrity verified: Root and Web distribution APKs match perfectly."

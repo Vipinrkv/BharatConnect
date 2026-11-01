@@ -469,4 +469,33 @@ class SocialAndSecurityVerificationTest {
         assertNotEquals("Decrypted message must not match original when tampered", original, decrypted)
         assertEquals(tamperedEncrypted, decrypted)
     }
+
+    @Test
+    fun `Biometric hardware compatibility helper properly categorizes legacy API 26-28 and modern platforms`() {
+        val sm = com.bharatconnect.app.core.security.SecurityManager
+
+        // API 21 (Lollipop) -> Unsupported
+        assertEquals(
+            com.bharatconnect.app.core.security.SecurityManager.BiometricCompatibilityStatus.UNSUPPORTED_LEGACY_OS,
+            sm.evaluateBiometricHardwareCompatibility(apiLevel = 21)
+        )
+
+        // API 26 (Oreo) -> Supported with fallback
+        assertEquals(
+            com.bharatconnect.app.core.security.SecurityManager.BiometricCompatibilityStatus.SUPPORTED_WITH_FALLBACK,
+            sm.evaluateBiometricHardwareCompatibility(apiLevel = 26)
+        )
+
+        // API 28 (Pie) -> Supported with fallback
+        assertEquals(
+            com.bharatconnect.app.core.security.SecurityManager.BiometricCompatibilityStatus.SUPPORTED_WITH_FALLBACK,
+            sm.evaluateBiometricHardwareCompatibility(apiLevel = 28)
+        )
+
+        // API 34 (UpsideDownCake) -> Fully supported BiometricPrompt
+        assertEquals(
+            com.bharatconnect.app.core.security.SecurityManager.BiometricCompatibilityStatus.FULLY_SUPPORTED_BIOMETRIC_PROMPT,
+            sm.evaluateBiometricHardwareCompatibility(apiLevel = 34)
+        )
+    }
 }

@@ -1,0 +1,31 @@
+﻿appId: com.bharatconnect.app
+---
+# BharatConnect End-to-End Chat & UPI Settlement Flow
+- launchApp
+- assertVisible: "BharatConnect"
+
+# 1. Verification of Chat Navigation
+- tapOn: "Chats"
+- tapOn: "Select Contact"
+- tapOn:
+    id: "contact_item_0"
+
+# 2. Desi Quick Reply Dispatch
+- assertVisible: "Haanji"
+- tapOn: "Haanji"
+
+# 3. Message Bubble & Tick State Verification
+- assertVisible: "Haanji"
+
+# 4. In-Chat UPI Payment Flow Initiation
+- tapOn:
+    id: "chat_attachment_button"
+- assertVisible: "Send ₹ UPI"
+- tapOn: "Send ₹ UPI"
+
+# 5. Citizen Services Portal (Bharat Seva)
+- tapOn:
+    id: "bharat_seva_utilities_button"
+- assertVisible: "Bharat Seva Portal"
+- assertVisible: "DigiLocker"
+- assertVisible: "Aadhaar Services"

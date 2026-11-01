@@ -128,6 +128,23 @@ object SecurityManager {
         array.fill('0')
     }
 
+    /**
+     * Inspects device biometric hardware capability gracefully, mitigating known API 26-28 edge-case crashes.
+     */
+    fun evaluateBiometricHardwareCompatibility(apiLevel: Int = android.os.Build.VERSION.SDK_INT): BiometricCompatibilityStatus {
+        return when {
+            apiLevel < android.os.Build.VERSION_CODES.M -> BiometricCompatibilityStatus.UNSUPPORTED_LEGACY_OS
+            apiLevel in 26..28 -> BiometricCompatibilityStatus.SUPPORTED_WITH_FALLBACK // Known fingerprint manager deprecation & hardware sensor quirks
+            else -> BiometricCompatibilityStatus.FULLY_SUPPORTED_BIOMETRIC_PROMPT
+        }
+    }
+
+    enum class BiometricCompatibilityStatus {
+        FULLY_SUPPORTED_BIOMETRIC_PROMPT,
+        SUPPORTED_WITH_FALLBACK,
+        UNSUPPORTED_LEGACY_OS
+    }
+
     private fun hashPin(pin: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest("BHARAT_PIN_SALT:$pin".toByteArray(Charsets.UTF_8))
