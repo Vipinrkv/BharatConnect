@@ -982,5 +982,43 @@
     - Synchronized identical binary, checksum, and size across root, web portal, and documentation.
 
 ---
+
+### 🔹 Entry #042 — Cycle 3 Chat State Machine Integration, Real-Time Messaging & Concurrency Stress Testing
+- **Date & Time**: `2026-11-02 00:10:00 IST` (`2026-11-01T18:40:00Z`)
+- **Files Modified / Created**:
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/model/state/MessageStatus.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/model/state/MessageStatus.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/MessageDao.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/local/room/dao/MessageDao.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/data/repository/ChatRepositoryImpl.kt)
+  - [`android_native/app/src/main/java/com/bharatconnect/app/domain/connectivity/ChatConnectivity.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/main/java/com/bharatconnect/app/domain/connectivity/ChatConnectivity.kt)
+  - [`android_native/app/src/test/java/com/bharatconnect/app/ChatConcurrencyAndRealtimeStressTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/ChatConcurrencyAndRealtimeStressTest.kt) (NEW)
+  - [`docs/audit/cycle-03.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/audit/cycle-03.md) (NEW)
+  - [`docs/audit/chat-state-machine.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/audit/chat-state-machine.md)
+  - [`docs/audit/connectivity-map.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/audit/connectivity-map.md)
+  - [`docs/audit/issue-register.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/docs/audit/issue-register.md)
+  - [`BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/BharatConnect-Native.apk)
+  - [`web/BharatConnect-Native.apk`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/BharatConnect-Native.apk)
+  - [`web/index.html`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/index.html)
+  - [`web/app.js`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/web/app.js)
+  - [`SYSTEM_CHANGELOG.md`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/SYSTEM_CHANGELOG.md)
+- **Summary of Changes**:
+  - **State Machine Integration into Persistence & Network Execution Paths**:
+    - Integrated `MessageDao.updateMessageStatusValidated()` to validate every status change against `MessageStatus.canTransition()`.
+    - Integrated `MessageDao.upsertMessageSafely()` to protect higher local states (`Read`, `Delivered`) from being overwritten by duplicate or out-of-order remote Supabase/Realtime packets (`Sent`).
+    - Implemented `ChatConnectivity` contract on `ChatRepositoryImpl`.
+  - **Hardened State Machine Transition Rules (`MessageStatus.kt`)**:
+    - Guarded `Read` as an immutable terminal state against network delivery regression.
+    - Protected `Delivered` and `Sent` states from erroneous failure transitions upon late socket drops.
+    - Permitted `Pending -> Retrying` transitions for WorkManager queue flushes.
+  - **Comprehensive Concurrency & Real-Time Stress Test Suite**:
+    - Created [`ChatConcurrencyAndRealtimeStressTest.kt`](file:///c:/Users/Vipin/OneDrive/Desktop/WebAplications/BharatConnect/android_native/app/src/test/java/com/bharatconnect/app/ChatConcurrencyAndRealtimeStressTest.kt) with 10 deterministic coroutine stress tests.
+    - Verified simultaneous 100-message streams, duplicate incoming WebSocket deduplication, out-of-order ACK protection, offline batch queues (10, 50, 100 messages), timeout retry recovery, and multithreaded atomic updates.
+    - Executed `./gradlew testDebugUnitTest` under Java 19; 100% passed (81 of 81 tests passing across 9 suites, 0 failures, 0 skipped).
+  - **Native Android APK Recompilation & Parity Audit**:
+    - Recompiled native package via `./gradlew assembleDebug` (`BharatConnect-Native.apk`, 26,410,578 bytes / ~26.4 MB).
+    - Cryptographic SHA-256 Checksum: `3e9076eef2d8c70fd995cab798a2afa1c777274ba8a22d7955b2488f2cfd8e15`.
+    - Synchronized identical binary, checksum, and size across root repository, web distribution portal, and documentation.
+
+---
 *(Append all future system changes below this line)*
+
 

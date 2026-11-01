@@ -553,11 +553,11 @@ function initApkDownload() {
   if (copyHashBtn) {
     copyHashBtn.addEventListener('click', () => {
       playHapticSound('pop');
-      const hash = "e11b2f886935272271a75e9086011d2f2e5c9c17eebcf67b5396fbcbef6be860";
+      const hash = "3e9076eef2d8c70fd995cab798a2afa1c777274ba8a22d7955b2488f2cfd8e15";
       navigator.clipboard.writeText(hash).then(() => {
         showToast('✅ SHA-256 Checksum copied to clipboard!');
       }).catch(() => {
-        showToast('SHA-256: e11b2f88...e860');
+        showToast('SHA-256: 3e9076ee...8e15');
       });
     });
   }

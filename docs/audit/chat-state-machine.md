@@ -1,12 +1,15 @@
 ﻿# BharatConnect Message Status State Machine Specification
-Document Version: 1.0.0
-Cycle: Cycle 2 Audit
-Status: Formally Defined & Unit Tested
+Document Version: 1.2.0
+Cycle: Cycle 3 Integration & Stress Testing
+Status: Fully Integrated into Room SQLite & Supabase Sync Pipeline
 
 ## 1. Executive Summary
-Message delivery integrity in a high-concurrency, offline-capable messaging application requires a formal, monotonic state machine. Without strict transition enforcement, late out-of-order WebSocket broadcast events or duplicated network ACKs can overwrite terminal states (e.g., reverting a `read` status back to `delivered` or `sent`).
+In Cycle 3, the `MessageStatus` state machine transitioned from a domain abstraction into the authoritative, enforced execution path governing all local SQLite persistence, background sync retries, and incoming Realtime WebSocket broadcasts.
 
-In Cycle 2, BharatConnect formalizes `com.bharatconnect.app.domain.model.state.MessageStatus` with an explicit hierarchy, strict forward progression, and downgrade prevention.
+Every message status modification in BharatConnect now passes through transactional validation guards:
+1. Direct uncontrolled SQL string updates are eliminated.
+2. Room DAO level transactional guards (`updateMessageStatusValidated` and `upsertMessageSafely`) prevent race conditions and regressions.
+3. Out-of-order delivery receipts and duplicate server ACKs cannot downgrade higher-order states (`Read` and `Delivered`).
 
 ---
 
@@ -26,60 +29,92 @@ Every status is modeled as a strongly typed Kotlin sealed class with an assigned
 
 ---
 
-## 3. Transition Matrix
+## 3. Hardened Transition Matrix
 
 | Current State | Target State | Permitted? | Condition / Trigger |
 |---|---|---|---|
 | `Draft` | `Pending` | YES | User taps Send button while offline. |
 | `Draft` | `Sending` | YES | User taps Send button while network is active. |
 | `Pending` | `Sending` | YES | Network monitor detects connectivity; sync dispatcher awakens. |
+| `Pending` | `Retrying` | YES | WorkManager offline retry sweeps pending queue. |
+| `Pending` | `Failed` | YES | Immediate socket failure or offline storage limit reached. |
 | `Sending` | `Sent` | YES | Supabase PostgREST returns 201 Created HTTP confirmation. |
 | `Sending` | `Failed` | YES | Network connection drops, timeout (>15s), or server 5xx error. |
+| `Sending` | `Delivered` | YES | Immediate delivery ACK bundled with server response. |
+| `Sending` | `Read` | YES | Immediate read ACK (e.g. active bot or live counterpart). |
 | `Sent` | `Delivered` | YES | Supabase Realtime broadcast receipt received from recipient client. |
 | `Sent` | `Read` | YES | Direct jump if recipient reads immediately without intermediate ACK. |
 | `Delivered` | `Read` | YES | Supabase Realtime broadcast receipt received indicating user viewed message. |
 | `Failed` | `Retrying` | YES | WorkManager auto-retry or user taps retry button. |
+| `Failed` | `Sending` | YES | User manually forces immediate re-dispatch. |
 | `Retrying` | `Sending` | YES | Retry worker starts active HTTP dispatch. |
+| `Retrying` | `Sent` | YES | Retry HTTP request succeeds. |
 | `Retrying` | `Failed` | YES | Retry exhausted or network immediately unavailable. |
 | `Read` | `Delivered` | **NO (BLOCKED)** | Out-of-order delayed delivery receipt arrives after read receipt. |
 | `Read` | `Sent` | **NO (BLOCKED)** | Delayed server broadcast arrives after recipient has already read. |
 | `Delivered` | `Sent` | **NO (BLOCKED)** | Duplicate initial server ACK received after recipient delivery ACK. |
-| `Read` | `Failed` | **NO (BLOCKED)** | Network error on a message already confirmed as read. |
+| `Delivered` | `Failed` | **NO (BLOCKED)** | Late network error on a message already confirmed as delivered. |
+| `Read` | `Failed` | **NO (BLOCKED)** | Late network error on a message already confirmed as read. |
+| `Sent` | `Failed` | **NO (BLOCKED)** | Network transport timeout cannot fail an already-sent message. |
 
 ---
 
-## 4. Downgrade Prevention Logic
-The core enforcement logic is implemented in `MessageStatus.canTransition(current, next)`:
+## 4. Database-Level Enforcement Architecture
 
+### A. Atomic Status Validation (`MessageDao.kt`)
 ```kotlin
-fun canTransition(current: MessageStatus, next: MessageStatus): Boolean {
-    // 1. Terminal Read state is immutable against network regressions
-    if (current is Read) return false
-
-    // 2. Failed state allows retry paths
-    if (current is Failed) {
-        return next is Retrying || next is Pending || next is Sending
+@Transaction
+suspend fun updateMessageStatusValidated(
+    messageId: String,
+    targetStatus: MessageStatus,
+    isPendingSync: Boolean
+): Boolean {
+    val existing = getMessageById(messageId) ?: return false
+    val currentStatus = MessageStatus.fromString(existing.status)
+    return if (MessageStatus.canTransition(currentStatus, targetStatus)) {
+        updateMessageStatus(messageId, targetStatus.rawValue, isPendingSync)
+        true
+    } else {
+        false
     }
+}
+```
 
-    // 3. Retrying state can transition to Sending or back to Failed
-    if (current is Retrying) {
-        return next is Sending || next is Failed || next is Sent
+### B. Downgrade-Protected Remote Upsert (`MessageDao.kt`)
+```kotlin
+@Transaction
+suspend fun upsertMessageSafely(message: MessageEntity) {
+    val existing = getMessageById(message.id)
+    if (existing == null) {
+        insertOrUpdateMessage(message)
+    } else {
+        val currentStatus = MessageStatus.fromString(existing.status)
+        val incomingStatus = MessageStatus.fromString(message.status)
+        val resolvedStatus = if (MessageStatus.canTransition(currentStatus, incomingStatus)) {
+            incomingStatus.rawValue
+        } else {
+            existing.status // Preserves existing higher status!
+        }
+        val resolvedPendingSync = if (resolvedStatus == "sent" || resolvedStatus == "delivered" || resolvedStatus == "read") {
+            false
+        } else {
+            message.isPendingSync
+        }
+        insertOrUpdateMessage(message.copy(status = resolvedStatus, isPendingSync = resolvedPendingSync))
     }
-
-    // 4. Strictly enforce non-decreasing monotonic progression
-    return next.level >= current.level
 }
 ```
 
 ---
 
-## 5. Storage & Serialization Mapping
-- In Room SQLite (`MessageEntity`), status is persisted as an indexed lowercase string: `"draft"`, `"pending"`, `"sending"`, `"sent"`, `"delivered"`, `"read"`, `"failed"`, `"retrying"`.
-- `MessageStatus.fromString(value)` parses strings safely, with unrecognized strings falling back to `Pending` to prevent application crashes or data corruption.
-
----
-
-## 6. Test Suite Verification
-Verified by automated JUnit test suite `com.bharatconnect.app.BharatWhatsAppReplacementTest`:
-- `MessageStatus state machine enforces forward progression and prevents invalid downgrades`: **PASSED**
-- `MessageStatus string mapping correctly parses valid and fallback values`: **PASSED**
+## 5. Automated Test Suite Verification
+Verified across both unit test suites (`BharatWhatsAppReplacementTest` & `ChatConcurrencyAndRealtimeStressTest`):
+- `Simultaneous incoming and outgoing message streams resolve with monotonic timestamps and valid statuses`: **PASSED**
+- `Duplicate incoming WebSocket broadcast events are safely deduplicated without state regression`: **PASSED**
+- `Out-of-order event sequence delivered followed by delayed sent ACK preserves Delivered state`: **PASSED**
+- `Out-of-order event sequence read followed by delayed delivered ACK preserves Read state`: **PASSED**
+- `Late network transport error after message delivered or read cannot downgrade status to Failed`: **PASSED**
+- `Offline batch queue scalability test processes batches of 10, 50, and 100 messages`: **PASSED**
+- `Simulated network timeout triggers Retry transition and subsequent successful dispatch`: **PASSED**
+- `Concurrent multi-worker status updates on identical message resolve to highest monotonic status without race conditions`: **PASSED**
+- `Process restart simulation restores un-synced messages in Pending state for WorkManager flush`: **PASSED**

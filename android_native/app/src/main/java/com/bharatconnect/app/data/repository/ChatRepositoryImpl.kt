@@ -13,8 +13,10 @@ import com.bharatconnect.app.data.remote.dto.ConversationMemberDto
 import com.bharatconnect.app.data.remote.dto.MessageDto
 import com.bharatconnect.app.data.remote.dto.NotificationDto
 import com.bharatconnect.app.data.remote.dto.ProfileDto
+import com.bharatconnect.app.domain.connectivity.ChatConnectivity
 import com.bharatconnect.app.domain.model.Conversation
 import com.bharatconnect.app.domain.model.Message
+import com.bharatconnect.app.domain.model.state.MessageStatus
 import com.bharatconnect.app.domain.repository.ChatRepository
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
@@ -36,7 +38,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
-class ChatRepositoryImpl : ChatRepository {
+class ChatRepositoryImpl : ChatRepository, ChatConnectivity {
 
     private val db = DatabaseProvider.getDatabase()
     private val conversationDao = db.conversationDao()
@@ -417,7 +419,7 @@ class ChatRepositoryImpl : ChatRepository {
                 }
                 list
             }
-            messageDao.insertMessages(entities)
+            messageDao.insertMessagesSafely(entities)
 
             val local = messageDao.getMessagesByConversation(conversationId).map { it.toDomain() }
             val effectiveLocal = if (local.isEmpty() && fallbackId != null && fallbackId != conversationId) {
@@ -475,7 +477,7 @@ class ChatRepositoryImpl : ChatRepository {
         )
 
         // 1. Instantly save to Room local DB for 0ms UI latency (Message bubble displays with '⏱')
-        messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(localMessage))
+        messageDao.upsertMessageSafely(MessageEntity.fromDomain(localMessage))
         conversationDao.updateLastMessage(conversationId, content, "You", timestamp)
 
         // 2. Dispatch encrypted payload to Supabase
@@ -533,8 +535,8 @@ class ChatRepositoryImpl : ChatRepository {
             supabase.postgrest["messages"].upsert(messageDto)
 
             val finalMessage = localMessage.copy(status = "sent", isPendingSync = false)
-            // 3. Mark synced in Room DB
-            messageDao.updateMessageStatus(messageId, "sent", false)
+            // 3. Mark synced in Room DB via state machine validation
+            messageDao.updateMessageStatusValidated(messageId, MessageStatus.Sent, isPendingSync = false)
 
             // 4. Ensure both members are registered in conversation_members
             if (recipientId != null && recipientId != currentUserId) {
@@ -610,7 +612,7 @@ class ChatRepositoryImpl : ChatRepository {
                 }
             }
             // Keep in Room DB with failed/pending_sync status for WorkManager offline retry
-            messageDao.updateMessageStatus(messageId, "failed", true)
+            messageDao.updateMessageStatusValidated(messageId, MessageStatus.Failed, isPendingSync = true)
             Result.success(localMessage.copy(status = "failed"))
         }
     }
@@ -622,6 +624,7 @@ class ChatRepositoryImpl : ChatRepository {
 
         for (msg in pending) {
             try {
+                messageDao.updateMessageStatusValidated(msg.id, MessageStatus.Retrying, isPendingSync = true)
                 val encryptedContent = if (SignalEncryptionManager.isEncryptedPayload(msg.content)) {
                     msg.content
                 } else {
@@ -640,9 +643,11 @@ class ChatRepositoryImpl : ChatRepository {
                     ephemeralDurationSec = msg.ephemeralDurationSec
                 )
                 supabase.postgrest["messages"].upsert(messageDto)
-                messageDao.updateMessageStatus(msg.id, "sent", false)
+                messageDao.updateMessageStatusValidated(msg.id, MessageStatus.Sent, isPendingSync = false)
                 successCount++
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                messageDao.updateMessageStatusValidated(msg.id, MessageStatus.Failed, isPendingSync = true)
+            }
         }
         Result.success(successCount)
     }
@@ -799,7 +804,7 @@ class ChatRepositoryImpl : ChatRepository {
                                 val currentUserId = resolveCurrentUserId()
                                 val decrypted = SignalEncryptionManager.decrypt(record.conversationId, record.content)
                                 val domainMsg = record.toDomain().copy(content = decrypted)
-                                messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(domainMsg))
+                                messageDao.upsertMessageSafely(MessageEntity.fromDomain(domainMsg))
 
                                 val senderDisplayName = record.senderName ?: "User"
                                 conversationDao.updateLastMessage(
@@ -825,7 +830,7 @@ class ChatRepositoryImpl : ChatRepository {
                             if (record.conversationId == conversationId) {
                                 val decrypted = SignalEncryptionManager.decrypt(record.conversationId, record.content)
                                 val domainMsg = record.toDomain().copy(content = decrypted)
-                                messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(domainMsg))
+                                messageDao.upsertMessageSafely(MessageEntity.fromDomain(domainMsg))
                             }
                         } catch (_: Exception) {}
                     }
@@ -897,7 +902,7 @@ class ChatRepositoryImpl : ChatRepository {
                                 if (isMyConv) {
                                     val decrypted = SignalEncryptionManager.decrypt(record.conversationId, record.content)
                                     val domainMsg = record.toDomain().copy(content = decrypted)
-                                    messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(domainMsg))
+                                    messageDao.upsertMessageSafely(MessageEntity.fromDomain(domainMsg))
 
                                     // Acknowledge delivery to sender so sender gets double ticks!
                                     if (record.status == "sent") {
@@ -959,7 +964,7 @@ class ChatRepositoryImpl : ChatRepository {
                         try {
                             val record = action.decodeRecord<MessageDto>()
                             val decrypted = SignalEncryptionManager.decrypt(record.conversationId, record.content)
-                            messageDao.insertOrUpdateMessage(MessageEntity.fromDomain(record.toDomain().copy(content = decrypted)))
+                            messageDao.upsertMessageSafely(MessageEntity.fromDomain(record.toDomain().copy(content = decrypted)))
                         } catch (_: Exception) {}
                     }
                     else -> {}
@@ -1064,6 +1069,7 @@ class ChatRepositoryImpl : ChatRepository {
 
     override suspend fun acknowledgeMessageDelivered(messageId: String, conversationId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            messageDao.updateMessageStatusValidated(messageId, MessageStatus.Delivered, isPendingSync = false)
             supabase.postgrest["messages"].update({
                 set("status", "delivered")
             }) {
@@ -1077,4 +1083,29 @@ class ChatRepositoryImpl : ChatRepository {
             Result.failure(e)
         }
     }
+
+    // =========================================================================
+    // ChatConnectivity Contract Implementations
+    // =========================================================================
+    override fun observeConversations(): Flow<List<Conversation>> = getConversationsFlow()
+
+    override fun observeMessages(conversationId: String): Flow<List<Message>> = getMessagesFlow(conversationId)
+
+    override suspend fun acknowledgeDelivery(messageId: String, conversationId: String): Result<Unit> =
+        acknowledgeMessageDelivered(messageId, conversationId)
+
+    override suspend fun markAsRead(conversationId: String): Result<Unit> =
+        markMessagesAsRead(conversationId)
+
+    override suspend fun retryPendingQueue(): Result<Int> =
+        retryPendingMessages()
+
+    override suspend fun connectRealtime(conversationId: String) =
+        subscribeToRealtime(conversationId)
+
+    override suspend fun disconnectRealtime() =
+        unsubscribeRealtime()
+
+    override fun resolveCanonicalConversationId(currentUserId: String, peerUserId: String): String =
+        SignalEncryptionManager.getDeterministicConversationId(currentUserId, peerUserId)
 }

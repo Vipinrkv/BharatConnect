@@ -1,4 +1,4 @@
-﻿package com.bharatconnect.app.domain.connectivity
+package com.bharatconnect.app.domain.connectivity
 
 import com.bharatconnect.app.domain.model.Conversation
 import com.bharatconnect.app.domain.model.Message
@@ -39,8 +39,8 @@ interface ChatConnectivity {
     suspend fun sendMessage(
         conversationId: String,
         content: String,
-        mediaUrl: String? = null,
-        mediaType: String? = null
+        mediaUrl: String?,
+        mediaType: String?
     ): Result<Message>
 
     /**

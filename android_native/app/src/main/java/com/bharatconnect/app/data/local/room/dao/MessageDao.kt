@@ -1,11 +1,12 @@
-package com.bharatconnect.app.data.local.room.dao
+﻿package com.bharatconnect.app.data.local.room.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
+import androidx.room.Transaction
 import com.bharatconnect.app.data.local.room.entity.MessageEntity
+import com.bharatconnect.app.domain.model.state.MessageStatus
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -15,6 +16,9 @@ interface MessageDao {
 
     @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAt ASC")
     suspend fun getMessagesByConversation(conversationId: String): List<MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE id = :messageId LIMIT 1")
+    suspend fun getMessageById(messageId: String): MessageEntity?
 
     @Query("SELECT * FROM messages WHERE isPendingSync = 1 ORDER BY createdAt ASC")
     suspend fun getPendingSyncMessages(): List<MessageEntity>
@@ -63,4 +67,62 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE ephemeralDurationSec > 0 AND (strftime('%s', 'now') - strftime('%s', createdAt)) > ephemeralDurationSec")
     suspend fun purgeExpiredMessages(): Int
+
+    /**
+     * Atomically updates a message's status ONLY if the state transition is valid.
+     * Prevents invalid regressions (e.g. late delivery ACK downgrading terminal Read).
+     * Returns true if transition applied, false if rejected.
+     */
+    @Transaction
+    suspend fun updateMessageStatusValidated(
+        messageId: String,
+        targetStatus: MessageStatus,
+        isPendingSync: Boolean
+    ): Boolean {
+        val existing = getMessageById(messageId) ?: return false
+        val currentStatus = MessageStatus.fromString(existing.status)
+        return if (MessageStatus.canTransition(currentStatus, targetStatus)) {
+            updateMessageStatus(messageId, targetStatus.rawValue, isPendingSync)
+            true
+        } else {
+            false
+        }
+    }
+
+    /**
+     * Atomically upserts a message without downgrading an existing higher status.
+     * If message already exists in local SQLite with higher status (e.g. Read or Delivered),
+     * retains the existing higher status.
+     */
+    @Transaction
+    suspend fun upsertMessageSafely(message: MessageEntity) {
+        val existing = getMessageById(message.id)
+        if (existing == null) {
+            insertOrUpdateMessage(message)
+        } else {
+            val currentStatus = MessageStatus.fromString(existing.status)
+            val incomingStatus = MessageStatus.fromString(message.status)
+            val resolvedStatus = if (MessageStatus.canTransition(currentStatus, incomingStatus)) {
+                incomingStatus.rawValue
+            } else {
+                existing.status
+            }
+            val resolvedPendingSync = if (resolvedStatus == "sent" || resolvedStatus == "delivered" || resolvedStatus == "read") {
+                false
+            } else {
+                message.isPendingSync
+            }
+            insertOrUpdateMessage(message.copy(status = resolvedStatus, isPendingSync = resolvedPendingSync))
+        }
+    }
+
+    /**
+     * Safely inserts or updates a list of messages using state-machine downgrade protection.
+     */
+    @Transaction
+    suspend fun insertMessagesSafely(messages: List<MessageEntity>) {
+        for (message in messages) {
+            upsertMessageSafely(message)
+        }
+    }
 }

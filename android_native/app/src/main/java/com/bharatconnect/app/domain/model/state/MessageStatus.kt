@@ -1,22 +1,22 @@
-﻿package com.bharatconnect.app.domain.model.state
+package com.bharatconnect.app.domain.model.state
 
 /**
  * =========================================================================================
  * BHARATCONNECT FORMAL MESSAGE STATE MACHINE
  * =========================================================================================
  *
- * Models strict, irreversible progression of an outbound/inbound chat message.
- * Prevents invalid out-of-order transitions (e.g. late network delivery ACK cannot downgrade READ -> DELIVERED).
+ * Models strict, monotonic progression of chat message delivery.
+ * Prevents invalid out-of-order regressions (e.g. late network delivery ACK cannot downgrade READ -> DELIVERED).
  *
- * State Progression:
- * 1. Draft      -> Unsent text in UI compose box
- * 2. Pending    -> Saved locally in Room SQLite, queued for network dispatch (isPendingSync = 1)
- * 3. Sending    -> Network connection established, request actively in flight over HTTPS/WSS
- * 4. Sent       -> Persisted in Supabase PostgreSQL (Single grey tick "✓")
- * 5. Delivered  -> Recipient client received message & wrote to local SQLite (Double grey tick "✓✓")
- * 6. Read       -> Recipient actively opened conversation screen (Double sky-blue tick "✓✓")
- * 7. Failed     -> Permanent or transient failure (e.g. network dropped or rate limit)
- * 8. Retrying   -> WorkManager / Auto-retry engine re-dispatching from queue
+ * State Progression Hierarchy:
+ * 1. Draft      (Level 0)  -> Unsent text in UI compose box
+ * 2. Pending    (Level 1)  -> Saved locally in Room SQLite, queued for sync (isPendingSync = 1)
+ * 3. Sending    (Level 2)  -> Request actively in flight over network socket/HTTP
+ * 4. Sent       (Level 3)  -> Persisted in Supabase backend (Single grey tick "✓")
+ * 5. Delivered  (Level 4)  -> Recipient client received message & wrote to local DB (Double grey tick "✓✓")
+ * 6. Read       (Level 5)  -> Recipient viewed conversation (Double sky-blue tick "✓✓")
+ * 7. Failed     (Level -1) -> Network, timeout, or crypto failure occurred; retry enabled
+ * 8. Retrying   (Level 2)  -> WorkManager or manual retry actively re-attempting transmission
  */
 sealed class MessageStatus(val rawValue: String, val level: Int) {
     object Draft : MessageStatus("draft", 0)
@@ -27,6 +27,10 @@ sealed class MessageStatus(val rawValue: String, val level: Int) {
     object Read : MessageStatus("read", 5)
     object Failed : MessageStatus("failed", -1)
     object Retrying : MessageStatus("retrying", 2)
+
+    val isTerminal: Boolean get() = this is Read
+    val isSynced: Boolean get() = this is Sent || this is Delivered || this is Read
+    val isOutboundPending: Boolean get() = this is Draft || this is Pending || this is Sending || this is Retrying || this is Failed
 
     companion object {
         fun fromString(value: String?): MessageStatus {
@@ -39,22 +43,38 @@ sealed class MessageStatus(val rawValue: String, val level: Int) {
                 "read" -> Read
                 "failed" -> Failed
                 "retrying" -> Retrying
-                else -> Sent // Default safe fallback
+                else -> Sent // Safe default fallback for legacy/unrecognized strings
             }
         }
 
         /**
-         * Determines if an incoming state transition is valid.
-         * Enforces unidirectional forward progression:
-         * Cannot transition from Read -> Sent or Read -> Delivered.
-         * Failed can transition to Retrying or Pending.
+         * Validates whether a state transition from [current] to [next] is permitted.
+         * Enforces strict monotonic forward progression and prevents invalid regressions.
+         *
+         * Transition Invariants:
+         * 1. Idempotent: current == next is always permitted (no-op).
+         * 2. Read (Level 5): Terminal state. Cannot be downgraded to any other state.
+         * 3. Delivered (Level 4): Can only transition forward to Read. Cannot downgrade to Sent or fail.
+         * 4. Sent (Level 3): Can only transition forward to Delivered or Read. Cannot downgrade to Sending or fail.
+         * 5. Sending (Level 2): Can transition forward to Sent, Delivered, Read, or to Failed on error.
+         * 6. Retrying (Level 2): Can transition to Sending, Sent, Delivered, Read, or back to Failed.
+         * 7. Pending (Level 1): Can transition to Sending, Sent, or Failed.
+         * 8. Failed (Level -1): Can transition to Retrying, Pending, or Sending when retried.
+         * 9. Draft (Level 0): Can transition to Pending or Sending when queued.
          */
         fun canTransition(current: MessageStatus, next: MessageStatus): Boolean {
             if (current == next) return true // Idempotent no-op
-            if (current == Read) return false // Terminal read state cannot be downgraded
-            if (next == Failed) return true // Any non-read state can fail
-            if (current == Failed && (next == Retrying || next == Pending || next == Sending)) return true
-            return next.level > current.level
+
+            return when (current) {
+                is Read -> false // Terminal state: once read, never downgraded by late network ACKs
+                is Delivered -> next is Read
+                is Sent -> next is Delivered || next is Read
+                is Sending -> next is Sent || next is Delivered || next is Read || next is Failed
+                is Retrying -> next is Sending || next is Sent || next is Delivered || next is Read || next is Failed
+                is Pending -> next is Sending || next is Sent || next is Delivered || next is Read || next is Failed || next is Retrying
+                is Failed -> next is Retrying || next is Pending || next is Sending
+                is Draft -> next is Pending || next is Sending || next is Failed
+            }
         }
     }
 }
